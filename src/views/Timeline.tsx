@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { StateChip, UnsavedChip, WorkingChip } from '@/components/StateMark'
 import { VisualizadorArquivo } from '@/components/VisualizadorArquivo'
+import { OQueFazer } from '@/components/OQueFazer'
+import { acoesDeNaoSalvo, acoesDoEvento } from '@/lib/acoes'
 import { diaRelativo, horaDe, plural } from '@/lib/format'
 import { AGENT_LABEL } from '@/lib/state'
 import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/protocol'
@@ -209,6 +211,8 @@ function AgoraMesmo({ features }: { features: Feature[] }) {
           </li>
         ))}
       </ul>
+
+      {naoSalvos > 0 && <OQueFazer acoes={acoesDeNaoSalvo(features)} />}
     </div>
   )
 }
@@ -315,7 +319,9 @@ function Cartao({
           </div>
         </button>
 
-        {aberto && h && <Detalhes evento={evento} onAbrirArquivo={onAbrirArquivo} />}
+        {aberto && h && (
+          <Detalhes evento={evento} feature={feature} onAbrirArquivo={onAbrirArquivo} />
+        )}
       </article>
     </li>
   )
@@ -324,8 +330,10 @@ function Cartao({
 /** NÍVEL 2 — o que mudou, por quê, e o que isso afeta. */
 function Detalhes({
   evento,
+  feature,
   onAbrirArquivo,
 }: {
+  feature?: Feature
   evento: WtfEvent
   onAbrirArquivo: (caminho: string) => void
 }) {
@@ -373,6 +381,9 @@ function Detalhes({
           </p>
         </div>
       )}
+
+      {/* Diagnóstico sem saída é só ansiedade: todo alerta oferece uma ação. */}
+      {h.needsYourAttention && <OQueFazer acoes={acoesDoEvento(evento, feature)} />}
 
       {/* o que o agente realmente disse — guardado como dito */}
       {evento.claim && (

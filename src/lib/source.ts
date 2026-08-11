@@ -15,7 +15,7 @@ interface PonteWtf {
   escolherProjeto?: () => Promise<unknown>
   instalar?: () => Promise<unknown>
   desinstalar?: () => Promise<unknown>
-  abrirTerminal?: () => Promise<unknown>
+  abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
   lerArquivo?: (relativo: string) => Promise<unknown>
   aoMudarProjeto?: (cb: (motivo: string) => void) => () => void
@@ -70,10 +70,13 @@ export async function carregar(): Promise<Carga> {
 export const podeInstalar = () => typeof ponte()?.instalar === 'function'
 export const podeAbrirTerminal = () => typeof ponte()?.abrirTerminal === 'function'
 
-export async function abrirTerminal(): Promise<{ agente?: string; erro?: string } | null> {
+/** Abre a IA numa janela nova. Com `mensagem`, ela já começa escrita. */
+export async function abrirTerminal(
+  mensagem?: string,
+): Promise<{ agente?: string; erro?: string } | null> {
   const p = ponte()
   if (!p?.abrirTerminal) return null
-  return (await p.abrirTerminal()) as { agente?: string; erro?: string }
+  return (await p.abrirTerminal(mensagem)) as { agente?: string; erro?: string }
 }
 
 export const podeLerArquivo = () => typeof ponte()?.lerArquivo === 'function'

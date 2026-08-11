@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('wtf', {
   instalar: () => ipcRenderer.invoke('wtf:instalar'),
   desinstalar: () => ipcRenderer.invoke('wtf:desinstalar'),
   /** Abre o terminal do sistema na pasta, já com o agente rodando. */
-  abrirTerminal: () => ipcRenderer.invoke('wtf:abrir-terminal'),
+  abrirTerminal: (mensagem) => ipcRenderer.invoke('wtf:abrir-terminal', mensagem),
   /** Abre o agente já pedindo o mapeamento do projeto (onboarding). */
   mapear: () => ipcRenderer.invoke('wtf:mapear'),
   /** Lê um arquivo do projeto para exibir dentro do app. */
