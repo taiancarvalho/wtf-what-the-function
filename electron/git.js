@@ -78,6 +78,12 @@ export async function readProjectMeta(dir) {
   };
 }
 
+/** Existe pelo menos um commit alcançável? Repo novo em folha responde não. */
+async function temCommits(dir) {
+  const r = await gitSafe(dir, ['rev-parse', '--verify', 'HEAD']);
+  return Boolean(r && r.trim());
+}
+
 // Normaliza caminhos de rename do --numstat para o caminho NOVO.
 // Formatos: "old => new" e "pre{a => b}post".
 function normalizeRenamePath(p) {
@@ -116,6 +122,16 @@ function detectAgent(body, author, authorEmail) {
 
 export async function readCommits(dir, limit = 60) {
   await assertRepo(dir);
+
+  /*
+   * Repositório recém-criado, ainda sem nenhum commit.
+   *
+   * `git log` falha aqui ("your current branch 'main' does not have any commits
+   * yet"), e isso NÃO é um erro: é o primeiro minuto de vida de todo projeto —
+   * exatamente quando alguém abriria o WTF pela primeira vez. Sem histórico
+   * ainda, mas os arquivos no disco já contam a história.
+   */
+  if (!(await temCommits(dir))) return [];
 
   const n = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 60;
 

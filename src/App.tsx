@@ -22,6 +22,42 @@ const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] 
   { id: 'mapa', label: 'Mapa', icone: Blocks, nota: 'Do que é feito' },
 ]
 
+/**
+ * Erro traduzido.
+ *
+ * Um comando de terminal despejado na tela é a pior coisa que este app pode
+ * fazer: ele existe justamente para quem não sabe ler isso. O texto cru fica
+ * disponível, mas escondido atrás de "detalhes".
+ */
+function AvisoErro({ erro }: { erro: string }) {
+  const humano = /does not have any commits yet|unknown revision/i.test(erro)
+    ? 'Esse projeto ainda não tem nenhuma versão salva. Assim que a primeira for guardada, o painel começa a mostrar o que está acontecendo.'
+    : /not a git repository|não é um repositório/i.test(erro)
+      ? 'Essa pasta ainda não é acompanhada pelo Git, então o WTF não consegue ver o histórico dela.'
+      : /permission|EACCES/i.test(erro)
+        ? 'O WTF não tem permissão para ler essa pasta.'
+        : 'Não consegui ler esse projeto.'
+
+  return (
+    <div className="mt-3">
+      <p
+        className="text-[11.5px] leading-snug"
+        style={{ color: 'var(--color-warn)' }}
+      >
+        {humano}
+      </p>
+      <details className="mt-1">
+        <summary className="no-drag cursor-default list-none text-[11px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
+          detalhes técnicos
+        </summary>
+        <p className="mt-1 font-mono text-[10.5px] leading-snug break-all text-[var(--color-ink-3)]">
+          {erro}
+        </p>
+      </details>
+    </div>
+  )
+}
+
 export function App() {
   const [carga, setCarga] = useState<Carga | null>(null)
   const [aba, setAba] = useState<Aba>('timeline')
@@ -107,14 +143,7 @@ export function App() {
             <InstalarSkill instalacao={snapshot.instalacao} onMudou={setCarga} />
           )}
 
-          {erro && (
-            <p
-              className="mt-2 text-[11.5px] leading-snug"
-              style={{ color: 'var(--color-warn)' }}
-            >
-              {erro}
-            </p>
-          )}
+          {erro && <AvisoErro erro={erro} />}
         </div>
 
         <nav className="no-drag flex flex-col gap-0.5 px-3">

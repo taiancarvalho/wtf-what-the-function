@@ -4,3 +4,12 @@ dist-electron
 release
 .DS_Store
 *.log
+
+# O WTF observa a si mesmo: ao abrir esta pasta no app, ele se instala aqui.
+# Tudo abaixo é GERADO a partir de `skill/`, que é a fonte de verdade — se
+# versionássemos as cópias, editar uma e esquecer a outra seria questão de tempo.
+.wtf/
+.claude/skills/wtf/
+.claude/skills/wtf-mapear/
+.claude/hooks/wtf-observer.cjs
+*.wtf-backup-*

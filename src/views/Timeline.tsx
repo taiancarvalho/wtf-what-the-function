@@ -126,9 +126,24 @@ export function Timeline({ snapshot }: { snapshot: ProjectSnapshot }) {
           </section>
         ))}
 
-        <p className="mt-10 text-center text-[13px] text-[var(--color-ink-3)]">
-          Começo do projeto.
-        </p>
+        {snapshot.events.length === 0 ? (
+          /* Projeto sem nenhuma versão salva ainda — o primeiro minuto de vida
+             de todo projeto, e uma hora provável de alguém abrir o WTF. */
+          <div className="card mt-4 px-6 py-8 text-center">
+            <p className="font-display text-[17px] leading-snug font-medium">
+              Ainda não há nada para contar.
+            </p>
+            <p className="mx-auto mt-2 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
+              Este projeto ainda não tem nenhuma versão guardada. Assim que a
+              primeira for salva — ou assim que a IA começar a trabalhar — o que
+              acontecer aparece aqui.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-10 text-center text-[13px] text-[var(--color-ink-3)]">
+            Começo do projeto.
+          </p>
+        )}
       </div>
 
       <VisualizadorArquivo caminho={arquivoAberto} onFechar={() => setArquivoAberto(null)} />
