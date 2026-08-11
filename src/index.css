@@ -1,0 +1,194 @@
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'tailwindcss';
+
+/*
+  WTF — sistema visual
+  ────────────────────
+  Direção: papel editorial. Este app é o jornal diário do seu software, não um
+  painel de dev. Serifa com voz (Fraunces) para o que é humano, sans neutra
+  (Instrument) para interface, mono (JetBrains) só quando o técnico aparece.
+  Regra: o técnico está sempre um clique ABAIXO, nunca na superfície.
+*/
+
+@theme {
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-paper: #f6f2e9;
+  --color-paper-2: #efe9dc;
+  --color-paper-3: #e6dece;
+  --color-ink: #1c1917;
+  --color-ink-2: #57534e;
+  --color-ink-3: #8a8178;
+  --color-rule: #d9d0be;
+
+  --color-accent: #a2522a;
+  --color-accent-soft: #e8d3c4;
+
+  /* estados — cada um é uma cor, nunca só um ícone */
+  --color-planned: #a8a29e;
+  --color-building: #b8860b;
+  --color-implemented: #2f6f77;
+  --color-tested: #4f7a3a;
+  --color-validated: #a2522a;
+
+  --color-warn: #a1502a;
+  --color-danger: #96322a;
+
+  --radius-card: 10px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------- dark ---
+   Noite no mesmo papel: a tinta inverte, o calor permanece. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-paper: #15130f;
+    --color-paper-2: #1c1a15;
+    --color-paper-3: #24211b;
+    --color-ink: #f2ece1;
+    --color-ink-2: #b3aa9c;
+    --color-ink-3: #7d7568;
+    --color-rule: #332f27;
+    --color-accent: #d98d5f;
+    --color-accent-soft: #3a2a20;
+
+    --color-planned: #6b655c;
+    --color-building: #d4a336;
+    --color-implemented: #57a3ac;
+    --color-tested: #86b06a;
+    --color-validated: #d98d5f;
+
+    --color-warn: #d9895c;
+    --color-danger: #d97066;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-rule);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+
+    /* grão de papel: ruído sutil, some no dark */
+    background-image: radial-gradient(
+        circle at 12% 8%,
+        color-mix(in oklab, var(--color-accent) 6%, transparent),
+        transparent 42%
+      ),
+      radial-gradient(
+        circle at 88% 92%,
+        color-mix(in oklab, var(--color-implemented) 5%, transparent),
+        transparent 46%
+      );
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-ink-3) 40%, transparent);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--color-ink-3) 70%, transparent);
+    background-clip: content-box;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: default;
+  }
+}
+
+@layer utilities {
+  /* área arrastável da janela do Electron */
+  .drag {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    font-variation-settings: 'SOFT' 20, 'WONK' 1, 'opsz' 40;
+  }
+
+  /* filete duplo de jornal */
+  .rule-double {
+    border-top: 1px solid var(--color-rule);
+    box-shadow: 0 3px 0 -2px var(--color-rule);
+  }
+
+  .card {
+    background: color-mix(in oklab, var(--color-paper-2) 72%, transparent);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-card);
+  }
+
+  .animate-in-up {
+    animation: in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .pulse-live {
+    animation: pulse-live 2.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-live {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-building) 55%, transparent);
+    }
+    60% {
+      opacity: 0.85;
+      box-shadow: 0 0 0 7px transparent;
+    }
+  }
+}
