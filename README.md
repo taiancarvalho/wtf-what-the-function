@@ -108,3 +108,8 @@ Funciona de ponta a ponta contra repositórios reais. Ainda não existe:
 ## Stack
 
 Electron · React 19 · TypeScript · Vite · Tailwind v4 · Fraunces + Instrument Sans
+
+## Licença
+
+[MIT](LICENSE) — use, copie, modifique e distribua à vontade, inclusive
+comercialmente, mantendo o aviso de copyright.

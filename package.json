@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "Entenda o que a IA está construindo no seu software, sem saber programar.",
+  "license": "MIT",
+  "author": "Taian Carvalho",
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
