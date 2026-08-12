@@ -10,17 +10,38 @@ import {
 import { Compartilhar } from '@/components/Compartilhar'
 
 /**
- * Ações da janela, no canto superior direito.
+ * A faixa do topo: onde você está, à esquerda; o que dá para fazer, à direita.
+ *
+ * POR QUÊ ela deixou de ser só um canto: eram 46px de altura atravessando
+ * 1253px de largura com três botões grudados na direita — 84% de faixa vazia,
+ * igual em todas as nove abas. A faixa equivalente do Linear é usada de ponta
+ * a ponta, com o nome do que se está vendo à esquerda e o contador vivo. Aqui
+ * ela recebeu três coisas, nessa ordem de leitura: o nome da seção, a frase que
+ * explica para que ela serve (a mesma legenda que saiu de baixo dos 9 itens do
+ * menu) e o número que importa nesta tela — "Acontecendo · o que a IA mexeu ·
+ * 12 mudanças".
+ *
+ * A faixa inteira continua sendo a alça de arrastar a janela; só os botões
+ * repõem `no-drag`.
  *
  * "Atualizar" é redundante por design: o painel já se atualiza sozinho quando o
  * projeto muda. O botão existe porque, para quem não programa, ver um botão de
  * atualizar é a diferença entre confiar no painel e desconfiar dele.
  */
 export function BarraTopo({
+  secao,
+  nota,
+  contagem,
   atualizando,
   atualizadoEm,
   onAtualizar,
 }: {
+  /** Nome da aba aberta, já traduzido. */
+  secao: string
+  /** A frase de uma linha que diz para que essa aba serve. */
+  nota: string
+  /** O número vivo da seção. `null` quando a seção não tem número nenhum. */
+  contagem: string | null
   atualizando: boolean
   atualizadoEm: number
   onAtualizar: () => void
@@ -70,52 +91,87 @@ export function BarraTopo({
         : t('topo.minutos', { n: Math.floor(segundos / 60) })
 
   return (
-    <div className="no-drag absolute top-2 right-5 z-30 flex items-center gap-2">
-      {aviso && (
-        <span
-          className="animate-in-up max-w-[300px] truncate rounded-full border bg-[var(--color-paper-2)] px-3 py-1.5 text-[12px] text-[var(--color-ink-2)]"
-          title={aviso}
-        >
-          {aviso}
+    <div className="gap-card flex h-full items-center px-5">
+      {/*
+        Onde você está. Um só tamanho para as três informações — o degrau de
+        metadado (13px) —, separadas por tinta: o nome em tinta cheia, a
+        explicação em tinta quieta, o número de volta na tinta de leitura,
+        porque é ele que muda sozinho enquanto a pessoa olha.
+
+        Nada aqui é alerta, então nada aqui usa a cor de alerta: um contador
+        não é um aviso, e pintá-lo de carmim faria toda tela parecer um
+        problema.
+      */}
+      <p className="gap-item text-meta flex min-w-0 flex-1 items-baseline truncate">
+        <span className="shrink-0 font-medium text-[var(--color-ink)]">{secao}</span>
+        {nota && (
+          <span className="min-w-0 truncate text-[var(--color-ink-3)]">
+            <span aria-hidden className="mr-item">
+              ·
+            </span>
+            {nota}
+          </span>
+        )}
+        {contagem && (
+          <span className="shrink-0 text-[var(--color-ink-2)]">
+            <span aria-hidden className="mr-item text-[var(--color-ink-3)]">
+              ·
+            </span>
+            {contagem}
+          </span>
+        )}
+      </p>
+
+      {/* As ações. `relative` porque o painel de compartilhar se pendura na
+          borda direita deste grupo, e `no-drag` porque tudo aqui é clicável —
+          o resto da faixa continua arrastando a janela. */}
+      <div className="no-drag gap-item relative z-30 flex shrink-0 items-center">
+        {aviso && (
+          <span
+            className="animate-in-up text-meta max-w-[300px] truncate rounded-full border bg-[var(--color-paper-2)] px-3 py-1.5 text-[var(--color-ink-2)]"
+            title={aviso}
+          >
+            {aviso}
+          </span>
+        )}
+
+        <span className="text-meta mr-hair text-[var(--color-ink-3)]">
+          {t('topo.atualizado', { quando })}
         </span>
-      )}
 
-      <span className="mr-0.5 text-[11.5px] text-[var(--color-ink-3)]">
-        {t('topo.atualizado', { quando })}
-      </span>
-
-      <Botao
-        titulo={t('topo.atualizar')}
-        onClick={onAtualizar}
-        aria-label={t('topo.atualizarRotulo')}
-      >
-        <RefreshCw
-          size={14.5}
-          className={atualizando ? 'animate-spin' : undefined}
-          strokeWidth={2}
-        />
-      </Botao>
-
-      <Botao
-        titulo={t('compartilhar.titulo')}
-        onClick={() => setCompartilhando((v) => !v)}
-        aria-label={t('compartilhar.abrir')}
-      >
-        <Share2 size={14.5} strokeWidth={2} />
-      </Botao>
-
-      {podeAbrirTerminal() && (
         <Botao
-          titulo={t('topo.trabalharDica')}
-          onClick={(e) => void aoAbrirTerminal(e)}
-          destaque
+          titulo={t('topo.atualizar')}
+          onClick={onAtualizar}
+          aria-label={t('topo.atualizarRotulo')}
         >
-          <SquareTerminal size={14.5} strokeWidth={2} />
-          <span className="text-[12.5px] font-medium">{t('topo.trabalhar')}</span>
+          <RefreshCw
+            size={15}
+            className={atualizando ? 'animate-spin' : undefined}
+            strokeWidth={2}
+          />
         </Botao>
-      )}
 
-      {compartilhando && <Compartilhar onFechar={() => setCompartilhando(false)} />}
+        <Botao
+          titulo={t('compartilhar.titulo')}
+          onClick={() => setCompartilhando((v) => !v)}
+          aria-label={t('compartilhar.abrir')}
+        >
+          <Share2 size={15} strokeWidth={2} />
+        </Botao>
+
+        {podeAbrirTerminal() && (
+          <Botao
+            titulo={t('topo.trabalharDica')}
+            onClick={(e) => void aoAbrirTerminal(e)}
+            destaque
+          >
+            <SquareTerminal size={15} strokeWidth={2} />
+            <span className="text-meta font-medium">{t('topo.trabalhar')}</span>
+          </Botao>
+        )}
+
+        {compartilhando && <Compartilhar onFechar={() => setCompartilhando(false)} />}
+      </div>
     </div>
   )
 }
@@ -136,7 +192,7 @@ function Botao({
     <button
       title={titulo}
       onClick={onClick}
-      className="flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-colors"
+      className="no-drag gap-hair flex items-center rounded-full border px-2.5 py-1.5 transition-colors"
       style={
         destaque
           ? {

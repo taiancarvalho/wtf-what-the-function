@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   CornerUpLeft,
   FileText,
   FolderTree,
@@ -43,9 +44,30 @@ import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/prot
  *
  * Quatro níveis de profundidade, revelados um por vez:
  *   1. manchete  — sempre visível
- *   2. detalhes  — ao abrir o cartão
+ *   2. detalhes  — ao escolher o cartão (no trilho da direita, ou dentro do
+ *                  cartão quando não há largura para o trilho)
  *   3. técnico   — atrás de "Ver parte técnica"
  *   4. código    — atrás de "Ver o código"
+ *
+ * ─── o que mudou depois do diagnóstico (.gauntlet/diagnostico/RESUMO.md) ───
+ *
+ * POR QUÊ a tela deixou de ser uma coluna centrada: 41% da janela era papel em
+ * branco — uma coluna de 652px numa tela de 1456. A leitura desceu para a
+ * esquerda (a linha de texto continua com a mesma medida) e os 400px que
+ * sobravam viraram um trilho com o índice de dias, o filtro de atenção e o
+ * DETALHE do cartão escolhido. Antes o detalhe abria DENTRO do cartão e
+ * empurrava o resto do feed para centenas de pixels abaixo: ler uma mudança
+ * custava perder a fila inteira de vista.
+ *
+ * POR QUÊ os tamanhos de letra encolheram para cinco: havia quatro tamanhos
+ * (14,5 / 14 / 13,5 / 13px) fazendo o MESMO papel — parágrafo que a pessoa lê.
+ * Diferença de 0,5px não comunica hierarquia, só ruído. Agora todo parágrafo é
+ * `text-lead`, todo metadado é `text-meta`, todo rótulo é `.label`.
+ *
+ * POR QUÊ o espaçamento passou a usar os quatro degraus: toda separação era
+ * 16px — o mesmo valor do respiro interno dos cartões. Se o espaço DENTRO de um
+ * grupo é igual ao espaço ENTRE grupos, nada agrupa. Aqui: `item` (8) entre
+ * cartões irmãos, `card` (16) dentro do cartão, `group` (32) entre os dias.
  */
 
 const ICONE: Record<EventType, typeof Hammer> = {
@@ -58,6 +80,17 @@ const ICONE: Record<EventType, typeof Hammer> = {
   'docs.reorganized': FolderTree,
   'user.validated': ThumbsUp,
 }
+
+/**
+ * A partir de que largura a tela vira duas colunas.
+ *
+ * 400 de trilho + 640 de leitura. Abaixo disso o trilho roubaria medida da
+ * linha de texto, que é o único número desta tela que NÃO pode encolher — então
+ * volta a ser uma coluna só, com o detalhe abrindo dentro do cartão, como antes.
+ * A conta é feita sobre a largura REAL do painel (não da janela), porque a
+ * lateral e o terminal encostado à direita comem espaço sem a janela mudar.
+ */
+const LARGURA_PARA_TRILHO = 1040
 
 export function Timeline({
   snapshot,
@@ -73,6 +106,24 @@ export function Timeline({
   const [arquivoAberto, setArquivoAberto] = useState<string | null>(null)
   // A mudança sobre a qual se está perguntando. Um painel de cada vez.
   const [perguntandoSobre, setPerguntandoSobre] = useState<WtfEvent | null>(null)
+
+  const raiz = useRef<HTMLDivElement>(null)
+  const [largura, setLargura] = useState(0)
+  // Medido antes da pintura para a tela não nascer numa coluna e pular para
+  // duas no quadro seguinte.
+  useLayoutEffect(() => {
+    const el = raiz.current
+    if (!el) return
+    setLargura(el.getBoundingClientRect().width)
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entradas) => {
+      const w = entradas[0]?.contentRect.width
+      if (typeof w === 'number') setLargura(w)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const comTrilho = largura >= LARGURA_PARA_TRILHO
 
   const featurePorId = useMemo(
     () => new Map(snapshot.features.map((f) => [f.id, f])),
@@ -93,97 +144,177 @@ export function Timeline({
   const precisamAtencao = assuntos.filter((a) => a.pedeAtencao).length
 
   // agrupa por dia, mantendo a ordem já invertida do mock
-  const dias: { rotulo: string; assuntos: Assunto[] }[] = []
+  const dias: { chave: string; rotulo: string; assuntos: Assunto[] }[] = []
   for (const a of visiveis) {
     const rotulo = diaRelativo(a.aviso.at)
     const ultimo = dias.at(-1)
     if (ultimo?.rotulo === rotulo) ultimo.assuntos.push(a)
-    else dias.push({ rotulo, assuntos: [a] })
+    else dias.push({ chave: `${rotulo}-${dias.length}`, rotulo, assuntos: [a] })
   }
 
+  // O cartão escolhido é procurado entre os VISÍVEIS: se o filtro de atenção
+  // tirou da lista o cartão que estava aberto, o trilho não pode continuar
+  // mostrando o detalhe de algo que sumiu da tela.
+  const escolhido = visiveis.find((a) => a.aviso.id === aberto) ?? null
+
+  // Clicar um dia no índice leva a leitura até ele. Sem `behavior: 'smooth'`:
+  // o deslize animado é ignorado nesta janela (medido — o feed simplesmente
+  // não saía do lugar), e um índice que não leva a lugar nenhum é pior do que
+  // não ter índice. O salto seco também orienta melhor: a pessoa clicou num
+  // dia, ela quer estar naquele dia.
+  const coluna = useRef<HTMLDivElement>(null)
+  function irParaDia(chave: string) {
+    const secao = coluna.current?.querySelector(`[data-dia="${CSS.escape(chave)}"]`)
+    if (!secao || !coluna.current) return
+    const alto =
+      coluna.current.scrollTop +
+      secao.getBoundingClientRect().top -
+      coluna.current.getBoundingClientRect().top
+    coluna.current.scrollTop = alto
+  }
+
+  const filtro =
+    precisamAtencao > 0 ? (
+      <FiltroAtencao
+        ligado={soAtencao}
+        quantos={precisamAtencao}
+        onAlternar={() => setSoAtencao((v) => !v)}
+      />
+    ) : null
+
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-[720px] px-8 pt-7 pb-24">
-        <header className="animate-in-up mb-8">
-          <h1 className="font-display text-[27px] leading-[1.15] font-semibold">
-            {t('feed.titulo', { projeto: snapshot.project.name })}
-          </h1>
+    <div ref={raiz} className="h-full min-h-0">
+      <div className="flex h-full min-h-0">
+        {/* ─────────────────────────────────────────────── coluna de leitura ─
+            Alinhada à esquerda, não centrada. A medida da linha (720 menos os
+            32 de respiro de cada lado) é a mesma de antes — o que sumiu foi a
+            margem morta que existia dos dois lados dela. */}
+        <div ref={coluna} className="min-w-0 flex-1 overflow-y-auto">
+          <div className="pt-group px-group max-w-[720px] pb-[calc(var(--spacing-group)*3)]">
+            <header className="animate-in-up mb-group">
+              {/* Uma manchete por tela: `text-display`. Antes era 27px com a
+                  entrelinha escrita à mão ao lado; agora o degrau traz o
+                  tamanho, o peso e a entrelinha juntos. */}
+              <h1 className="font-display text-display">
+                {t('feed.titulo', { projeto: snapshot.project.name })}
+              </h1>
 
-          <AgoraMesmo features={snapshot.features} />
+              <AgoraMesmo features={snapshot.features} />
 
-          <FaixaTraducao onTraduziu={onMudou} />
+              <FaixaTraducao onTraduziu={onMudou} />
 
-          {precisamAtencao > 0 && (
-            <button
-              onClick={() => setSoAtencao((v) => !v)}
-              className="no-drag mt-5 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] transition-colors"
-              style={{
-                borderColor: soAtencao
-                  ? 'var(--color-warn)'
-                  : 'color-mix(in oklab, var(--color-warn) 35%, transparent)',
-                background: soAtencao
-                  ? 'color-mix(in oklab, var(--color-warn) 13%, transparent)'
-                  : 'transparent',
-                color: 'var(--color-warn)',
-              }}
-            >
-              <AlertTriangle size={14} />
-              {soAtencao
-                ? t('feed.filtrando')
-                : precisamAtencao === 1
-                  ? t('feed.pedeAtencao')
-                  : t('feed.pedemAtencao', { n: precisamAtencao })}
-            </button>
-          )}
-        </header>
+              {/* Sem trilho, o filtro continua no cabeçalho, onde sempre esteve. */}
+              {!comTrilho && filtro && <div className="mt-card">{filtro}</div>}
+            </header>
 
-        {dias.map((dia, di) => (
-          <section key={dia.rotulo + di} className="mb-2">
-            <div className="rule-double sticky top-0 z-10 -mx-2 mb-4 bg-[var(--color-paper)]/92 px-2 pt-3 pb-2 backdrop-blur-sm">
-              <h2 className="font-display text-[13px] tracking-[0.1em] text-[var(--color-ink-3)] uppercase">
-                {dia.rotulo}
-              </h2>
+            {dias.map((dia) => (
+              <section key={dia.chave} data-dia={dia.chave} className="mb-group">
+                <div className="rule-double pt-item pb-item px-item -mx-item bg-[var(--color-paper)]/92 mb-card sticky top-0 z-10 backdrop-blur-sm">
+                  {/* POR QUÊ `.label`: o rótulo do dia estava a 13px em serifa
+                      com 0,1em de espacejamento — tamanho de corpo fazendo
+                      papel de etiqueta. */}
+                  <h2 className="label text-[var(--color-ink-3)]">{dia.rotulo}</h2>
+                </div>
+
+                <ol className="relative">
+                  {/* o fio da linha do tempo */}
+                  <span
+                    aria-hidden
+                    className="absolute top-2 bottom-2 left-[7px] w-px"
+                    style={{ background: 'var(--color-rule)' }}
+                  />
+                  {dia.assuntos.map((a, i) => (
+                    <Cartao
+                      key={a.aviso.id}
+                      assunto={a}
+                      feature={featurePorId.get(a.aviso.featureId)}
+                      aberto={aberto === a.aviso.id}
+                      comTrilho={comTrilho}
+                      onToggle={() => setAberto(aberto === a.aviso.id ? null : a.aviso.id)}
+                      onAbrirArquivo={setArquivoAberto}
+                      onPerguntar={setPerguntandoSobre}
+                      onMudou={onMudou}
+                      delay={i * 0.045}
+                    />
+                  ))}
+                </ol>
+              </section>
+            ))}
+
+            {snapshot.events.length === 0 ? (
+              /* Projeto sem nenhuma versão salva ainda — o primeiro minuto de
+                 vida de todo projeto, e uma hora provável de alguém abrir o WTF. */
+              <div className="card p-card mt-card text-center">
+                <p className="font-display text-title">{t('feed.vazioTitulo')}</p>
+                <p className="mt-hair text-lead mx-auto max-w-[46ch] text-[var(--color-ink-2)]">
+                  {t('feed.vazioTexto')}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-group text-meta text-center text-[var(--color-ink-3)]">
+                {t('feed.comeco')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ────────────────────────────────────────────────────────── trilho ─
+            Os 400px que antes eram margem. Índice de dias e filtro em cima
+            (não rolam junto com o feed), detalhe embaixo com rolagem própria:
+            ler uma mudança longa deixou de custar a fila de vista. */}
+        {comTrilho && (
+          <aside
+            className="flex w-[400px] shrink-0 flex-col border-l"
+            style={{ borderColor: 'var(--color-rule)' }}
+          >
+            <div className="p-card shrink-0 border-b" style={{ borderColor: 'var(--color-rule)' }}>
+              {filtro}
+              <ul className={`max-h-[30vh] overflow-y-auto ${filtro ? 'mt-card' : ''}`}>
+                {dias.map((dia) => (
+                  <li key={dia.chave}>
+                    <button
+                      type="button"
+                      onClick={() => irParaDia(dia.chave)}
+                      className="no-drag gap-item px-hair py-item flex w-full cursor-pointer items-baseline justify-between rounded text-left transition-colors hover:bg-[var(--color-paper-3)]"
+                    >
+                      <span className="label text-[var(--color-ink-2)]">{dia.rotulo}</span>
+                      <span className="text-meta tabular-nums text-[var(--color-ink-3)]">
+                        {dia.assuntos.length}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <ol className="relative">
-              {/* o fio da linha do tempo */}
-              <span
-                aria-hidden
-                className="absolute top-2 bottom-2 left-[7px] w-px"
-                style={{ background: 'var(--color-rule)' }}
-              />
-              {dia.assuntos.map((a, i) => (
-                <Cartao
-                  key={a.aviso.id}
-                  assunto={a}
-                  feature={featurePorId.get(a.aviso.featureId)}
-                  aberto={aberto === a.aviso.id}
-                  onToggle={() => setAberto(aberto === a.aviso.id ? null : a.aviso.id)}
-                  onAbrirArquivo={setArquivoAberto}
-                  onPerguntar={setPerguntandoSobre}
-                  onMudou={onMudou}
-                  delay={i * 0.045}
-                />
-              ))}
-            </ol>
-          </section>
-        ))}
-
-        {snapshot.events.length === 0 ? (
-          /* Projeto sem nenhuma versão salva ainda — o primeiro minuto de vida
-             de todo projeto, e uma hora provável de alguém abrir o WTF. */
-          <div className="card mt-4 px-6 py-8 text-center">
-            <p className="font-display text-[17px] leading-snug font-medium">
-              {t('feed.vazioTitulo')}
-            </p>
-            <p className="mx-auto mt-2 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-              {t('feed.vazioTexto')}
-            </p>
-          </div>
-        ) : (
-          <p className="mt-10 text-center text-[13px] text-[var(--color-ink-3)]">
-            {t('feed.comeco')}
-          </p>
+            <div id="trilho-detalhe" className="min-h-0 flex-1 overflow-y-auto">
+              {escolhido?.aviso.human && (
+                <>
+                  <div className="p-card">
+                    <LinhaMeta
+                      evento={escolhido.aviso}
+                      feature={featurePorId.get(escolhido.aviso.featureId)}
+                    />
+                    <h2 className="font-display text-title mt-item text-balance">
+                      {escolhido.aviso.human.headline}
+                    </h2>
+                    <Selos
+                      assunto={escolhido}
+                      feature={featurePorId.get(escolhido.aviso.featureId)}
+                    />
+                  </div>
+                  <Detalhes
+                    assunto={escolhido}
+                    evento={escolhido.aviso}
+                    feature={featurePorId.get(escolhido.aviso.featureId)}
+                    onAbrirArquivo={setArquivoAberto}
+                    onPerguntar={setPerguntandoSobre}
+                    onMudou={onMudou}
+                  />
+                </>
+              )}
+            </div>
+          </aside>
         )}
       </div>
 
@@ -201,10 +332,45 @@ export function Timeline({
 }
 
 /**
- * O que a IA declarou que está fazendo e ainda não terminou.
- * É a resposta para "o que está acontecendo neste exato momento?" — a pergunta
- * de quem fica olhando o painel enquanto o agente trabalha.
+ * "Só o que pede atenção". Mora no trilho quando há trilho, no cabeçalho quando
+ * não há — a mesma peça nos dois lugares, para o filtro não mudar de forma
+ * quando a janela muda de tamanho.
  */
+function FiltroAtencao({
+  ligado,
+  quantos,
+  onAlternar,
+}: {
+  ligado: boolean
+  quantos: number
+  onAlternar: () => void
+}) {
+  const t = useT()
+  return (
+    <button
+      onClick={onAlternar}
+      aria-pressed={ligado}
+      className="no-drag gap-item text-meta inline-flex items-center rounded-full border px-3 py-1.5 transition-colors"
+      style={{
+        borderColor: ligado
+          ? 'var(--color-danger)'
+          : 'color-mix(in oklab, var(--color-danger) 35%, transparent)',
+        background: ligado
+          ? 'color-mix(in oklab, var(--color-danger) 13%, transparent)'
+          : 'transparent',
+        color: 'var(--color-danger)',
+      }}
+    >
+      <AlertTriangle size={14} />
+      {ligado
+        ? t('feed.filtrando')
+        : quantos === 1
+          ? t('feed.pedeAtencao')
+          : t('feed.pedemAtencao', { n: quantos })}
+    </button>
+  )
+}
+
 /**
  * A porta para traduzir o que ainda está em linguagem de commit.
  *
@@ -250,31 +416,29 @@ function FaixaTraducao({ onTraduziu }: { onTraduziu?: () => void }) {
   }
 
   if (feito) {
-    return (
-      <p className="mt-5 text-[12.5px] text-[var(--color-ink-3)]">{t('traduzir.emCurso')}</p>
-    )
+    return <p className="mt-card text-meta text-[var(--color-ink-3)]">{t('traduzir.emCurso')}</p>
   }
 
   return (
     <div
-      className="animate-in-up mt-5 rounded-xl border p-4"
+      className="animate-in-up mt-card p-card rounded-xl border"
       style={{
         borderColor: 'color-mix(in oklab, var(--color-accent) 32%, transparent)',
         background: 'color-mix(in oklab, var(--color-accent) 6%, transparent)',
       }}
     >
-      <p className="flex items-center gap-1.5 text-[13px] font-medium">
+      <p className="gap-hair text-lead flex items-center font-medium">
         <Languages size={14} className="shrink-0 text-[var(--color-accent)]" />
         {t('traduzir.titulo', { n: pendentes })}
       </p>
-      <p className="mt-1 max-w-[58ch] text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+      <p className="mt-hair text-lead max-w-[58ch] text-[var(--color-ink-2)]">
         {t('traduzir.nota')}
       </p>
-      <div className="mt-2.5 flex flex-wrap gap-2">
+      <div className="mt-card gap-item flex flex-wrap">
         <button
           onClick={() => void traduzir('agora')}
           disabled={indo}
-          className="no-drag inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium disabled:opacity-60"
+          className="no-drag gap-hair text-meta inline-flex items-center rounded-md px-3 py-1.5 font-medium disabled:opacity-60"
           style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
         >
           {indo ? <Loader2 size={13} className="animate-spin" /> : <Languages size={13} />}
@@ -283,7 +447,7 @@ function FaixaTraducao({ onTraduziu }: { onTraduziu?: () => void }) {
         <button
           onClick={() => void traduzir('sempre')}
           disabled={indo}
-          className="no-drag rounded-md border px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-60"
+          className="no-drag text-meta rounded-md border px-3 py-1.5 text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-60"
           style={{ borderColor: 'var(--color-rule)' }}
         >
           {t('traduzir.sempre')}
@@ -293,6 +457,11 @@ function FaixaTraducao({ onTraduziu }: { onTraduziu?: () => void }) {
   )
 }
 
+/**
+ * O que a IA declarou que está fazendo e ainda não terminou.
+ * É a resposta para "o que está acontecendo neste exato momento?" — a pergunta
+ * de quem fica olhando o painel enquanto o agente trabalha.
+ */
 function AgoraMesmo({ features }: { features: Feature[] }) {
   const t = useT()
   // Duas formas de "em curso": a IA declarou, ou há arquivo mexido sem salvar.
@@ -304,41 +473,40 @@ function AgoraMesmo({ features }: { features: Feature[] }) {
 
   return (
     <div
-      className="animate-in-up mt-5 rounded-xl border p-4"
+      className="animate-in-up mt-card p-card rounded-xl border"
       style={{
         borderColor: 'color-mix(in oklab, var(--color-building) 42%, transparent)',
         background: 'color-mix(in oklab, var(--color-building) 8%, transparent)',
       }}
     >
-      <div className="flex items-center gap-2">
+      <div className="gap-item flex items-center">
         <span
           className="pulse-live h-2 w-2 rounded-full"
           style={{ background: 'var(--color-building)' }}
         />
-        <span
-          className="text-[11px] font-semibold tracking-[0.14em] uppercase"
-          style={{ color: 'var(--color-building)' }}
-        >
+        {/* POR QUÊ `.label`: era 11px com 0,14em de espacejamento escrito à mão.
+            O rótulo compensa o tamanho com peso, não com caixa alta esticada. */}
+        <span className="label" style={{ color: 'var(--color-building)' }}>
           {t('feed.agora')}
         </span>
       </div>
 
       {naoSalvos > 0 && (
-        <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+        <p className="mt-item text-lead text-[var(--color-ink-2)]">
           {naoSalvos === 1 ? t('feed.naoSalvo') : t('feed.naoSalvos', { n: naoSalvos })}
         </p>
       )}
 
-      <ul className="mt-3 space-y-2.5">
+      <ul className="mt-card space-y-item">
         {emCurso.map((f) => (
           <li key={f.id}>
-            <p className="font-display text-[16px] leading-snug font-medium">{f.name}</p>
+            {/* 16px não existe na escala. O nome fica no degrau de leitura e se
+                separa do resto por família e peso, não por meio pixel a mais. */}
+            <p className="font-display text-lead font-medium">{f.name}</p>
             {f.workingClaim && (
-              <p className="mt-0.5 text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-                {f.workingClaim}
-              </p>
+              <p className="mt-hair text-lead text-[var(--color-ink-2)]">{f.workingClaim}</p>
             )}
-            <p className="mt-0.5 text-[12px] text-[var(--color-ink-3)]">
+            <p className="mt-hair text-meta text-[var(--color-ink-3)]">
               {f.working && f.workingSince
                 ? t('feed.comecou', {
                     dia: diaRelativo(f.workingSince).toLowerCase(),
@@ -357,10 +525,97 @@ function AgoraMesmo({ features }: { features: Feature[] }) {
   )
 }
 
+/**
+ * A linha de identificação do cartão: código, hora, parte do produto, quem fez.
+ *
+ * Vive em dois lugares — no cartão do feed e no topo do detalhe, no trilho —
+ * porque o detalhe fora do cartão precisa dizer de qual cartão ele é.
+ */
+function LinhaMeta({ evento, feature }: { evento: WtfEvent; feature: Feature | undefined }) {
+  const t = useT()
+  return (
+    <div className="gap-item text-meta flex flex-wrap items-baseline text-[var(--color-ink-3)]">
+      <CodigoCopiavel codigo={codigoCurto(evento.id)} />
+      <span className="font-mono tabular-nums">{horaDe(evento.at)}</span>
+      {feature && (
+        <>
+          <span aria-hidden>·</span>
+          <span className="font-medium text-[var(--color-ink-2)]">{feature.name}</span>
+        </>
+      )}
+      <span aria-hidden>·</span>
+      <span>
+        {evento.source === 'user'
+          ? t('feed.voce')
+          : evento.source === 'wtf'
+            ? 'WTF'
+            : AGENT_LABEL[evento.agent ?? 'desconhecido']}
+      </span>
+    </div>
+  )
+}
+
+/** Os selos do assunto: estado, atenção, desfecho, respostas. */
+function Selos({ assunto, feature }: { assunto: Assunto; feature: Feature | undefined }) {
+  const t = useT()
+  const evento = assunto.aviso
+  const atencao = assunto.pedeAtencao
+  // O aviso existiu, mas o ciclo fechou. O cartão precisa dizer isso — senão
+  // não dá para distinguir "resolvido" de "ninguém nunca olhou".
+  const fechado = !atencao && (assunto.respondido || !!evento.resolvido)
+
+  // Sem selo nenhum não sobra uma fileira vazia cobrando 16px de respiro. Se os
+  // dois espaços fossem iguais nada agruparia; se um deles não tiver conteúdo,
+  // pior ainda — vira buraco no meio do cartão.
+  if (!feature && !atencao && !fechado && assunto.respostas.length === 0) return null
+
+  return (
+    /* `item` (8) e não `card` (16): os selos pertencem à manchete, são a mesma
+       ideia. O 16 fica reservado para o respiro DENTRO do cartão — se os dois
+       fossem iguais, o cartão viraria três linhas soltas em vez de um bloco. */
+    <div className="mt-item gap-item flex flex-wrap items-center">
+      {feature?.working && <WorkingChip desde={feature.workingSince} />}
+      {feature && <StateChip state={feature.state} />}
+      {feature?.unsaved && <UnsavedChip quantos={feature.unsavedCount} />}
+      {atencao && (
+        /* 11px é o piso da escala, e é onde os selos vizinhos (estado, mexendo,
+           não salvo) já vivem — este acompanha a fileira em vez de destoar. */
+        <span
+          className="gap-hair inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-medium"
+          style={{
+            color: 'var(--color-danger)',
+            background: 'color-mix(in oklab, var(--color-danger) 13%, transparent)',
+          }}
+        >
+          <AlertTriangle size={11} />
+          {/*
+            A diferença que o rótulo precisa carregar: "precisa da sua
+            atenção" é o aviso ainda aberto; "respondido — falta você
+            decidir" é a IA tendo respondido E levantado um ponto novo.
+            Enquanto os dois diziam a mesma coisa, trabalho feito parecia
+            trabalho ignorado, e a pessoa concluía que o painel não viu.
+          */}
+          {assunto.aguardando ? t('feed.aguardando') : t('feed.precisaAtencao')}
+        </span>
+      )}
+      {fechado && <SeloFechado evento={evento} />}
+      {assunto.respostas.length > 0 && (
+        <span className="gap-hair inline-flex items-center text-[11px] text-[var(--color-ink-3)]">
+          <CornerUpLeft size={11} />
+          {assunto.respostas.length === 1
+            ? t('feed.resposta')
+            : t('feed.respostas', { n: assunto.respostas.length })}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function Cartao({
   assunto,
   feature,
   aberto,
+  comTrilho,
   onToggle,
   onAbrirArquivo,
   onPerguntar,
@@ -370,122 +625,90 @@ function Cartao({
   assunto: Assunto
   feature: Feature | undefined
   aberto: boolean
+  comTrilho: boolean
   onToggle: () => void
   onAbrirArquivo: (caminho: string) => void
   onPerguntar: (evento: WtfEvent) => void
   onMudou?: () => void
   delay: number
 }) {
-  const t = useT()
   const evento = assunto.aviso
   const h = evento.human
   const Icone = ICONE[evento.type]
   const atencao = assunto.pedeAtencao
-  // O aviso existiu, mas o ciclo fechou. O cartão precisa dizer isso — senão
-  // não dá para distinguir "resolvido" de "ninguém nunca olhou".
-  const fechado = !atencao && (assunto.respondido || !!evento.resolvido)
-  const cor = atencao ? 'var(--color-warn)' : 'var(--color-ink-3)'
+  const cor = atencao ? 'var(--color-danger)' : 'var(--color-ink-3)'
+  // Com trilho, o cartão não abre: ele fica ESCOLHIDO, e o detalhe aparece do
+  // lado. Sem a marca de escolha, o clique pareceria não ter feito nada.
+  const escolhido = aberto && comTrilho
 
   return (
-    <li
-      className="animate-in-up relative pb-4 pl-9"
-      style={{ animationDelay: `${delay}s` }}
-    >
+    /* POR QUÊ `pb-item` (8) e não 16: 16 é o respiro DENTRO do cartão. Se o
+       espaço entre dois cartões fosse igual ao de dentro de um, o dia inteiro
+       viraria uma lista uniforme sem começo nem fim. */
+    <li className="animate-in-up pb-item relative pl-9" style={{ animationDelay: `${delay}s` }}>
       {/* marcador na linha */}
       <span
-        className="absolute top-[15px] left-0 grid h-[15px] w-[15px] place-items-center rounded-full border"
-        style={{
-          borderColor: cor,
-          background: 'var(--color-paper)',
-          color: cor,
-        }}
+        className="absolute top-[17px] left-0 grid h-[15px] w-[15px] place-items-center rounded-full border"
+        style={{ borderColor: cor, background: 'var(--color-paper)', color: cor }}
       >
         <Icone size={8.5} strokeWidth={2.6} />
       </span>
 
       <article
-        className="card overflow-hidden transition-[border-color,box-shadow] duration-200"
-        style={
-          atencao
-            ? {
-                borderColor: 'color-mix(in oklab, var(--color-warn) 42%, transparent)',
-                boxShadow: '0 1px 0 0 color-mix(in oklab, var(--color-warn) 14%, transparent)',
-              }
-            : undefined
-        }
+        className="card overflow-hidden transition-[border-color,box-shadow,background-color] duration-200"
+        style={{
+          borderColor: atencao
+            ? 'color-mix(in oklab, var(--color-danger) 42%, transparent)'
+            : escolhido
+              ? 'color-mix(in oklab, var(--color-accent) 45%, transparent)'
+              : undefined,
+          background: escolhido
+            ? 'color-mix(in oklab, var(--color-accent) 7%, transparent)'
+            : undefined,
+          boxShadow: atencao
+            ? '0 1px 0 0 color-mix(in oklab, var(--color-danger) 14%, transparent)'
+            : undefined,
+        }}
       >
         <button
           onClick={onToggle}
-          className="no-drag block w-full px-5 py-4 text-left"
+          className="no-drag p-card block w-full text-left"
           aria-expanded={aberto}
+          aria-controls={comTrilho ? 'trilho-detalhe' : undefined}
         >
-          <div className="flex items-baseline gap-2.5 text-[12px] text-[var(--color-ink-3)]">
-            <CodigoCopiavel codigo={codigoCurto(evento.id)} />
-            <span className="font-mono tabular-nums">{horaDe(evento.at)}</span>
-            {feature && (
-              <>
-                <span aria-hidden>·</span>
-                <span className="font-medium text-[var(--color-ink-2)]">
-                  {feature.name}
-                </span>
-              </>
-            )}
-            <span aria-hidden>·</span>
-            <span>
-              {evento.source === 'user'
-                ? t('feed.voce')
-                : evento.source === 'wtf'
-                  ? 'WTF'
-                  : AGENT_LABEL[evento.agent ?? 'desconhecido']}
-            </span>
-            <ChevronDown
-              size={15}
-              className="ml-auto shrink-0 transition-transform duration-300"
-              style={{ transform: aberto ? 'rotate(180deg)' : undefined }}
-            />
-          </div>
-
-          {/* NÍVEL 1 — a manchete */}
-          <h3 className="font-display mt-2 text-[19px] leading-snug font-medium text-balance">
-            {h?.headline}
-          </h3>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {feature?.working && <WorkingChip desde={feature.workingSince} />}
-            {feature && <StateChip state={feature.state} />}
-            {feature?.unsaved && <UnsavedChip quantos={feature.unsavedCount} />}
-            {atencao && (
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
-                style={{
-                  color: 'var(--color-warn)',
-                  background: 'color-mix(in oklab, var(--color-warn) 13%, transparent)',
-                }}
-              >
-                <AlertTriangle size={11} />
-                {/*
-                  A diferença que o rótulo precisa carregar: "precisa da sua
-                  atenção" é o aviso ainda aberto; "respondido — falta você
-                  decidir" é a IA tendo respondido E levantado um ponto novo.
-                  Enquanto os dois diziam a mesma coisa, trabalho feito parecia
-                  trabalho ignorado, e a pessoa concluía que o painel não viu.
-                */}
-                {assunto.aguardando ? t('feed.aguardando') : t('feed.precisaAtencao')}
-              </span>
-            )}
-            {fechado && <SeloFechado evento={evento} />}
-            {assunto.respostas.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-ink-3)]">
-                <CornerUpLeft size={11} />
-                {assunto.respostas.length === 1
-                  ? t('feed.resposta')
-                  : t('feed.respostas', { n: assunto.respostas.length })}
-              </span>
+          <div className="gap-item flex items-start">
+            <div className="min-w-0 flex-1">
+              <LinhaMeta evento={evento} feature={feature} />
+            </div>
+            {/* Para baixo quando o detalhe abre aqui; para o lado quando ele
+                abre no trilho. A seta aponta para onde a informação vai nascer. */}
+            {comTrilho ? (
+              <ChevronRight
+                size={15}
+                className="mt-hair shrink-0 text-[var(--color-ink-3)] transition-opacity duration-200"
+                style={{ opacity: escolhido ? 1 : 0.35 }}
+              />
+            ) : (
+              <ChevronDown
+                size={15}
+                className="mt-hair shrink-0 text-[var(--color-ink-3)] transition-transform duration-300"
+                style={{ transform: aberto ? 'rotate(180deg)' : undefined }}
+              />
             )}
           </div>
+
+          {/* NÍVEL 1 — a manchete.
+              POR QUÊ sem `leading-snug`: a entrelinha vinha escrita ao lado do
+              tamanho e brigava com o degrau. `text-title` já traz 19px, peso
+              500 e entrelinha 1,25 — manchete curta; é o corpo (`text-lead`,
+              1,5) que quer respiro, não ela. */}
+          <h3 className="font-display text-title mt-item text-balance">{h?.headline}</h3>
+
+          <Selos assunto={assunto} feature={feature} />
         </button>
 
-        {aberto && h && (
+        {/* Sem trilho, o detalhe volta a abrir aqui dentro, como sempre foi. */}
+        {aberto && h && !comTrilho && (
           <Detalhes
             assunto={assunto}
             evento={evento}
@@ -500,10 +723,6 @@ function Cartao({
   )
 }
 
-/**
- * O selo que ocupa o lugar do "Precisa da sua atenção" quando o ciclo fechou.
- * Discreto de propósito: não é uma comemoração, é só o alerta parando de cobrar.
- */
 /**
  * O código do aviso — e o clique que faltava.
  *
@@ -533,13 +752,20 @@ function CodigoCopiavel({ codigo }: { codigo: string }) {
         })
       }}
       title={t('feed.codigoDica')}
-      className="no-drag cursor-pointer rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+      /* POR QUÊ subiu de 10,5px para o piso de 11px (`text-micro`): é o texto
+         que a pessoa vai LER em voz alta para a IA. Abaixo de 11px ela não lê,
+         adivinha — e um código adivinhado errado não fecha ciclo nenhum. */
+      className="no-drag text-micro cursor-pointer rounded border px-1.5 py-px font-mono transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
     >
       {copiado ? t('feed.copiado') : codigo}
     </span>
   )
 }
 
+/**
+ * O selo que ocupa o lugar do "Precisa da sua atenção" quando o ciclo fechou.
+ * Discreto de propósito: não é uma comemoração, é só o alerta parando de cobrar.
+ */
 function SeloFechado({ evento }: { evento: WtfEvent }) {
   const t = useT()
   const pelaIA = !!evento.respondidoPor
@@ -547,7 +773,7 @@ function SeloFechado({ evento }: { evento: WtfEvent }) {
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
+      className="gap-hair inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-medium"
       style={{
         color: 'var(--color-ink-2)',
         background: 'color-mix(in oklab, var(--color-tested) 12%, transparent)',
@@ -557,7 +783,7 @@ function SeloFechado({ evento }: { evento: WtfEvent }) {
       {pelaIA ? t('feed.respondidoIA') : t('feed.resolvidoVoce')}
       {quando && (
         <span style={{ color: 'var(--color-ink-3)' }}>
-            ·{' '}
+          ·{' '}
           {t('feed.diaHora', {
             dia: diaRelativo(quando).toLowerCase(),
             hora: horaDe(quando),
@@ -589,7 +815,7 @@ function BotaoResolver({ evento, onMudou }: { evento: WtfEvent; onMudou?: () => 
       type="button"
       onClick={clicar}
       disabled={ocupado}
-      className="no-drag mt-4 inline-flex cursor-default items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+      className="no-drag mt-card gap-hair text-meta inline-flex cursor-default items-center rounded-full border px-3 py-1.5 transition-colors disabled:opacity-50"
       style={{ color: 'var(--color-ink-2)' }}
     >
       {jaResolvido ? <RotateCcw size={13} /> : <Check size={13} />}
@@ -621,16 +847,16 @@ function Detalhes({
   const resp = evento.respondidoPor
 
   return (
-    <div className="animate-in-up border-t px-5 pt-4 pb-5">
+    <div className="animate-in-up p-card border-t">
       {/* Perguntar sobre ESTA mudança, com as próprias palavras. Discreto: é
           uma saída para quem ficou com dúvida, não o assunto do cartão. */}
       {podePerguntar() && (
-        <div className="mb-3 flex justify-end">
+        <div className="mb-card flex justify-end">
           <button
             type="button"
             onClick={() => onPerguntar(evento)}
             title={t('pergunta.abrir')}
-            className="no-drag inline-flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 text-[12px] text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink-2)]"
+            className="no-drag gap-hair text-meta inline-flex cursor-default items-center rounded-full px-2 py-1 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink-2)]"
           >
             <Lightbulb size={12.5} />
             {t('pergunta.abrir')}
@@ -640,33 +866,32 @@ function Detalhes({
 
       {/* Este cartão é a resposta de outro aviso — dá para voltar lá pelo código. */}
       {evento.respondeA && (
-        <p className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-ink-3)]">
+        <p className="mb-card gap-hair text-meta inline-flex items-center text-[var(--color-ink-3)]">
           <CornerUpLeft size={13} className="shrink-0" />
           {t('feed.respondeAo')}{' '}
-          <span className="rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider">
+          <span className="text-micro rounded border px-1.5 py-px font-mono">
             {evento.respondeA}
           </span>
         </p>
       )}
 
-      <p className="text-[14.5px] leading-relaxed text-pretty text-[var(--color-ink)]">
-        {h.what}
-      </p>
+      {/* POR QUÊ todo parágrafo daqui para baixo é `text-lead`: eram quatro
+          tamanhos (14,5 / 14 / 13,5 / 13px) para o mesmo papel — o texto que a
+          pessoa lê para entender o que a IA fez. */}
+      <p className="text-lead text-pretty text-[var(--color-ink)]">{h.what}</p>
       <Bloco titulo={t('feed.porque')}>{h.why}</Bloco>
       <Bloco titulo={t('feed.paraVoce')}>{h.impact}</Bloco>
 
       {h.affects.length > 0 && (
-        <div className="mt-4">
-          <div className="flex flex-wrap gap-1.5">
-            {h.affects.map((a) => (
-              <span
-                key={a}
-                className="rounded-md border px-2 py-[3px] text-[12px] text-[var(--color-ink-2)]"
-              >
-                {a}
-              </span>
-            ))}
-          </div>
+        <div className="mt-card gap-hair flex flex-wrap">
+          {h.affects.map((a) => (
+            <span
+              key={a}
+              className="text-meta rounded-md border px-2 py-[3px] text-[var(--color-ink-2)]"
+            >
+              {a}
+            </span>
+          ))}
         </div>
       )}
 
@@ -674,7 +899,7 @@ function Detalhes({
           de quem lê: o alerta e o desfecho no mesmo lugar. */}
       {resp && (
         <div
-          className="mt-4 flex gap-2.5 rounded-lg border p-3.5"
+          className="mt-card gap-item p-card flex rounded-lg border"
           style={{
             borderColor: 'color-mix(in oklab, var(--color-tested) 38%, transparent)',
             background: 'color-mix(in oklab, var(--color-tested) 8%, transparent)',
@@ -685,36 +910,32 @@ function Detalhes({
             className="mt-[3px] shrink-0"
             style={{ color: 'var(--color-tested)' }}
           />
-          <div>
+          <div className="min-w-0">
             <Rotulo>
               {t('feed.respondidoIAEm', {
                 dia: diaRelativo(resp.at).toLowerCase(),
                 hora: horaDe(resp.at),
               })}
             </Rotulo>
-            <p className="mt-1 text-[14px] leading-relaxed text-[var(--color-ink)]">
-              {resp.texto}
-            </p>
+            <p className="mt-hair text-lead text-[var(--color-ink)]">{resp.texto}</p>
           </div>
         </div>
       )}
 
       {atencao && h.attentionReason && (
         <div
-          className="mt-4 flex gap-2.5 rounded-lg border p-3.5"
+          className="mt-card gap-item p-card flex rounded-lg border"
           style={{
-            borderColor: 'color-mix(in oklab, var(--color-warn) 38%, transparent)',
-            background: 'color-mix(in oklab, var(--color-warn) 8%, transparent)',
+            borderColor: 'color-mix(in oklab, var(--color-danger) 38%, transparent)',
+            background: 'color-mix(in oklab, var(--color-danger) 8%, transparent)',
           }}
         >
           <AlertTriangle
             size={15}
             className="mt-[3px] shrink-0"
-            style={{ color: 'var(--color-warn)' }}
+            style={{ color: 'var(--color-danger)' }}
           />
-          <p className="text-[14px] leading-relaxed text-[var(--color-ink)]">
-            {h.attentionReason}
-          </p>
+          <p className="text-lead text-[var(--color-ink)]">{h.attentionReason}</p>
         </div>
       )}
 
@@ -736,16 +957,13 @@ function Detalhes({
 
       {/* o que o agente realmente disse — guardado como dito */}
       {evento.claim && (
-        <details className="group mt-4">
-          <summary className="no-drag inline-flex cursor-default list-none items-center gap-1.5 text-[13px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
-            <ChevronDown
-              size={13}
-              className="transition-transform group-open:rotate-180"
-            />
+        <details className="group mt-card">
+          <summary className="no-drag gap-hair text-meta inline-flex cursor-default list-none items-center text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
+            <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
             {t('feed.oQueIADisse')}
           </summary>
           <blockquote
-            className="mt-2 border-l-2 py-1 pl-3 text-[13px] leading-relaxed text-[var(--color-ink-2)] italic"
+            className="mt-item text-lead border-l-2 py-1 pl-3 text-[var(--color-ink-2)] italic"
             style={{ borderColor: 'var(--color-rule)' }}
           >
             {evento.claim}
@@ -754,16 +972,16 @@ function Detalhes({
       )}
 
       {/* como o WTF chegou nessa conclusão */}
-      <details className="group mt-3">
-        <summary className="no-drag inline-flex cursor-default list-none items-center gap-1.5 text-[13px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
+      <details className="group mt-item">
+        <summary className="no-drag gap-hair text-meta inline-flex cursor-default list-none items-center text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
           <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
           {t('feed.comoSabe')}
         </summary>
-        <ul className="mt-2 space-y-1.5">
+        <ul className="mt-item space-y-item">
           {evento.evidence.map((ev) => (
-            <li key={ev.id} className="flex items-start gap-2 text-[13px]">
+            <li key={ev.id} className="gap-item text-lead flex items-start">
               <span
-                className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
+                className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{
                   background:
                     ev.confidence >= 0.8
@@ -781,14 +999,14 @@ function Detalhes({
 
       {/* NÍVEL 3 — técnico */}
       {tec && (
-        <details className="group mt-3">
-          <summary className="no-drag inline-flex cursor-default list-none items-center gap-1.5 text-[13px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
+        <details className="group mt-item">
+          <summary className="no-drag gap-hair text-meta inline-flex cursor-default list-none items-center text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
             <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
             {t('feed.verTecnico')}
           </summary>
 
-          <div className="mt-2.5 rounded-lg border p-3.5">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px]">
+          <div className="mt-item p-card rounded-lg border">
+            <div className="text-meta flex flex-wrap items-center gap-x-4 gap-y-1 font-mono">
               <span className="text-[var(--color-ink-2)]">
                 {tec.filesChanged === 1
                   ? t('geral.arquivo')
@@ -798,14 +1016,14 @@ function Detalhes({
               <span style={{ color: 'var(--color-danger)' }}>−{tec.deletions}</span>
             </div>
 
-            <ul className="mt-2.5 space-y-0.5 font-mono text-[12px] text-[var(--color-ink-3)]">
+            <ul className="mt-item text-meta space-y-0.5 font-mono text-[var(--color-ink-3)]">
               {tec.files.map((f) => (
                 <li key={f}>
                   <button
                     type="button"
                     onClick={() => onAbrirArquivo(f)}
                     title={t('feed.abrirArquivo')}
-                    className="no-drag flex w-full cursor-pointer items-center gap-1.5 rounded px-1 py-[1px] text-left underline decoration-dotted underline-offset-[3px] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
+                    className="no-drag gap-hair flex w-full cursor-pointer items-center rounded px-1 py-[1px] text-left underline decoration-dotted underline-offset-[3px] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
                     style={{ textDecorationColor: 'var(--color-rule)' }}
                   >
                     <FileText size={11} className="shrink-0" />
@@ -816,11 +1034,11 @@ function Detalhes({
             </ul>
 
             {(tec.dependenciesAdded.length > 0 || tec.dependenciesRemoved.length > 0) && (
-              <ul className="mt-2.5 space-y-0.5 font-mono text-[12px]">
+              <ul className="mt-item text-meta space-y-0.5 font-mono">
                 {tec.dependenciesAdded.map((d) => (
                   <li
                     key={d}
-                    className="flex items-center gap-1.5"
+                    className="gap-hair flex items-center"
                     style={{ color: 'var(--color-tested)' }}
                   >
                     <PackagePlus size={11} className="shrink-0" />
@@ -830,7 +1048,7 @@ function Detalhes({
                 {tec.dependenciesRemoved.map((d) => (
                   <li
                     key={d}
-                    className="flex items-center gap-1.5"
+                    className="gap-hair flex items-center"
                     style={{ color: 'var(--color-danger)' }}
                   >
                     <PackageMinus size={11} className="shrink-0" />
@@ -842,11 +1060,11 @@ function Detalhes({
 
             {/* NÍVEL 4 — o código cru */}
             {tec.patch && (
-              <details className="group/code mt-3">
-                <summary className="no-drag cursor-default list-none text-[12px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
+              <details className="group/code mt-card">
+                <summary className="no-drag text-meta cursor-default list-none text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
                   {t('feed.verCodigo')}
                 </summary>
-                <pre className="mt-2 max-h-72 overflow-auto rounded-md border bg-[var(--color-paper-3)] p-3 font-mono text-[11.5px] leading-[1.6]">
+                <pre className="mt-item text-meta max-h-72 overflow-auto rounded-md border bg-[var(--color-paper-3)] p-3 font-mono">
                   {tec.patch.split('\n').map((linha, i) => (
                     <div
                       key={i}
@@ -875,19 +1093,18 @@ function Detalhes({
 
 function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="mt-3.5 first:mt-0">
+    <div className="mt-card first:mt-0">
       <Rotulo>{titulo}</Rotulo>
-      <p className="mt-1 text-[14.5px] leading-relaxed text-pretty text-[var(--color-ink)]">
-        {children}
-      </p>
+      <p className="mt-hair text-lead text-pretty text-[var(--color-ink)]">{children}</p>
     </div>
   )
 }
 
+/**
+ * POR QUÊ virou `.label`: POR QUÊ / PARA VOCÊ / O QUE FAZER estavam a 10,5px
+ * com 0,14em de espacejamento. O piso da escala agora é 11px, e o rótulo
+ * compensa o tamanho pequeno com peso (600) em vez de caixa alta esticada.
+ */
 function Rotulo({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-[10.5px] tracking-[0.14em] text-[var(--color-ink-3)] uppercase">
-      {children}
-    </span>
-  )
+  return <span className="label text-[var(--color-ink-3)]">{children}</span>
 }

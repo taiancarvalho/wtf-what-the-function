@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Blocks,
   FlaskConical,
@@ -26,6 +26,7 @@ import { InstalarSkill } from '@/components/InstalarSkill'
 import { SeletorProjeto } from '@/components/SeletorProjeto'
 import { Busca } from '@/components/Busca'
 import { IdiomaContext, useT, type Idioma } from '@/lib/i18n'
+import { montarAssuntos } from '@/lib/assuntos'
 import { BarraTopo } from '@/components/BarraTopo'
 import { BuildMap } from '@/views/BuildMap'
 import { ProductMap } from '@/views/ProductMap'
@@ -62,6 +63,68 @@ const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] 
 ]
 
 /**
+ * O número vivo de cada seção.
+ *
+ * POR QUÊ existe: a faixa do topo era 84% vazia — 46px de altura atravessando
+ * 1253px com três botões grudados na direita, igual em todas as nove abas. A
+ * faixa equivalente do Linear vai de ponta a ponta: nome da seção à esquerda e
+ * o contador do que está ali. Aqui é o mesmo: onde há um número que importa,
+ * ele aparece; onde não há (Pastas, Configurações), a faixa fica só com o nome
+ * e a legenda, sem inventar contagem para preencher espaço.
+ *
+ * Tudo sai de chave de tradução já existente — nenhuma frase nova nasce solta
+ * em português dentro de um app que fala três idiomas.
+ */
+function contagemDaSecao(
+  aba: Aba,
+  snapshot: Carga['snapshot'],
+  t: (chave: string, vars?: Record<string, string | number>) => string,
+): string | null {
+  switch (aba) {
+    /*
+     * Início e Acontecendo contam ASSUNTOS, nunca eventos — a regra é do
+     * próprio `assuntos.ts`: um aviso e as três respostas que vieram depois
+     * dele continuam sendo uma coisa só. Contar evento inflaria o número do
+     * topo em relação ao que a pessoa vê na lista.
+     */
+    case 'home': {
+      const n = montarAssuntos(snapshot.events ?? []).filter((a) => a.pedeAtencao).length
+      return n === 0 ? null : t(n === 1 ? 'home.dependeDeVoce1' : 'home.dependeDeVoce', { n })
+    }
+    case 'timeline': {
+      const n = montarAssuntos(snapshot.events ?? []).length
+      return n === 0 ? null : t('desde.mudancas', { n })
+    }
+    case 'build': {
+      const n = (snapshot.features ?? []).length
+      return n === 0 ? null : t('progresso.partes', { n })
+    }
+    case 'historico': {
+      const marcos = snapshot.historico?.marcos ?? []
+      const semana = snapshot.historico?.granularidade === 'semana'
+      if (marcos.length === 0) return null
+      if (marcos.length === 1) return t(semana ? 'hist.periodo.semana' : 'hist.periodo.dia')
+      return t(semana ? 'hist.periodo.semanas' : 'hist.periodo.dias', { n: marcos.length })
+    }
+    case 'mapa': {
+      const n = new Set((snapshot.features ?? []).map((f) => f.area).filter(Boolean)).size
+      return n === 0 ? null : t('progresso.areas', { n })
+    }
+    case 'docs': {
+      const n = snapshot.documentos?.varredura.total ?? 0
+      return n === 0 ? null : t('docs.nArquivos', { n })
+    }
+    case 'seguranca': {
+      const n =
+        (snapshot.segredos?.achados.length ?? 0) + (snapshot.expostos?.achados.length ?? 0)
+      return n === 0 ? null : t(n === 1 ? 'seg.um' : 'seg.varios', { n })
+    }
+    default:
+      return null
+  }
+}
+
+/**
  * Erro traduzido.
  *
  * Um comando de terminal despejado na tela é a pior coisa que este app pode
@@ -78,18 +141,25 @@ function AvisoErro({ erro }: { erro: string }) {
         : 'Não consegui ler esse projeto.'
 
   return (
-    <div className="mt-3">
-      <p
-        className="text-[11.5px] leading-snug"
-        style={{ color: 'var(--color-warn)' }}
-      >
+    <div className="mt-card">
+      {/*
+        POR QUÊ os tamanhos subiram: a frase que explica o erro estava a 11,5px
+        e o texto cru a 10,5px. Havia 38 usos de 10–10,5px carregando informação
+        de verdade num app feito para quem NÃO lê código — abaixo de 11px a
+        pessoa não lê, adivinha. A frase humana é a que importa e vai no degrau
+        de metadado (13px); o texto cru fica no piso de 11px, e continua um
+        clique abaixo, dentro do "detalhes".
+      */}
+      <p className="text-meta" style={{ color: 'var(--color-danger)' }}>
         {humano}
       </p>
-      <details className="mt-1">
-        <summary className="no-drag cursor-default list-none text-[11px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
+      <details className="mt-hair">
+        <summary className="no-drag text-meta cursor-default list-none text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
           detalhes técnicos
         </summary>
-        <p className="mt-1 font-mono text-[10.5px] leading-snug break-all text-[var(--color-ink-3)]">
+        {/* peso e espacejamento normais: o degrau `micro` nasceu para rótulo em
+            caixa alta, e 600 + 0,08em num caminho de arquivo vira mancha. */}
+        <p className="text-micro mt-hair font-mono font-normal tracking-normal break-all text-[var(--color-ink-3)]">
           {erro}
         </p>
       </details>
@@ -308,35 +378,60 @@ function Painel({
     [],
   )
 
+  /*
+   * O que a faixa do topo diz sobre a tela em que a pessoa está.
+   *
+   * A contagem percorre eventos e partes; refazer isso a cada tecla digitada
+   * no terminal embutido seria trabalho jogado fora. `t` troca de identidade a
+   * cada render — o que muda o texto é o idioma, e ele já vem de contexto.
+   */
+  const secaoAtual = ABAS.find((a) => a.id === aba)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const contagem = useMemo(() => contagemDaSecao(aba, snapshot, t), [aba, snapshot])
+
   return (
     <div className="flex h-full">
       <aside className="drag flex w-[236px] shrink-0 flex-col border-r bg-[var(--color-paper-2)]/55">
         {/* espaço dos semáforos do macOS */}
         <div className="h-[52px]" />
 
-        <div className="px-5 pb-5">
-          <p className="font-display text-[13px] tracking-[0.02em] text-[var(--color-ink-3)]">
-            WTF
-          </p>
+        {/*
+          A cabeça da lateral, em duas linhas e nenhum texto acima de 13px.
+
+          POR QUÊ: o nome do projeto vinha a 21px em serifa semibold — era o
+          texto mais forte da tela inteira. Na tela de Progresso ele enfrentava
+          um título de página de 26px em peso 400 e GANHAVA: a moldura pesando
+          mais que o assunto. Na lateral do Linear nada passa de 13px, nem o
+          nome do workspace.
+
+          Saíram daqui também o pitch (12,5px, 2 linhas) e o caminho da pasta
+          (11px em mono, quebrando no meio da palavra, 3 linhas). Os dois já
+          existem um clique abaixo — o caminho na lista de projetos e em
+          Configurações, o pitch na tela de Início — e eram parte das 28 linhas
+          de texto que esta coluna de 236px carregava. O Linear tem 14.
+
+          O respiro `px-6` (24px) não é decorativo: alinha esta cabeça com a
+          coluna dos ícones do menu (12 da nav + 12 do botão).
+        */}
+        <div className="pb-card px-6">
+          <p className="label font-display text-[var(--color-ink-3)]">WTF</p>
           <SeletorProjeto
             nome={snapshot.project.name}
             caminho={snapshot.project.path}
             onTrocou={setCarga}
           />
-          <p className="mt-1.5 text-[12.5px] leading-snug text-[var(--color-ink-2)]">
-            {snapshot.project.pitch}
-          </p>
-          <p className="mt-2 font-mono text-[11px] break-all text-[var(--color-ink-3)]">
-            {snapshot.project.path}
-          </p>
 
-          {/* De onde vieram os dados. O usuário nunca deve ficar em dúvida. */}
+          {/* De onde vieram os dados. O usuário nunca deve ficar em dúvida.
+              POR QUÊ deixou de ser ocre: `--color-building` significa "está
+              sendo construído agora". Um selo de dado falso pintado com uma cor
+              de estado faz o estado deixar de ser sinal — e este selo aparece
+              em toda sessão de demonstração. Tinta neutra sobre papel. */}
           {fonte === 'exemplo' && (
             <span
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
+              className="label mt-item gap-hair inline-flex items-center rounded-full px-2 py-[3px]"
               style={{
-                color: 'var(--color-building)',
-                background: 'color-mix(in oklab, var(--color-building) 13%, transparent)',
+                color: 'var(--color-ink-2)',
+                background: 'var(--color-paper-3)',
               }}
             >
               <FlaskConical size={11} />
@@ -361,16 +456,27 @@ function Painel({
           {erro && <AvisoErro erro={erro} />}
         </div>
 
-        <nav className="no-drag flex flex-col gap-0.5 px-3">
+        {/*
+          O menu: uma linha por item, um tamanho só.
+
+          POR QUÊ sumiram as legendas: cada um dos 9 itens carregava uma
+          legenda de 11,5px, e isso sozinho respondia por metade das 28 linhas
+          de texto da coluna. Sete tamanhos diferentes conviviam em 236px de
+          largura. A legenda não foi jogada fora — ela aparece inteira, e sem
+          truncar, na faixa do topo, ao lado do nome da seção em que a pessoa
+          está. Ou seja: o menu ficou com nove linhas de 13px, e a explicação
+          passou a aparecer no lugar onde a pessoa está olhando.
+        */}
+        <nav className="no-drag gap-hair flex flex-col px-3">
           {/* Discreto: quem já sabe usa ⌘K; quem não sabe descobre por aqui. */}
           <button
             onClick={() => setBuscando(true)}
-            className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-left text-[var(--color-ink-2)] transition-colors"
+            className="mb-item gap-item flex items-center rounded-lg px-3 py-1.5 text-left text-[var(--color-ink-2)] transition-colors"
           >
             <Search size={15} className="shrink-0" strokeWidth={1.9} />
             <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-              <span className="text-[13.5px] leading-tight">{t('busca.abrir')}</span>
-              <span className="shrink-0 font-mono text-[10.5px] text-[var(--color-ink-3)]">
+              <span className="text-meta">{t('busca.abrir')}</span>
+              <span className="text-micro shrink-0 font-mono text-[var(--color-ink-3)]">
                 {t('busca.atalho')}
               </span>
             </span>
@@ -381,43 +487,62 @@ function Painel({
               <button
                 key={id}
                 onClick={() => setAba(id)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+                /* A legenda continua a um passar de mouse, para quem estranhar
+                   o nome antes de clicar. */
+                title={t(nota)}
+                className="gap-item flex items-center rounded-lg px-3 py-1.5 text-left transition-colors"
                 style={{
+                  /* O item ativo se distingue por FUNDO e por tinta cheia,
+                     nunca por corpo maior — era assim que a lateral acabava
+                     gritando mais alto que a página. */
                   background: ativa
-                    ? 'color-mix(in oklab, var(--color-accent) 12%, transparent)'
+                    ? 'color-mix(in oklab, var(--color-accent) 11%, transparent)'
                     : 'transparent',
                   color: ativa ? 'var(--color-accent)' : 'var(--color-ink-2)',
                 }}
               >
-                <Icone size={16} className="shrink-0" strokeWidth={ativa ? 2.4 : 1.9} />
-                <span className="min-w-0">
-                  <span className="block text-[14px] leading-tight font-medium">
-                    {t(label)}
-                  </span>
-                  <span className="block text-[11.5px] leading-tight text-[var(--color-ink-3)]">
-                    {t(nota)}
-                  </span>
+                <Icone size={15} className="shrink-0" strokeWidth={ativa ? 2.3 : 1.8} />
+                <span
+                  className="text-meta min-w-0 truncate"
+                  style={{ fontWeight: ativa ? 500 : 400 }}
+                >
+                  {t(label)}
                 </span>
               </button>
             )
           })}
         </nav>
 
-        <div className="mt-auto border-t px-5 py-4">
-          <div className="flex items-center gap-2">
+        {/* O rodapé é o sinal de vida do projeto. Duas linhas, os dois degraus
+            de sempre: o estado em tinta de leitura, quem está assinando em
+            tinta quieta. A frase longa de "nenhum agente ainda" fica em duas
+            linhas no máximo, com o texto inteiro no passar do mouse. */}
+        <div className="mt-auto py-card border-t px-6">
+          <div className="gap-item flex items-center">
             <span
-              className={`h-2 w-2 rounded-full ${snapshot.project.live ? 'pulse-live' : ''}`}
+              className={`h-2 w-2 shrink-0 rounded-full ${snapshot.project.live ? 'pulse-live' : ''}`}
               style={{
                 background: snapshot.project.live
                   ? 'var(--color-building)'
                   : 'var(--color-planned)',
               }}
             />
-            <span className="text-[12.5px] text-[var(--color-ink-2)]">
+            <span className="text-meta text-[var(--color-ink-2)]">
               {snapshot.project.live ? t('lateral.trabalhando') : t('lateral.parado')}
             </span>
           </div>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-[var(--color-ink-3)]">
+          <p
+            className="text-meta mt-hair line-clamp-2 text-[var(--color-ink-3)]"
+            title={
+              snapshot.project.connectedAgents.length > 0
+                ? t('lateral.acompanhando', {
+                    agentes: snapshot.project.connectedAgents
+                      .map((a) => AGENT_LABEL[a])
+                      .join(', '),
+                  })
+                : t('lateral.semAgente')
+            }
+          >
             {snapshot.project.connectedAgents.length > 0
               ? t('lateral.acompanhando', {
                   agentes: snapshot.project.connectedAgents.map((a) => AGENT_LABEL[a]).join(', '),
@@ -428,9 +553,13 @@ function Painel({
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col">
-        {/* faixa arrastável, e onde moram as ações da janela */}
+        {/* Faixa arrastável, e onde moram as ações da janela. Continua `drag`:
+            é a alça da janela, e cada botão dentro dela repõe o `no-drag`. */}
         <div className="drag relative h-[46px] shrink-0">
           <BarraTopo
+            secao={secaoAtual ? t(secaoAtual.label) : ''}
+            nota={secaoAtual ? t(secaoAtual.nota) : ''}
+            contagem={contagem}
             atualizando={atualizando}
             atualizadoEm={atualizadoEm}
             onAtualizar={() => atualizar(true)}
