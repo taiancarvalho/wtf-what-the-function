@@ -553,3 +553,46 @@ export interface PacoteProjeto {
   itens: ItemInstalacao[]
   gitignore: string[]
 }
+
+// -------------------------------------------------- projetos já conhecidos
+
+/**
+ * O retrato barato de um projeto que NÃO está aberto.
+ *
+ * Tudo aqui vem de leitura local (git log curto, estado do disco e os JSON que
+ * o próprio WTF escreveu). Calcular isto nunca chama modelo, nunca traduz e
+ * nunca escreve em disco — ver a regra de custo zero em electron/projects.js.
+ */
+export interface ResumoProjeto {
+  nome: string
+  caminho: string
+  /** Assuntos que ainda dependem de uma decisão da pessoa. */
+  pendencias: number
+  /** Arquivos alterados ou criados que ainda não entraram no histórico. */
+  naoSalvos: number
+  /** Houve declaração da IA nos últimos 30 minutos. */
+  ativo: boolean
+  ultimoEventoEm: string | null
+  /** O projeto tem `.wtf/` — ou seja, autorizou o WTF a registrar ali. */
+  habilitado: boolean
+  idiomaInterface?: string
+  /** Preenchido quando o resumo falhou (pasta sumida, repo quebrado, demora). */
+  erro?: string
+}
+
+/** Um projeto na lista de atalhos, guardada fora de qualquer repositório. */
+export interface ProjetoConhecido {
+  caminho: string
+  nome: string
+  ultimaAberturaEm: string | null
+  fixado?: boolean
+  /** A pasta não está mais no disco. Continua na lista até a pessoa esquecê-la. */
+  sumiu?: boolean
+  resumo?: ResumoProjeto | null
+}
+
+/** A lista inteira, mais qual deles está aberto agora. */
+export interface ListaProjetos {
+  atual: string | null
+  projetos: ProjetoConhecido[]
+}

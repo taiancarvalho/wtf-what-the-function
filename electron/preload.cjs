@@ -8,6 +8,18 @@ contextBridge.exposeInMainWorld('wtf', {
   getSnapshot: () => ipcRenderer.invoke('wtf:snapshot'),
   /** Abre o seletor de pasta e passa a observar o projeto escolhido. */
   escolherProjeto: () => ipcRenderer.invoke('wtf:escolher-projeto'),
+  /**
+   * Os projetos que a pessoa já abriu, com um resumo barato de cada um
+   * (pendências, arquivos não salvos, se tem IA trabalhando agora).
+   * Nenhum resumo chama modelo nem escreve em disco — ver electron/projects.js.
+   */
+  listarProjetos: () => ipcRenderer.invoke('wtf:projetos'),
+  /** Troca o projeto aberto e devolve o snapshot novo. */
+  abrirProjeto: (caminho) => ipcRenderer.invoke('wtf:abrir-projeto', caminho),
+  /** Tira o projeto da LISTA. Nada dentro dele é apagado ou alterado. */
+  esquecerProjeto: (caminho) => ipcRenderer.invoke('wtf:esquecer-projeto', caminho),
+  /** Fixa (ou desfixa) o projeto no topo da lista. */
+  fixarProjeto: (caminho, valor) => ipcRenderer.invoke('wtf:fixar-projeto', caminho, valor),
   /** Instala a skill + hook no projeto observado (pede confirmação). */
   instalar: () => ipcRenderer.invoke('wtf:instalar'),
   desinstalar: () => ipcRenderer.invoke('wtf:desinstalar'),

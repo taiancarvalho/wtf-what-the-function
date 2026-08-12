@@ -18,6 +18,7 @@ import {
   type Carga,
 } from '@/lib/source'
 import { InstalarSkill } from '@/components/InstalarSkill'
+import { SeletorProjeto } from '@/components/SeletorProjeto'
 import { IdiomaContext, useT, type Idioma } from '@/lib/i18n'
 import { BarraTopo } from '@/components/BarraTopo'
 import { BuildMap } from '@/views/BuildMap'
@@ -230,9 +231,11 @@ function Painel({
           <p className="font-display text-[13px] tracking-[0.02em] text-[var(--color-ink-3)]">
             WTF
           </p>
-          <h1 className="font-display mt-0.5 text-[21px] leading-tight font-semibold">
-            {snapshot.project.name}
-          </h1>
+          <SeletorProjeto
+            nome={snapshot.project.name}
+            caminho={snapshot.project.path}
+            onTrocou={setCarga}
+          />
           <p className="mt-1.5 text-[12.5px] leading-snug text-[var(--color-ink-2)]">
             {snapshot.project.pitch}
           </p>

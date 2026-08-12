@@ -162,6 +162,26 @@ const pt: Dic = {
   'lateral.acompanhando': 'Acompanhando {agentes}',
   'lateral.semAgente': 'Lendo o histórico do projeto. Nenhum agente assinou as mudanças ainda.',
 
+  // seletor de projetos
+  'projetos.titulo': 'Seus projetos',
+  'projetos.trocar': 'Trocar de projeto',
+  'projetos.carregando': 'Procurando seus projetos…',
+  'projetos.vazio': 'Por enquanto só este. Abra outra pasta para começar a alternar.',
+  'projetos.pendencias': '{n} esperando você',
+  'projetos.naoSalvos': '{n} não guardados',
+  'projetos.ativo': 'A IA mexeu aqui agora há pouco',
+  'projetos.sumiu': 'Essa pasta não está mais no seu computador.',
+  'projetos.desligado': 'WTF desligado',
+  'projetos.desligadoNota': 'O WTF lê o histórico daqui, mas a IA não declara nada neste projeto.',
+  'projetos.fixar': 'Fixar no topo',
+  'projetos.desafixar': 'Tirar do topo',
+  'projetos.esquecer': 'Tirar da lista',
+  'projetos.esquecerNota':
+    'Tirar da lista não apaga nem altera nada no projeto. Ele só some daqui — a pasta e os arquivos continuam iguais no seu computador.',
+  'projetos.esquecerConfirmar': 'Tirar da lista',
+  'projetos.cancelar': 'Deixar como está',
+  'projetos.abrirOutra': 'Abrir outra pasta…',
+
   // barra do topo
   'topo.atualizado': 'atualizado {quando}',
   'topo.agora': 'agora mesmo',
@@ -570,6 +590,26 @@ const en: Dic = {
   'lateral.acompanhando': 'Watching {agentes}',
   'lateral.semAgente': 'Reading the project history. No agent has signed any changes yet.',
 
+  // project switcher
+  'projetos.titulo': 'Your projects',
+  'projetos.trocar': 'Switch project',
+  'projetos.carregando': 'Looking for your projects…',
+  'projetos.vazio': 'Just this one for now. Open another folder to start switching.',
+  'projetos.pendencias': '{n} waiting for you',
+  'projetos.naoSalvos': '{n} not saved',
+  'projetos.ativo': 'The AI worked here a moment ago',
+  'projetos.sumiu': 'That folder is no longer on your computer.',
+  'projetos.desligado': 'WTF off',
+  'projetos.desligadoNota': 'WTF reads the history here, but the AI does not report anything in this project.',
+  'projetos.fixar': 'Pin to the top',
+  'projetos.desafixar': 'Unpin from the top',
+  'projetos.esquecer': 'Remove from the list',
+  'projetos.esquecerNota':
+    'Removing it from the list deletes and changes nothing in the project. It only disappears from here — the folder and its files stay exactly as they are on your computer.',
+  'projetos.esquecerConfirmar': 'Remove from the list',
+  'projetos.cancelar': 'Leave it as is',
+  'projetos.abrirOutra': 'Open another folder…',
+
   'topo.atualizado': 'updated {quando}',
   'topo.agora': 'just now',
   'topo.hum': '1 min ago',
@@ -954,6 +994,26 @@ const es: Dic = {
   'lateral.parado': 'Nada en curso',
   'lateral.acompanhando': 'Siguiendo a {agentes}',
   'lateral.semAgente': 'Leyendo el historial del proyecto. Ningún agente ha firmado cambios todavía.',
+
+  // selector de proyectos
+  'projetos.titulo': 'Tus proyectos',
+  'projetos.trocar': 'Cambiar de proyecto',
+  'projetos.carregando': 'Buscando tus proyectos…',
+  'projetos.vazio': 'Por ahora solo este. Abre otra carpeta para poder alternar.',
+  'projetos.pendencias': '{n} esperándote',
+  'projetos.naoSalvos': '{n} sin guardar',
+  'projetos.ativo': 'La IA trabajó aquí hace un momento',
+  'projetos.sumiu': 'Esa carpeta ya no está en tu computadora.',
+  'projetos.desligado': 'WTF apagado',
+  'projetos.desligadoNota': 'WTF lee el historial de aquí, pero la IA no declara nada en este proyecto.',
+  'projetos.fixar': 'Fijar arriba',
+  'projetos.desafixar': 'Quitar de arriba',
+  'projetos.esquecer': 'Quitar de la lista',
+  'projetos.esquecerNota':
+    'Quitarlo de la lista no borra ni cambia nada en el proyecto. Solo desaparece de aquí — la carpeta y los archivos siguen igual en tu computadora.',
+  'projetos.esquecerConfirmar': 'Quitar de la lista',
+  'projetos.cancelar': 'Dejarlo como está',
+  'projetos.abrirOutra': 'Abrir otra carpeta…',
 
   'topo.atualizado': 'actualizado {quando}',
   'topo.agora': 'ahora mismo',

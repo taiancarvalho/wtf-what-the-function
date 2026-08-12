@@ -15,6 +15,8 @@ import { access, constants } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { lerProjetos } from '../electron/projects.js'
+
 const raizApp = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 const args = process.argv.slice(2)
@@ -26,14 +28,14 @@ if (args[0] === '--help' || args[0] === '-h') {
   uso:
     wtf                 abre o painel na pasta atual
     wtf <caminho>       abre o painel na pasta indicada
+    wtf <nome>          abre um projeto que você já abriu antes
+    wtf --lista         mostra os projetos que o WTF conhece
     wtf --help          mostra esta ajuda
 
   a pasta precisa ser um repositório Git.
 `)
   process.exit(0)
 }
-
-const projeto = path.resolve(process.cwd(), args[0] ?? '.')
 
 async function existe(p) {
   try {
@@ -43,6 +45,70 @@ async function existe(p) {
     return false
   }
 }
+
+/** "há 3 minutos", "ontem", "em 12/03" — quando o projeto foi aberto. */
+function quando(iso) {
+  if (!iso) return 'nunca aberto por aqui'
+  const q = new Date(iso)
+  if (Number.isNaN(q.getTime())) return 'em data desconhecida'
+  const minutos = Math.round((Date.now() - q.getTime()) / 60000)
+  if (minutos < 1) return 'agora mesmo'
+  if (minutos < 60) return `há ${minutos} min`
+  if (minutos < 60 * 24) return `há ${Math.round(minutos / 60)} h`
+  if (minutos < 60 * 24 * 7) return `há ${Math.round(minutos / 1440)} dias`
+  return `em ${q.toLocaleDateString('pt-BR')}`
+}
+
+const conhecidos = await lerProjetos().catch(() => [])
+
+if (args[0] === '--lista' || args[0] === '-l') {
+  if (conhecidos.length === 0) {
+    console.log(`
+  O WTF ainda não conhece nenhum projeto.
+
+  Abra um pela primeira vez e ele passa a aparecer aqui:  wtf ~/caminho/do/projeto
+`)
+    process.exit(0)
+  }
+  console.log('\n  Projetos que o WTF conhece:\n')
+  for (const p of conhecidos) {
+    const marca = p.fixado ? '★' : ' '
+    const sumiu = p.sumiu ? '  (a pasta não está mais aí)' : ''
+    console.log(`  ${marca} ${p.nome}`)
+    console.log(`      ${p.caminho}`)
+    console.log(`      aberto ${quando(p.ultimaAberturaEm)}${sumiu}\n`)
+  }
+  console.log('  para abrir:  wtf <nome>   ou   wtf <caminho>\n')
+  process.exit(0)
+}
+
+/**
+ * O argumento pode ser um caminho OU o nome de um projeto já conhecido.
+ *
+ * Caminho existente sempre vence: `wtf portal` dentro de uma pasta que TEM uma
+ * subpasta chamada "portal" precisa continuar abrindo a subpasta. Só quando
+ * não existe pasta nenhuma com aquele nome é que procuramos na lista — assim
+ * `wtf portal` funciona de qualquer lugar do computador.
+ */
+async function ondeAbrir(argumento) {
+  const comoCaminho = path.resolve(process.cwd(), argumento ?? '.')
+  if (!argumento || (await existe(comoCaminho))) return comoCaminho
+
+  const alvo = argumento.toLowerCase()
+  const casa = (p) => p.nome.toLowerCase() === alvo
+  const parecido = (p) => p.nome.toLowerCase().includes(alvo)
+  const achado = conhecidos.find(casa) ?? conhecidos.find(parecido)
+  if (achado) return achado.caminho
+
+  console.error(`
+  Não achei nem uma pasta nem um projeto conhecido chamado "${argumento}".
+
+  Veja o que o WTF já conhece:  wtf --lista
+`)
+  process.exit(1)
+}
+
+const projeto = await ondeAbrir(args[0])
 
 function rodar(cmd, argumentos, opcoes = {}) {
   return new Promise((resolve, reject) => {

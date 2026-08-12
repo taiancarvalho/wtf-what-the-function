@@ -101,8 +101,14 @@ export function noiteSilenciosa(agora, config) {
  * Versão enxuta de `montarAssuntos` (src/lib/assuntos.ts): a notificação conta
  * ASSUNTOS, nunca eventos — três respostas continuam sendo um aviso só. Quem
  * decide se o assunto ainda cobra é a ÚLTIMA resposta, não o aviso original.
+ *
+ * Exportada porque a lista de projetos (electron/projects.js) precisa da MESMA
+ * conta para dizer quantas pendências cada projeto tem. Uma terceira cópia da
+ * regra seria uma terceira chance de os números discordarem entre si — e um
+ * painel que conta 2 enquanto a notificação conta 3 destrói a confiança em
+ * ambos. Função pura: não toca em disco, não chama modelo nenhum.
  */
-function assuntosPendentes(snapshot) {
+export function assuntosPendentes(snapshot) {
   const eventos = Array.isArray(snapshot?.events) ? snapshot.events : []
   const porCodigo = new Map()
   for (const e of eventos) {

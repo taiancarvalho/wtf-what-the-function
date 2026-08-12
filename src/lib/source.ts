@@ -4,6 +4,8 @@ import type {
   ContextoPergunta,
   EstadoChaves,
   EstadoGlobal,
+  ListaProjetos,
+  ProjetoConhecido,
   PacoteInstalacao,
   PedacoResposta,
   ProjectSnapshot,
@@ -25,6 +27,10 @@ export interface Carga {
 interface PonteWtf {
   getSnapshot?: () => Promise<unknown>
   escolherProjeto?: () => Promise<unknown>
+  listarProjetos?: () => Promise<unknown>
+  abrirProjeto?: (caminho: string) => Promise<unknown>
+  esquecerProjeto?: (caminho: string) => Promise<unknown>
+  fixarProjeto?: (caminho: string, valor: boolean) => Promise<unknown>
   instalar?: () => Promise<unknown>
   desinstalar?: () => Promise<unknown>
   instalarGlobal?: () => Promise<unknown>
@@ -428,4 +434,59 @@ export async function escolherProjeto(): Promise<Carga | null> {
   const erro = erroDe(r)
   if (erro) return { snapshot: await loadSnapshot(), fonte: 'exemplo', erro }
   return null
+}
+
+// --------------------------------------------------- projetos já conhecidos
+
+export const podeTrocarDeProjeto = () => typeof ponte()?.listarProjetos === 'function'
+
+/** Lista vazia: é o que a interface mostra fora do aplicativo. */
+const SEM_PROJETOS: ListaProjetos = { atual: null, projetos: [] }
+
+/**
+ * Os projetos que a pessoa já abriu, cada um com seu resumo barato.
+ *
+ * Chamar isto NÃO custa nada: nenhum modelo é chamado, nada é traduzido e nada
+ * é escrito em disco — só o projeto aberto é observado e traduzido. A regra
+ * inteira está no topo de electron/projects.js.
+ */
+export async function listarProjetos(): Promise<ListaProjetos> {
+  const p = ponte()
+  if (!p?.listarProjetos) return SEM_PROJETOS
+  const r = (await p.listarProjetos()) as Partial<ListaProjetos> | undefined
+  if (!Array.isArray(r?.projetos)) return SEM_PROJETOS
+  return { atual: r.atual ?? null, projetos: r.projetos }
+}
+
+/** Troca o projeto aberto. Devolve a carga nova, já pronta para pintar. */
+export async function abrirProjeto(caminho: string): Promise<Carga | null> {
+  const p = ponte()
+  if (!p?.abrirProjeto) return null
+  const r = await p.abrirProjeto(caminho)
+  if (ehSnapshot(r)) return { snapshot: r, fonte: 'real' }
+  const erro = erroDe(r)
+  if (erro) return { snapshot: await loadSnapshot(), fonte: 'exemplo', erro }
+  return null
+}
+
+/**
+ * Tira o projeto da LISTA — e só da lista. Nenhum arquivo do projeto é
+ * apagado ou alterado; ele volta a aparecer na próxima vez que for aberto.
+ */
+export async function esquecerProjeto(caminho: string): Promise<ProjetoConhecido[]> {
+  const p = ponte()
+  if (!p?.esquecerProjeto) return []
+  const r = (await p.esquecerProjeto(caminho)) as { projetos?: ProjetoConhecido[] } | undefined
+  return Array.isArray(r?.projetos) ? r.projetos : []
+}
+
+/** Fixa (ou desfixa) o projeto no topo da lista. */
+export async function fixarProjeto(
+  caminho: string,
+  valor: boolean,
+): Promise<ProjetoConhecido[]> {
+  const p = ponte()
+  if (!p?.fixarProjeto) return []
+  const r = (await p.fixarProjeto(caminho, valor)) as { projetos?: ProjetoConhecido[] } | undefined
+  return Array.isArray(r?.projetos) ? r.projetos : []
 }

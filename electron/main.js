@@ -42,6 +42,13 @@ import {
   notificarTeste,
 } from './notify.js'
 import {
+  esquecerProjeto,
+  fixarProjeto,
+  lerProjetos,
+  registrarProjeto,
+  resumirTodos,
+} from './projects.js'
+import {
   alternarValidado,
   aplicarValidados,
   assinaturaDe,
@@ -412,13 +419,103 @@ ipcMain.handle('wtf:mapear-documentos', async () =>
   ),
 )
 
+/**
+ * Passa a acompanhar `dir`: registra a abertura, lê, observa e traduz.
+ *
+ * É o ÚNICO caminho para trocar de projeto — venha a troca da variável de
+ * ambiente, do seletor de pasta ou da lista de projetos. Três coisas
+ * acontecem aqui, e nenhuma delas é opcional:
+ *
+ *  1. `registrarProjeto` — a lista de atalhos só existe porque toda abertura
+ *     passa por aqui. Ela é gravada em `userData`, NUNCA dentro do projeto.
+ *  2. `ultimoSnapshot = null` — zerar a linha de base das notificações. Sem
+ *     isto, a próxima comparação seria entre DOIS PROJETOS DIFERENTES: tudo o
+ *     que existe no projeto novo apareceria como "acabou de surgir" e a pessoa
+ *     receberia uma rajada de avisos falsos ao simplesmente trocar de aba.
+ *  3. `observar` — o watcher anterior cai (`pararObservacao`, dentro de
+ *     `observar`). Só o projeto ATIVO é observado e traduzido; os outros da
+ *     lista existem apenas como resumo barato, sem watcher e sem modelo.
+ */
+async function abrirProjeto(dir) {
+  projetoAtual = dir
+  ultimoSnapshot = null
+  ultimosEventos = []
+  void registrarProjeto(dir).catch(() => {})
+  const s = await lerProjeto(dir)
+  observar(dir)
+  traduzirAoFundo(dir, s?.events ?? [])
+  return s
+}
+
 ipcMain.handle('wtf:snapshot', async () => {
   if (!projetoAtual) return null
   try {
     const s = await lerProjeto(projetoAtual)
     observar(projetoAtual)
     traduzirAoFundo(projetoAtual, s?.events ?? [])
+    // Abrir pelo `WTF_PROJECT` também conta como abertura: é assim que o
+    // projeto vindo do comando `wtf` entra na lista de atalhos.
+    void registrarProjeto(projetoAtual).catch(() => {})
     return s
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+// ------------------------------------------------------- lista de projetos
+
+/**
+ * Os projetos conhecidos, cada um com um resumo BARATO (ver a regra de custo
+ * zero no topo de electron/projects.js). Nenhum deles é observado nem
+ * traduzido — só o aberto é.
+ */
+ipcMain.handle('wtf:projetos', async () => {
+  try {
+    const projetos = await lerProjetos()
+    const resumos = await resumirTodos(projetos.map((p) => p.caminho))
+    const porCaminho = new Map(resumos.map((r) => [r.caminho, r]))
+    return {
+      atual: projetoAtual,
+      projetos: projetos.map((p) => ({ ...p, resumo: porCaminho.get(p.caminho) ?? null })),
+    }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/** Troca o projeto aberto e devolve o snapshot novo, já pronto para pintar. */
+ipcMain.handle('wtf:abrir-projeto', async (_e, caminho) => {
+  const dir = typeof caminho === 'string' ? caminho.trim() : ''
+  if (!dir) return { erro: 'Caminho inválido.' }
+  if (!(await isGitRepo(dir))) {
+    return { erro: 'Essa pasta não é mais um repositório Git. Ela pode ter sido movida ou apagada.' }
+  }
+  try {
+    return await abrirProjeto(dir)
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/**
+ * Tira o projeto da LISTA. Não apaga nada dentro dele — ver o comentário de
+ * `esquecerProjeto` em electron/projects.js.
+ */
+ipcMain.handle('wtf:esquecer-projeto', async (_e, caminho) => {
+  const dir = typeof caminho === 'string' ? caminho.trim() : ''
+  if (!dir) return { erro: 'Caminho inválido.' }
+  try {
+    return { projetos: await esquecerProjeto(dir) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+ipcMain.handle('wtf:fixar-projeto', async (_e, caminho, valor) => {
+  const dir = typeof caminho === 'string' ? caminho.trim() : ''
+  if (!dir) return { erro: 'Caminho inválido.' }
+  try {
+    return { projetos: await fixarProjeto(dir, valor !== false) }
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }
   }
@@ -601,15 +698,10 @@ ipcMain.handle('wtf:escolher-projeto', async () => {
   if (!(await isGitRepo(dir))) {
     return { erro: 'Essa pasta não é um repositório Git. O WTF ainda precisa de Git para acompanhar as mudanças.' }
   }
-  projetoAtual = dir
-  // Projeto novo, linha de base nova: o histórico dele não vira uma rajada
-  // de avisos no primeiro segundo.
-  ultimoSnapshot = null
   try {
-    const s = await lerProjeto(dir)
-    observar(dir)
-    traduzirAoFundo(dir, s?.events ?? [])
-    return s
+    // Projeto novo, linha de base nova: o histórico dele não vira uma rajada
+    // de avisos no primeiro segundo (ver `abrirProjeto`).
+    return await abrirProjeto(dir)
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }
   }
