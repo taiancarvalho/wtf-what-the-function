@@ -13,7 +13,8 @@ import {
 } from 'lucide-react'
 import { STATE, STATE_ORDER } from '@/lib/state'
 import { RevalidarChip, UnsavedChip } from '@/components/StateMark'
-import { diaRelativo, horaDe, plural } from '@/lib/format'
+import { diaRelativo, horaDe } from '@/lib/format'
+import { LOCALE, useIdioma, useT } from '@/lib/i18n'
 import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
 
 /** "Agora" do mock. Quando o motor existir, vira Date.now(). */
@@ -61,6 +62,8 @@ function passaNoFiltro(f: Feature, filtros: Filtros): boolean {
 }
 
 export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
+  const t = useT()
+  const idioma = useIdioma()
   const [abertoId, setAbertoId] = useState<string | null>(null)
   const [estadosOcultos, setEstadosOcultos] = useState<Set<FeatureState>>(
     new Set(),
@@ -94,7 +97,8 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
 
   const nomeDe = useMemo(() => {
     const m = new Map(snapshot.features.map((f) => [f.id, f.name]))
-    return (id: string) => m.get(id) ?? 'Parte desconhecida'
+    return (id: string) => m.get(id) ?? t('mapa.parteDesconhecida')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot.features])
 
   const aberta = snapshot.features.find((f) => f.id === abertoId) ?? null
@@ -134,12 +138,14 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
           {/* ---------------------------------------------------- cabeçalho */}
           <header className="animate-in-up flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <h1 className="font-display text-[26px] leading-none text-[var(--color-ink)]">
-              Do que o {snapshot.project.name} é feito
+              {t('mapa.tituloProjeto', { projeto: snapshot.project.name })}
             </h1>
             <p className="text-[12px] text-[var(--color-ink-3)]">
-              {plural(snapshot.features.length, 'parte', 'partes')} ·{' '}
-              {plural(areasTotais, 'área', 'áreas')} ·{' '}
-              {plural(tocadasHoje, 'mexida hoje', 'mexidas hoje')}
+              {t('progresso.partes', { n: snapshot.features.length })} ·{' '}
+              {t('progresso.areas', { n: areasTotais })} ·{' '}
+              {tocadasHoje === 1
+                ? t('mapa.mexidaHoje')
+                : t('mapa.mexidasHoje', { n: tocadasHoje })}
             </p>
           </header>
 
@@ -155,8 +161,11 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                   aria-pressed={!oculto}
                   title={
                     oculto
-                      ? `Mostrar de novo: ${STATE[state].label}`
-                      : `Esconder ${STATE[state].label.toLowerCase()} — ${STATE[state].meaning}`
+                      ? t('filtro.mostrarDeNovo', { estado: t(`estado.${state}`) })
+                      : t('filtro.esconder', {
+                          estado: t(`estado.${state}`).toLowerCase(),
+                          sentido: t(`estado.${state}.sentido`),
+                        })
                   }
                   className={[
                     'flex items-baseline gap-1 rounded-full px-1.5 py-[2px] text-[11px] transition hover:bg-[color-mix(in_oklab,var(--color-ink-3)_12%,transparent)]',
@@ -173,7 +182,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                     {n}
                   </span>
                   <span className="text-[var(--color-ink-3)]">
-                    {STATE[state].label.toLowerCase()}
+                    {t(`estado.${state}`).toLowerCase()}
                   </span>
                 </button>
               )
@@ -185,7 +194,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
               type="button"
               onClick={() => setSoForaDoPlano((v) => !v)}
               aria-pressed={soForaDoPlano}
-              title="Mostrar somente as partes que não estavam no seu plano — o WTF as descobriu no código."
+              title={t('filtro.soForaDoPlanoDica')}
               className={[
                 'flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[11px] transition',
                 soForaDoPlano
@@ -194,13 +203,13 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
               ].join(' ')}
             >
               <Sparkles size={11} strokeWidth={1.75} aria-hidden />
-              só fora do plano
+              {t('filtro.soForaDoPlano')}
             </button>
             <button
               type="button"
               onClick={() => setSoNaoSalvo((v) => !v)}
               aria-pressed={soNaoSalvo}
-              title="Mostrar somente as partes com arquivos ainda não guardados no histórico do projeto."
+              title={t('filtro.soNaoSalvoDica')}
               className={[
                 'flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[11px] transition',
                 soNaoSalvo
@@ -212,32 +221,32 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
               }}
             >
               <CloudOff size={11} aria-hidden />
-              só não salvo
+              {t('filtro.soNaoSalvo')}
             </button>
 
             {/* Marcas que os blocos usam, aqui só para leitura. */}
             <span aria-hidden className="h-3 w-px bg-[var(--color-rule)]" />
             <span
               className="flex items-center gap-1 text-[11px] text-[var(--color-ink-3)]"
-              title="Precisa da sua atenção"
+              title={t('feed.precisaAtencao')}
             >
               <AlertTriangle
                 size={11}
                 aria-hidden
                 className="text-[var(--color-warn)]"
               />
-              atenção
+              {t('mapa.atencao')}
             </span>
             <span
               className="flex items-center gap-1 text-[11px] text-[var(--color-ink-3)]"
-              title="Mexido nas últimas 24 horas"
+              title={t('mapa.hojeDica')}
             >
               <Clock3
                 size={11}
                 aria-hidden
                 className="text-[var(--color-accent)]"
               />
-              hoje
+              {t('mapa.hoje')}
             </span>
           </div>
 
@@ -245,19 +254,21 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
             <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[var(--color-ink-3)]">
               <span>
                 {escondidas === 0
-                  ? 'Filtro ativo — nada escondido.'
-                  : `${plural(escondidas, 'parte escondida', 'partes escondidas')} pelo filtro.`}{' '}
-                Os números acima continuam sendo os do projeto inteiro.
+                  ? t('filtro.nadaEscondido')
+                  : escondidas === 1
+                    ? t('filtro.escondida')
+                    : t('filtro.escondidas', { n: escondidas })}{' '}
+                {t('mapa.notaNumeros')}
               </span>
               <button
                 type="button"
                 onClick={limpar}
                 className="flex items-center gap-1 rounded-full border border-[var(--color-rule)] px-1.5 py-[1px] text-[var(--color-ink-2)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                title="Limpar filtros"
-                aria-label="Limpar filtros"
+                title={t('progresso.limparFiltros')}
+                aria-label={t('progresso.limparFiltros')}
               >
                 <RotateCcw size={10} aria-hidden />
-                limpar filtros
+                {t('filtro.limpar')}
               </button>
             </p>
           )}
@@ -315,31 +326,35 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                             <Sparkles
                               size={10}
                               className="shrink-0 text-[var(--color-ink-3)]"
-                              aria-label="Não estava no seu plano"
+                              aria-label={t('marca.foraDoPlano')}
                             />
                           )}
                           {mexidoHoje(f) && (
                             <Clock3
                               size={10}
                               className="shrink-0 text-[var(--color-accent)]"
-                              aria-label="mexido hoje"
+                              aria-label={t('mapa.mexidoHoje')}
                             />
                           )}
                           {f.unsaved && (
                             <CloudOff
                               size={10}
                               className="shrink-0 text-[var(--color-warn)]"
-                              aria-label="ainda não salvo"
+                              aria-label={t('marca.naoSalvo')}
                             />
                           )}
                           {f.revalidar && (
                             <span
                               className="shrink-0 text-[var(--color-warn)]"
-                              aria-label="Mudou depois que você aprovou"
+                              aria-label={t('marca.revalidar')}
                               title={
                                 f.validadoEm
-                                  ? `Você tinha aprovado em ${new Date(f.validadoEm).toLocaleString('pt-BR')}. Depois disso esta parte mudou.`
-                                  : 'Esta parte mudou depois que você aprovou.'
+                                  ? t('marca.revalidarDesde', {
+                                      quando: new Date(f.validadoEm).toLocaleString(
+                                        LOCALE[idioma],
+                                      ),
+                                    })
+                                  : t('marca.revalidarSemData')
                               }
                             >
                               <History size={10} aria-hidden />
@@ -348,7 +363,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                           {alerta(f) && (
                             <AlertTriangle
                               size={10}
-                              aria-label="precisa da sua atenção"
+                              aria-label={t('feed.precisaAtencao')}
                               className={
                                 f.attention === 'critical'
                                   ? 'shrink-0 text-[var(--color-danger)]'
@@ -366,7 +381,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
 
             {distritos.length === 0 && (
               <p className="text-[12.5px] text-[var(--color-ink-3)]">
-                Nenhuma parte passa pelos filtros atuais.
+                {t('filtro.nenhuma')}
               </p>
             )}
           </div>
@@ -394,7 +409,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                 </div>
                 <button
                   onClick={() => setAbertoId(null)}
-                  aria-label="Fechar"
+                  aria-label={t('geral.fechar')}
                   className="rounded-full p-1 text-[var(--color-ink-3)] hover:text-[var(--color-ink)]"
                 >
                   <X size={15} />
@@ -413,12 +428,12 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                     borderColor: fundo(STATE[aberta.state].color, 40),
                     background: fundo(STATE[aberta.state].color, 10),
                   }}
-                  title={STATE[aberta.state].meaning}
+                  title={t(`estado.${aberta.state}.sentido`)}
                 >
                   <span className="tracking-[-0.1em]">
                     {STATE[aberta.state].mark}
                   </span>
-                  {STATE[aberta.state].label}
+                  {t(`estado.${aberta.state}`)}
                 </span>
                 {aberta.unsaved && <UnsavedChip quantos={aberta.unsavedCount} />}
                 {aberta.revalidar && <RevalidarChip desde={aberta.validadoEm} />}
@@ -431,71 +446,73 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                     }}
                   >
                     <AlertTriangle size={11} aria-hidden />
-                    atenção
+                    {t('mapa.atencao')}
                   </span>
                 )}
               </div>
 
               {/* O que o estado significa de verdade — mesmo texto do Progresso. */}
               <p className="mt-2 text-[11.5px] leading-relaxed text-[var(--color-ink-3)]">
-                {STATE[aberta.state].meaning}
+                {t(`estado.${aberta.state}.sentido`)}
               </p>
 
               {aberta.working && aberta.workingClaim && (
                 <p
                   className="mt-2 text-[11.5px] leading-relaxed"
                   style={{ color: 'var(--color-building)' }}
-                  title="O que a IA declarou ao começar este trabalho."
+                  title={t('marca.mexendoDica')}
                 >
-                  A IA está mexendo agora: “{aberta.workingClaim}”
+                  {t('marca.mexendoClaim', { claim: aberta.workingClaim })}
                 </p>
               )}
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--color-ink-3)]">
                 <span
                   className="flex items-center gap-1"
-                  title="Arquivos que o WTF associou a esta parte"
+                  title={t('geral.arquivosDica')}
                 >
                   <Files size={11} aria-hidden />
-                  {plural(aberta.files.length, 'arquivo', 'arquivos')}
+                  {aberta.files.length === 1
+                    ? t('geral.arquivo')
+                    : t('geral.arquivos', { n: aberta.files.length })}
                 </span>
                 {aberta.unsaved && (
                   <span
                     className="flex items-center gap-1"
                     style={{ color: 'var(--color-warn)' }}
-                    title="Arquivos ainda não guardados no histórico do projeto."
+                    title={t('marca.naoSalvoDica')}
                   >
                     <CloudOff size={11} aria-hidden />
-                    {plural(
-                      aberta.unsavedCount ?? 1,
-                      'ainda não salvo',
-                      'ainda não salvos',
-                    )}
+                    {(aberta.unsavedCount ?? 1) === 1
+                      ? t('marca.naoSalvo')
+                      : t('marca.naoSalvos', { n: aberta.unsavedCount ?? 1 })}
                   </span>
                 )}
                 {aberta.origin === 'discovered' && (
                   <span
                     className="flex items-center gap-1"
-                    title="Esta parte não estava no seu plano — o WTF a descobriu no código."
+                    title={t('marca.foraDoPlanoDica')}
                   >
                     <Sparkles size={11} aria-hidden />
-                    fora do plano
+                    {t('marca.foraDoPlanoCurto')}
                   </span>
                 )}
               </div>
 
               <p className="mt-3 text-[11px] text-[var(--color-ink-3)]">
-                Mexido {diaRelativo(aberta.lastTouchedAt)} às{' '}
-                {horaDe(aberta.lastTouchedAt)}
+                {t('mapa.mexidoEm', {
+                  dia: diaRelativo(aberta.lastTouchedAt),
+                  hora: horaDe(aberta.lastTouchedAt),
+                })}
               </p>
 
               <div className="rule-double mt-3 pt-2">
                 <p className="text-[10px] tracking-[0.16em] text-[var(--color-ink-3)] uppercase">
-                  Ligado a
+                  {t('mapa.ligadoA')}
                 </p>
                 {aberta.relatedIds.length === 0 ? (
                   <p className="mt-1 text-[12px] text-[var(--color-ink-3)]">
-                    Nada.
+                    {t('mapa.nada')}
                   </p>
                 ) : (
                   <ul className="mt-1 space-y-0.5">
@@ -516,11 +533,11 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
 
               <details className="mt-3 border-t border-[var(--color-rule)] pt-2">
                 <summary className="cursor-default list-none text-[11.5px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
-                  Ver parte técnica
+                  {t('feed.verTecnico')}
                 </summary>
                 {aberta.files.length === 0 ? (
                   <p className="mt-1.5 text-[11.5px] text-[var(--color-ink-3)]">
-                    Nenhum arquivo ainda.
+                    {t('mapa.semArquivos')}
                   </p>
                 ) : (
                   <ul className="mt-1.5 space-y-0.5">

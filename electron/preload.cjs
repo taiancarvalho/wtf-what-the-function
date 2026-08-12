@@ -19,8 +19,31 @@ contextBridge.exposeInMainWorld('wtf', {
   resolver: (eventId) => ipcRenderer.invoke('wtf:resolver', eventId),
   /** Aprova/desfaz a aprovação de uma parte do projeto (persiste em disco). */
   validar: (featureId) => ipcRenderer.invoke('wtf:validar', featureId),
+  /** Lê as preferências do projeto (idioma da interface e do conteúdo). */
+  lerConfig: () => ipcRenderer.invoke('wtf:config'),
+  /** Salva as preferências (merge) e reaplica o idioma nas skills instaladas. */
+  salvarConfig: (parcial) => ipcRenderer.invoke('wtf:salvar-config', parcial),
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
+  /**
+   * Quais provedores TÊM chave, já mascarada. A chave em claro nunca cruza
+   * esta ponte — ver o cabeçalho de electron/keys.js.
+   */
+  lerChaves: () => ipcRenderer.invoke('wtf:chaves'),
+  /** Guarda a chave cifrada em userData, fora da pasta do projeto. */
+  salvarChave: (provedor, chave) => ipcRenderer.invoke('wtf:salvar-chave', provedor, chave),
+  apagarChave: (provedor) => ipcRenderer.invoke('wtf:apagar-chave', provedor),
+  /** Pergunta sobre uma mudança. A resposta chega por `aoReceberResposta`. */
+  perguntar: (pedido) => ipcRenderer.invoke('wtf:perguntar', pedido),
+  /**
+   * Os pedaços da resposta, conforme chegam. `{ id, pedaco }`, e ao final
+   * `{ id, fim: true }` ou `{ id, erro }`. Devolve a função de cancelar.
+   */
+  aoReceberResposta: (cb) => {
+    const ouvinte = (_evento, dados) => cb(dados)
+    ipcRenderer.on('wtf:resposta', ouvinte)
+    return () => ipcRenderer.off('wtf:resposta', ouvinte)
+  },
   /**
    * Avisa quando o projeto mudou (commit novo ou declaração da IA).
    * Devolve a função para cancelar a inscrição.

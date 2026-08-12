@@ -1,5 +1,12 @@
 import { loadSnapshot } from '@/mock/snapshot'
-import type { ProjectSnapshot } from '@/types/protocol'
+import type {
+  ConfigProjeto,
+  ContextoPergunta,
+  EstadoChaves,
+  PedacoResposta,
+  ProjectSnapshot,
+  ProvedorChave,
+} from '@/types/protocol'
 
 /** De onde vieram os dados na tela. O usuário precisa saber disso. */
 export type Fonte = 'real' | 'exemplo'
@@ -18,9 +25,16 @@ interface PonteWtf {
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
   lerArquivo?: (relativo: string) => Promise<unknown>
+  lerConfig?: () => Promise<unknown>
+  salvarConfig?: (parcial: Partial<ConfigProjeto>) => Promise<unknown>
   resolver?: (eventId: string) => Promise<unknown>
   validar?: (featureId: string) => Promise<unknown>
   aoMudarProjeto?: (cb: (motivo: string) => void) => () => void
+  lerChaves?: () => Promise<unknown>
+  salvarChave?: (provedor: string, chave: string) => Promise<unknown>
+  apagarChave?: (provedor: string) => Promise<unknown>
+  perguntar?: (pedido: unknown) => Promise<unknown>
+  aoReceberResposta?: (cb: (dados: PedacoResposta) => void) => () => void
 }
 
 /** Um arquivo do projeto, aberto dentro do app. */
@@ -90,6 +104,100 @@ export async function lerArquivo(relativo: string): Promise<ArquivoAberto> {
     return { caminho: relativo, erro: 'Só funciona no aplicativo, não no navegador.' }
   }
   return (await p.lerArquivo(relativo)) as ArquivoAberto
+}
+
+export const podeConfigurar = () => typeof ponte()?.salvarConfig === 'function'
+
+/** Preferências do projeto. `null` fora do app ou sem projeto aberto. */
+export async function lerConfig(): Promise<ConfigProjeto | null> {
+  const p = ponte()
+  if (!p?.lerConfig) return null
+  const r = (await p.lerConfig()) as { config?: ConfigProjeto; erro?: string }
+  return r?.config ?? null
+}
+
+/**
+ * Salva parte das preferências. Devolve o config final e a carga já atualizada
+ * — o idioma novo já vale para as skills instaladas quando isto retorna.
+ */
+export async function salvarConfig(
+  parcial: Partial<ConfigProjeto>,
+): Promise<{ config: ConfigProjeto; carga: Carga | null } | null> {
+  const p = ponte()
+  if (!p?.salvarConfig) return null
+  const r = (await p.salvarConfig(parcial)) as {
+    config?: ConfigProjeto
+    snapshot?: unknown
+    erro?: string
+  }
+  if (!r?.config) return null
+  return {
+    config: r.config,
+    carga: ehSnapshot(r.snapshot) ? { snapshot: r.snapshot, fonte: 'real' } : null,
+  }
+}
+
+// ------------------------------------------------------ perguntar sobre algo
+
+export const podePerguntar = () => typeof ponte()?.perguntar === 'function'
+
+const SEM_CHAVES: EstadoChaves = { chaves: {}, podeGuardar: false }
+
+/**
+ * Quais provedores têm chave — mascarada. Fora do app, nenhuma: o navegador
+ * não tem onde guardar isso com segurança, e fingir que tem seria pior.
+ */
+export async function lerChaves(): Promise<EstadoChaves> {
+  const p = ponte()
+  if (!p?.lerChaves) return SEM_CHAVES
+  const r = (await p.lerChaves()) as EstadoChaves | undefined
+  return r?.chaves ? r : { ...SEM_CHAVES, erro: erroDe(r) }
+}
+
+/**
+ * Guarda a chave. Devolve o estado já atualizado, e `guardada: false` quando o
+ * sistema não ofereceu cofre — a interface precisa contar isso à pessoa.
+ */
+export async function salvarChave(
+  provedor: ProvedorChave,
+  chave: string,
+): Promise<EstadoChaves & { guardada?: boolean; aviso?: string }> {
+  const p = ponte()
+  if (!p?.salvarChave) return SEM_CHAVES
+  const r = (await p.salvarChave(provedor, chave)) as EstadoChaves & {
+    guardada?: boolean
+    aviso?: string
+  }
+  return r?.chaves ? r : { ...SEM_CHAVES, erro: erroDe(r) }
+}
+
+export async function apagarChave(provedor: ProvedorChave): Promise<EstadoChaves> {
+  const p = ponte()
+  if (!p?.apagarChave) return SEM_CHAVES
+  const r = (await p.apagarChave(provedor)) as EstadoChaves | undefined
+  return r?.chaves ? r : { ...SEM_CHAVES, erro: erroDe(r) }
+}
+
+/**
+ * Faz a pergunta. Só devolve `{ ok }` ou `{ erro }` — o TEXTO da resposta chega
+ * em pedaços por `aoReceberResposta`.
+ */
+export async function perguntar(pedido: {
+  eventoId: string
+  pergunta: string
+  contexto: ContextoPergunta
+  provedor?: ProvedorChave
+}): Promise<{ ok?: boolean; erro?: string; cancelado?: boolean }> {
+  const p = ponte()
+  if (!p?.perguntar) return { erro: 'Só funciona no aplicativo, não no navegador.' }
+  return (await p.perguntar(pedido)) as { ok?: boolean; erro?: string; cancelado?: boolean }
+}
+
+/** Inscreve nos pedaços da resposta. Devolve a função de cancelar. */
+export function aoReceberResposta(cb: (dados: PedacoResposta) => void): () => void {
+  const p = ponte()
+  if (!p?.aoReceberResposta) return () => {}
+  return p.aoReceberResposta(cb)
 }
 
 export const podeResolver = () => typeof ponte()?.resolver === 'function'

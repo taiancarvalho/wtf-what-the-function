@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Copy, MessageSquare, SquareTerminal } from 'lucide-react'
+import { useT } from '@/lib/i18n'
 import { abrirTerminal, podeAbrirTerminal } from '@/lib/source'
 import type { Acao } from '@/lib/acoes'
 
@@ -13,6 +14,7 @@ import type { Acao } from '@/lib/acoes'
  * como consolo.
  */
 export function OQueFazer({ acoes }: { acoes: Acao[] }) {
+  const t = useT()
   const [escolhida, setEscolhida] = useState<Acao | null>(null)
   const [copiado, setCopiado] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -25,20 +27,20 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
       setCopiado(true)
       setTimeout(() => setCopiado(false), 2500)
     } catch {
-      setAviso('Não consegui copiar. Selecione o texto abaixo e copie à mão.')
+      setAviso(t('acao.naoCopiou'))
     }
   }
 
   async function abrir(a: Acao) {
     const r = await abrirTerminal(a.mensagem)
     if (r?.erro) setAviso(r.erro)
-    else setAviso(`${r?.agente ?? 'A IA'} abriu numa janela nova com a mensagem.`)
+    else setAviso(t('acao.abriuComMensagem', { agente: r?.agente ?? t('acao.aIA') }))
   }
 
   return (
     <div className="mt-4 border-t pt-3.5">
       <p className="text-[10.5px] tracking-[0.14em] text-[var(--color-ink-3)] uppercase">
-        O que fazer
+        {t('acao.oQueFazer')}
       </p>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -47,7 +49,7 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
           return (
             <button
               key={a.id}
-              title={a.nota}
+              title={t(a.chaveNota)}
               onClick={() => {
                 setEscolhida(ativa ? null : a)
                 setCopiado(false)
@@ -64,7 +66,7 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
                 color: 'var(--color-accent)',
               }}
             >
-              {a.rotulo}
+              {t(a.chaveRotulo)}
             </button>
           )
         })}
@@ -73,7 +75,7 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
       {escolhida && (
         <div className="animate-in-up mt-3">
           <p className="text-[12.5px] leading-snug text-[var(--color-ink-2)]">
-            {escolhida.nota}
+            {t(escolhida.chaveNota)}
           </p>
 
           {/* A mensagem fica visível: a pessoa precisa poder ler o que vai
@@ -90,7 +92,7 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
                 style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
               >
                 <SquareTerminal size={13} />
-                Abrir a IA com essa mensagem
+                {t('acao.abrirIA')}
               </button>
             )}
 
@@ -99,12 +101,12 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
               className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
             >
               {copiado ? <Check size={13} /> : <Copy size={13} />}
-              {copiado ? 'Copiado' : 'Copiar mensagem'}
+              {copiado ? t('acao.copiado') : t('acao.copiar')}
             </button>
 
             <span className="inline-flex items-center gap-1 text-[11.5px] text-[var(--color-ink-3)]">
               <MessageSquare size={11} />
-              para colar numa conversa já aberta
+              {t('acao.colar')}
             </span>
           </div>
 

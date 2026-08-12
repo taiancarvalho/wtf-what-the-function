@@ -1,4 +1,5 @@
 import { CloudOff, History } from 'lucide-react'
+import { LOCALE, useIdioma, useT } from '@/lib/i18n'
 import { STATE } from '@/lib/state'
 import type { FeatureState } from '@/types/protocol'
 
@@ -10,10 +11,14 @@ export function StateMark({
   state: FeatureState
   size?: 'sm' | 'md'
 }) {
+  const t = useT()
   const meta = STATE[state]
   return (
     <span
-      title={`${meta.label} — ${meta.meaning}`}
+      title={t('estado.comSentido', {
+        estado: t(`estado.${state}`),
+        sentido: t(`estado.${state}.sentido`),
+      })}
       style={{ color: meta.color }}
       className={
         size === 'sm'
@@ -31,6 +36,8 @@ export function StateMark({
  * Estado = o que foi provado. Este selo = o que está acontecendo neste momento.
  */
 export function WorkingChip({ desde }: { desde?: string }) {
+  const t = useT()
+  const idioma = useIdioma()
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
@@ -38,13 +45,19 @@ export function WorkingChip({ desde }: { desde?: string }) {
         color: 'var(--color-building)',
         background: 'color-mix(in oklab, var(--color-building) 14%, transparent)',
       }}
-      title={desde ? `A IA começou este trabalho em ${new Date(desde).toLocaleString('pt-BR')}` : undefined}
+      title={
+        desde
+          ? t('marca.mexendoDesde', {
+              quando: new Date(desde).toLocaleString(LOCALE[idioma]),
+            })
+          : undefined
+      }
     >
       <span
         className="pulse-live h-1.5 w-1.5 rounded-full"
         style={{ background: 'var(--color-building)' }}
       />
-      A IA está mexendo agora
+      {t('marca.mexendo')}
     </span>
   )
 }
@@ -56,6 +69,7 @@ export function WorkingChip({ desde }: { desde?: string }) {
  * o que é um commit.
  */
 export function UnsavedChip({ quantos }: { quantos?: number }) {
+  const t = useT()
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
@@ -63,10 +77,10 @@ export function UnsavedChip({ quantos }: { quantos?: number }) {
         color: 'var(--color-warn)',
         background: 'color-mix(in oklab, var(--color-warn) 12%, transparent)',
       }}
-      title="Arquivos criados ou alterados que ainda não foram guardados no histórico do projeto."
+      title={t('marca.naoSalvoDica')}
     >
       <CloudOff size={11} />
-      {quantos && quantos > 1 ? `${quantos} ainda não salvos` : 'ainda não salvo'}
+      {quantos && quantos > 1 ? t('marca.naoSalvos', { n: quantos }) : t('marca.naoSalvo')}
     </span>
   )
 }
@@ -77,6 +91,8 @@ export function UnsavedChip({ quantos }: { quantos?: number }) {
  * olhar de novo. É o alerta mais valioso do painel.
  */
 export function RevalidarChip({ desde }: { desde?: string }) {
+  const t = useT()
+  const idioma = useIdioma()
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
@@ -86,17 +102,20 @@ export function RevalidarChip({ desde }: { desde?: string }) {
       }}
       title={
         desde
-          ? `Você tinha aprovado em ${new Date(desde).toLocaleString('pt-BR')}. Depois disso esta parte mudou.`
-          : 'Esta parte mudou depois que você aprovou.'
+          ? t('marca.revalidarDesde', {
+              quando: new Date(desde).toLocaleString(LOCALE[idioma]),
+            })
+          : t('marca.revalidarSemData')
       }
     >
       <History size={11} />
-      Mudou depois que você aprovou
+      {t('marca.revalidar')}
     </span>
   )
 }
 
 export function StateChip({ state }: { state: FeatureState }) {
+  const t = useT()
   const meta = STATE[state]
   return (
     <span
@@ -108,7 +127,7 @@ export function StateChip({ state }: { state: FeatureState }) {
       }}
     >
       <span className="tracking-[-0.1em]">{meta.mark}</span>
-      {meta.label}
+      {t(`estado.${state}`)}
     </span>
   )
 }

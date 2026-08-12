@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import {
   isGitRepo,
@@ -12,7 +13,10 @@ import {
 import { commitsParaSnapshot } from './translate.js'
 import { mesclarClaims, readAgentEvents } from './events.js'
 import { aplicarMapa, readProjectMap } from './map.js'
-import { desinstalar, estadoInstalacao, instalar } from './installer.js'
+import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
+import { lerConfig, salvarConfig } from './config.js'
+import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
+import { MODELO_PADRAO, perguntar } from './ask.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import { lerArquivo } from './reader.js'
@@ -124,6 +128,9 @@ async function lerProjeto(dir) {
   aplicarValidados(snapshot, await lerValidados(dir))
 
   snapshot.instalacao = await estadoInstalacao(dir)
+  // As preferências viajam junto com o snapshot: o painel precisa saber em que
+  // idioma se desenhar já na primeira pintura, sem uma segunda ida ao main.
+  snapshot.config = await lerConfig(dir)
   return snapshot
 }
 
@@ -257,6 +264,117 @@ ipcMain.handle('wtf:validar', async (_e, featureId) => {
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }
   }
+})
+
+/** Lê as preferências do projeto (idioma da interface e idioma do conteúdo). */
+ipcMain.handle('wtf:config', async () => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  try {
+    return { config: await lerConfig(projetoAtual) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/**
+ * Salva as preferências. Escreve só em `.wtf/config.json` — e, logo depois,
+ * reaplica o idioma nas skills instaladas: a preferência só vale de verdade
+ * quando o agente também a enxerga, e ele só lê o arquivo da skill.
+ */
+ipcMain.handle('wtf:salvar-config', async (_e, parcial) => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  if (!parcial || typeof parcial !== 'object') return { erro: 'Preferências inválidas.' }
+  try {
+    const config = await salvarConfig(projetoAtual, parcial)
+    await aplicarIdiomaNaSkill(projetoAtual, config)
+    return { config, snapshot: await lerProjeto(projetoAtual) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/*
+ * ------------------------------------------------------------------ perguntar
+ *
+ * As chaves ficam em `userData`, cifradas — NUNCA dentro do projeto observado
+ * (ver o cabeçalho de keys.js). O que atravessa o IPC para o renderer é sempre
+ * a versão mascarada; a chave em claro só existe aqui dentro, no instante da
+ * chamada HTTP.
+ */
+ipcMain.handle('wtf:chaves', async () => {
+  try {
+    return { ...(await lerChaves()), onde: ondeMoram() }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+ipcMain.handle('wtf:salvar-chave', async (_e, provedor, chave) => {
+  if (typeof chave !== 'string' || !chave.trim()) return { erro: 'A chave está vazia.' }
+  return salvarChave(provedor, chave)
+})
+
+ipcMain.handle('wtf:apagar-chave', async (_e, provedor) => apagarChave(provedor))
+
+/**
+ * O modelo é uma preferência do projeto (`.wtf/config.json → modeloPergunta`).
+ * Lido cru porque `lerConfig` normaliza só os campos de idioma; ausente ou
+ * estranho vale o padrão.
+ */
+async function modeloDoProjeto(dir) {
+  if (!dir) return MODELO_PADRAO
+  try {
+    const bruto = await readFile(path.join(dir, '.wtf', 'config.json'), 'utf8')
+    const m = JSON.parse(bruto)?.modeloPergunta
+    return typeof m === 'string' && m.trim() ? m.trim() : MODELO_PADRAO
+  } catch {
+    return MODELO_PADRAO
+  }
+}
+
+/** Uma pergunta por vez: a nova cancela a anterior, que ninguém mais lê. */
+let perguntaEmCurso = null
+
+ipcMain.handle('wtf:perguntar', async (_e, pedido) => {
+  const p = pedido && typeof pedido === 'object' ? pedido : {}
+  const id = typeof p.eventoId === 'string' ? p.eventoId : ''
+  if (!id) return { erro: 'Pergunta sem evento.' }
+  if (typeof p.pergunta !== 'string' || !p.pergunta.trim()) return { erro: 'Escreva uma pergunta.' }
+
+  const provedor = typeof p.provedor === 'string' && p.provedor ? p.provedor : 'openrouter'
+  const chave = await chaveEmClaro(provedor)
+  if (!chave) {
+    return { erro: 'Nenhuma chave configurada. Configure uma chave para poder perguntar.' }
+  }
+
+  perguntaEmCurso?.abort()
+  const controle = new AbortController()
+  perguntaEmCurso = controle
+
+  const config = await lerConfig(projetoAtual)
+  const enviar = (canal, dados) => {
+    if (win && !win.isDestroyed()) win.webContents.send(canal, dados)
+  }
+
+  const r = await perguntar({
+    provedor,
+    chave,
+    modelo: await modeloDoProjeto(projetoAtual),
+    contexto: p.contexto,
+    pergunta: p.pergunta,
+    idioma: config.nomeIdiomaConteudo,
+    sinal: controle.signal,
+    aoPedaco: (pedaco) => enviar('wtf:resposta', { id, pedaco }),
+  })
+
+  if (perguntaEmCurso === controle) perguntaEmCurso = null
+  if (r?.cancelado) return { cancelado: true }
+  if (r?.erro) {
+    enviar('wtf:resposta', { id, erro: r.erro })
+    return { erro: r.erro }
+  }
+  enviar('wtf:resposta', { id, fim: true, incompleta: !!r?.incompleta })
+  return { ok: true }
 })
 
 ipcMain.handle('wtf:escolher-projeto', async () => {

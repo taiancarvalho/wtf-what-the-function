@@ -8,6 +8,7 @@ import {
   FileText,
   FolderTree,
   Hammer,
+  Lightbulb,
   PackagePlus,
   PackageMinus,
   RotateCcw,
@@ -18,10 +19,12 @@ import {
 } from 'lucide-react'
 import { StateChip, UnsavedChip, WorkingChip } from '@/components/StateMark'
 import { VisualizadorArquivo } from '@/components/VisualizadorArquivo'
+import { PainelPergunta } from '@/components/PainelPergunta'
 import { OQueFazer } from '@/components/OQueFazer'
 import { acoesDeNaoSalvo, acoesDoEvento } from '@/lib/acoes'
-import { codigoCurto, diaRelativo, horaDe, plural } from '@/lib/format'
-import { alternarResolvido, podeResolver } from '@/lib/source'
+import { codigoCurto, diaRelativo, horaDe } from '@/lib/format'
+import { useT } from '@/lib/i18n'
+import { alternarResolvido, podePerguntar, podeResolver } from '@/lib/source'
 import { AGENT_LABEL } from '@/lib/state'
 import { montarAssuntos, type Assunto } from '@/lib/assuntos'
 import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/protocol'
@@ -55,9 +58,12 @@ export function Timeline({
   /** Chamado quando algo escrito em disco pede uma releitura do projeto. */
   onMudou?: () => void
 }) {
+  const t = useT()
   const [aberto, setAberto] = useState<string | null>(snapshot.events[1]?.id ?? null)
   const [soAtencao, setSoAtencao] = useState(false)
   const [arquivoAberto, setArquivoAberto] = useState<string | null>(null)
+  // A mudança sobre a qual se está perguntando. Um painel de cada vez.
+  const [perguntandoSobre, setPerguntandoSobre] = useState<WtfEvent | null>(null)
 
   const featurePorId = useMemo(
     () => new Map(snapshot.features.map((f) => [f.id, f])),
@@ -91,7 +97,7 @@ export function Timeline({
       <div className="mx-auto max-w-[720px] px-8 pt-7 pb-24">
         <header className="animate-in-up mb-8">
           <h1 className="font-display text-[27px] leading-[1.15] font-semibold">
-            {snapshot.project.name}, em português
+            {t('feed.titulo', { projeto: snapshot.project.name })}
           </h1>
 
           <AgoraMesmo features={snapshot.features} />
@@ -112,8 +118,10 @@ export function Timeline({
             >
               <AlertTriangle size={14} />
               {soAtencao
-                ? 'Mostrando só o que pede atenção'
-                : `${plural(precisamAtencao, 'coisa pede', 'coisas pedem')} sua atenção`}
+                ? t('feed.filtrando')
+                : precisamAtencao === 1
+                  ? t('feed.pedeAtencao')
+                  : t('feed.pedemAtencao', { n: precisamAtencao })}
             </button>
           )}
         </header>
@@ -141,6 +149,7 @@ export function Timeline({
                   aberto={aberto === a.aviso.id}
                   onToggle={() => setAberto(aberto === a.aviso.id ? null : a.aviso.id)}
                   onAbrirArquivo={setArquivoAberto}
+                  onPerguntar={setPerguntandoSobre}
                   onMudou={onMudou}
                   delay={i * 0.045}
                 />
@@ -154,22 +163,27 @@ export function Timeline({
              de todo projeto, e uma hora provável de alguém abrir o WTF. */
           <div className="card mt-4 px-6 py-8 text-center">
             <p className="font-display text-[17px] leading-snug font-medium">
-              Ainda não há nada para contar.
+              {t('feed.vazioTitulo')}
             </p>
             <p className="mx-auto mt-2 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-              Este projeto ainda não tem nenhuma versão guardada. Assim que a
-              primeira for salva — ou assim que a IA começar a trabalhar — o que
-              acontecer aparece aqui.
+              {t('feed.vazioTexto')}
             </p>
           </div>
         ) : (
           <p className="mt-10 text-center text-[13px] text-[var(--color-ink-3)]">
-            Começo do projeto.
+            {t('feed.comeco')}
           </p>
         )}
       </div>
 
       <VisualizadorArquivo caminho={arquivoAberto} onFechar={() => setArquivoAberto(null)} />
+      <PainelPergunta
+        evento={perguntandoSobre}
+        featureNome={
+          perguntandoSobre ? featurePorId.get(perguntandoSobre.featureId)?.name : undefined
+        }
+        onFechar={() => setPerguntandoSobre(null)}
+      />
     </div>
   )
 }
@@ -180,6 +194,7 @@ export function Timeline({
  * de quem fica olhando o painel enquanto o agente trabalha.
  */
 function AgoraMesmo({ features }: { features: Feature[] }) {
+  const t = useT()
   // Duas formas de "em curso": a IA declarou, ou há arquivo mexido sem salvar.
   // A segunda pega o trabalho que ninguém anunciou — que é a maioria.
   const emCurso = features.filter((f) => f.working || f.unsaved)
@@ -204,14 +219,13 @@ function AgoraMesmo({ features }: { features: Feature[] }) {
           className="text-[11px] font-semibold tracking-[0.14em] uppercase"
           style={{ color: 'var(--color-building)' }}
         >
-          Acontecendo agora
+          {t('feed.agora')}
         </span>
       </div>
 
       {naoSalvos > 0 && (
         <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
-          {plural(naoSalvos, 'arquivo não guardado', 'arquivos não guardados')} — esse
-          trabalho pode ser perdido.
+          {naoSalvos === 1 ? t('feed.naoSalvo') : t('feed.naoSalvos', { n: naoSalvos })}
         </p>
       )}
 
@@ -226,8 +240,13 @@ function AgoraMesmo({ features }: { features: Feature[] }) {
             )}
             <p className="mt-0.5 text-[12px] text-[var(--color-ink-3)]">
               {f.working && f.workingSince
-                ? `começou ${diaRelativo(f.workingSince).toLowerCase()} às ${horaDe(f.workingSince)} · ainda não terminou`
-                : `${plural(f.unsavedCount ?? 0, 'arquivo mexido', 'arquivos mexidos')} · a IA não avisou o que está fazendo`}
+                ? t('feed.comecou', {
+                    dia: diaRelativo(f.workingSince).toLowerCase(),
+                    hora: horaDe(f.workingSince),
+                  })
+                : (f.unsavedCount ?? 0) === 1
+                  ? t('feed.mexidoSemAviso')
+                  : t('feed.mexidosSemAviso', { n: f.unsavedCount ?? 0 })}
             </p>
           </li>
         ))}
@@ -244,6 +263,7 @@ function Cartao({
   aberto,
   onToggle,
   onAbrirArquivo,
+  onPerguntar,
   onMudou,
   delay,
 }: {
@@ -252,9 +272,11 @@ function Cartao({
   aberto: boolean
   onToggle: () => void
   onAbrirArquivo: (caminho: string) => void
+  onPerguntar: (evento: WtfEvent) => void
   onMudou?: () => void
   delay: number
 }) {
+  const t = useT()
   const evento = assunto.aviso
   const h = evento.human
   const Icone = ICONE[evento.type]
@@ -300,7 +322,7 @@ function Cartao({
           <div className="flex items-baseline gap-2.5 text-[12px] text-[var(--color-ink-3)]">
             <span
               className="rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider"
-              title="Código deste aviso. Use para se referir a ele quando falar com a IA."
+              title={t('feed.codigoDica')}
             >
               {codigoCurto(evento.id)}
             </span>
@@ -316,7 +338,7 @@ function Cartao({
             <span aria-hidden>·</span>
             <span>
               {evento.source === 'user'
-                ? 'você'
+                ? t('feed.voce')
                 : evento.source === 'wtf'
                   ? 'WTF'
                   : AGENT_LABEL[evento.agent ?? 'desconhecido']}
@@ -347,14 +369,16 @@ function Cartao({
               >
                 <AlertTriangle size={11} />
                 {/* Já houve resposta: o que falta agora é você, não a IA. */}
-                {assunto.aguardando ? 'Aguardando sua decisão' : 'Precisa da sua atenção'}
+                {assunto.aguardando ? t('feed.aguardando') : t('feed.precisaAtencao')}
               </span>
             )}
             {fechado && <SeloFechado evento={evento} />}
             {assunto.respostas.length > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-ink-3)]">
                 <CornerUpLeft size={11} />
-                {plural(assunto.respostas.length, 'resposta', 'respostas')}
+                {assunto.respostas.length === 1
+                  ? t('feed.resposta')
+                  : t('feed.respostas', { n: assunto.respostas.length })}
               </span>
             )}
           </div>
@@ -366,6 +390,7 @@ function Cartao({
             evento={evento}
             feature={feature}
             onAbrirArquivo={onAbrirArquivo}
+            onPerguntar={onPerguntar}
             onMudou={onMudou}
           />
         )}
@@ -379,6 +404,7 @@ function Cartao({
  * Discreto de propósito: não é uma comemoração, é só o alerta parando de cobrar.
  */
 function SeloFechado({ evento }: { evento: WtfEvent }) {
+  const t = useT()
   const pelaIA = !!evento.respondidoPor
   const quando = evento.respondidoPor?.at ?? evento.resolvido?.at
 
@@ -391,10 +417,14 @@ function SeloFechado({ evento }: { evento: WtfEvent }) {
       }}
     >
       {pelaIA ? <CheckCircle2 size={11} /> : <Check size={11} />}
-      {pelaIA ? 'Respondido pela IA' : 'Você marcou como resolvido'}
+      {pelaIA ? t('feed.respondidoIA') : t('feed.resolvidoVoce')}
       {quando && (
         <span style={{ color: 'var(--color-ink-3)' }}>
-            · {diaRelativo(quando).toLowerCase()} às {horaDe(quando)}
+            ·{' '}
+          {t('feed.diaHora', {
+            dia: diaRelativo(quando).toLowerCase(),
+            hora: horaDe(quando),
+          })}
         </span>
       )}
     </span>
@@ -403,6 +433,7 @@ function SeloFechado({ evento }: { evento: WtfEvent }) {
 
 /** Botão de fechar o ciclo à mão, para o aviso que a IA nunca vai responder. */
 function BotaoResolver({ evento, onMudou }: { evento: WtfEvent; onMudou?: () => void }) {
+  const t = useT()
   const [ocupado, setOcupado] = useState(false)
   const jaResolvido = !!evento.resolvido
 
@@ -425,7 +456,7 @@ function BotaoResolver({ evento, onMudou }: { evento: WtfEvent; onMudou?: () => 
       style={{ color: 'var(--color-ink-2)' }}
     >
       {jaResolvido ? <RotateCcw size={13} /> : <Check size={13} />}
-      {jaResolvido ? 'Reabrir' : 'Marcar como resolvido'}
+      {jaResolvido ? t('feed.reabrir') : t('feed.marcarResolvido')}
     </button>
   )
 }
@@ -436,26 +467,45 @@ function Detalhes({
   evento,
   feature,
   onAbrirArquivo,
+  onPerguntar,
   onMudou,
 }: {
   assunto: Assunto
   feature?: Feature
   evento: WtfEvent
   onAbrirArquivo: (caminho: string) => void
+  onPerguntar: (evento: WtfEvent) => void
   onMudou?: () => void
 }) {
+  const t = useT()
   const h = evento.human!
-  const t = evento.technical
+  const tec = evento.technical
   const atencao = assunto.pedeAtencao
   const resp = evento.respondidoPor
 
   return (
     <div className="animate-in-up border-t px-5 pt-4 pb-5">
+      {/* Perguntar sobre ESTA mudança, com as próprias palavras. Discreto: é
+          uma saída para quem ficou com dúvida, não o assunto do cartão. */}
+      {podePerguntar() && (
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => onPerguntar(evento)}
+            title={t('pergunta.abrir')}
+            className="no-drag inline-flex cursor-default items-center gap-1.5 rounded-full px-2 py-1 text-[12px] text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink-2)]"
+          >
+            <Lightbulb size={12.5} />
+            {t('pergunta.abrir')}
+          </button>
+        </div>
+      )}
+
       {/* Este cartão é a resposta de outro aviso — dá para voltar lá pelo código. */}
       {evento.respondeA && (
         <p className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-ink-3)]">
           <CornerUpLeft size={13} className="shrink-0" />
-          Responde ao aviso{' '}
+          {t('feed.respondeAo')}{' '}
           <span className="rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider">
             {evento.respondeA}
           </span>
@@ -465,8 +515,8 @@ function Detalhes({
       <p className="text-[14.5px] leading-relaxed text-pretty text-[var(--color-ink)]">
         {h.what}
       </p>
-      <Bloco titulo="Por quê">{h.why}</Bloco>
-      <Bloco titulo="Para você">{h.impact}</Bloco>
+      <Bloco titulo={t('feed.porque')}>{h.why}</Bloco>
+      <Bloco titulo={t('feed.paraVoce')}>{h.impact}</Bloco>
 
       {h.affects.length > 0 && (
         <div className="mt-4">
@@ -500,7 +550,10 @@ function Detalhes({
           />
           <div>
             <Rotulo>
-              Respondido pela IA · {diaRelativo(resp.at).toLowerCase()} às {horaDe(resp.at)}
+              {t('feed.respondidoIAEm', {
+                dia: diaRelativo(resp.at).toLowerCase(),
+                hora: horaDe(resp.at),
+              })}
             </Rotulo>
             <p className="mt-1 text-[14px] leading-relaxed text-[var(--color-ink)]">
               {resp.texto}
@@ -552,7 +605,7 @@ function Detalhes({
               size={13}
               className="transition-transform group-open:rotate-180"
             />
-            Ver o que a IA declarou
+            {t('feed.oQueIADisse')}
           </summary>
           <blockquote
             className="mt-2 border-l-2 py-1 pl-3 text-[13px] leading-relaxed text-[var(--color-ink-2)] italic"
@@ -567,7 +620,7 @@ function Detalhes({
       <details className="group mt-3">
         <summary className="no-drag inline-flex cursor-default list-none items-center gap-1.5 text-[13px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
           <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
-          Como o WTF sabe disso
+          {t('feed.comoSabe')}
         </summary>
         <ul className="mt-2 space-y-1.5">
           {evento.evidence.map((ev) => (
@@ -590,29 +643,31 @@ function Detalhes({
       </details>
 
       {/* NÍVEL 3 — técnico */}
-      {t && (
+      {tec && (
         <details className="group mt-3">
           <summary className="no-drag inline-flex cursor-default list-none items-center gap-1.5 text-[13px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
             <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
-            Ver a parte técnica
+            {t('feed.verTecnico')}
           </summary>
 
           <div className="mt-2.5 rounded-lg border p-3.5">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px]">
               <span className="text-[var(--color-ink-2)]">
-                {plural(t.filesChanged, 'arquivo', 'arquivos')}
+                {tec.filesChanged === 1
+                  ? t('geral.arquivo')
+                  : t('geral.arquivos', { n: tec.filesChanged })}
               </span>
-              <span style={{ color: 'var(--color-tested)' }}>+{t.insertions}</span>
-              <span style={{ color: 'var(--color-danger)' }}>−{t.deletions}</span>
+              <span style={{ color: 'var(--color-tested)' }}>+{tec.insertions}</span>
+              <span style={{ color: 'var(--color-danger)' }}>−{tec.deletions}</span>
             </div>
 
             <ul className="mt-2.5 space-y-0.5 font-mono text-[12px] text-[var(--color-ink-3)]">
-              {t.files.map((f) => (
+              {tec.files.map((f) => (
                 <li key={f}>
                   <button
                     type="button"
                     onClick={() => onAbrirArquivo(f)}
-                    title="Abrir o arquivo aqui do lado"
+                    title={t('feed.abrirArquivo')}
                     className="no-drag flex w-full cursor-pointer items-center gap-1.5 rounded px-1 py-[1px] text-left underline decoration-dotted underline-offset-[3px] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
                     style={{ textDecorationColor: 'var(--color-rule)' }}
                   >
@@ -623,9 +678,9 @@ function Detalhes({
               ))}
             </ul>
 
-            {(t.dependenciesAdded.length > 0 || t.dependenciesRemoved.length > 0) && (
+            {(tec.dependenciesAdded.length > 0 || tec.dependenciesRemoved.length > 0) && (
               <ul className="mt-2.5 space-y-0.5 font-mono text-[12px]">
-                {t.dependenciesAdded.map((d) => (
+                {tec.dependenciesAdded.map((d) => (
                   <li
                     key={d}
                     className="flex items-center gap-1.5"
@@ -635,7 +690,7 @@ function Detalhes({
                     {d}
                   </li>
                 ))}
-                {t.dependenciesRemoved.map((d) => (
+                {tec.dependenciesRemoved.map((d) => (
                   <li
                     key={d}
                     className="flex items-center gap-1.5"
@@ -649,13 +704,13 @@ function Detalhes({
             )}
 
             {/* NÍVEL 4 — o código cru */}
-            {t.patch && (
+            {tec.patch && (
               <details className="group/code mt-3">
                 <summary className="no-drag cursor-default list-none text-[12px] text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]">
-                  Ver o código
+                  {t('feed.verCodigo')}
                 </summary>
                 <pre className="mt-2 max-h-72 overflow-auto rounded-md border bg-[var(--color-paper-3)] p-3 font-mono text-[11.5px] leading-[1.6]">
-                  {t.patch.split('\n').map((linha, i) => (
+                  {tec.patch.split('\n').map((linha, i) => (
                     <div
                       key={i}
                       style={{

@@ -8,12 +8,23 @@ export const STATE_ORDER: FeatureState[] = [
   'validated',
 ]
 
+/**
+ * Só o que é universal.
+ *
+ * `mark` e `color` são iguais em qualquer idioma — são o alfabeto do produto.
+ * O nome que a pessoa lê e a frase que explica o estado vivem no dicionário
+ * (`estado.<state>` e `estado.<state>.sentido`), porque mudam de língua.
+ *
+ * `label` e `meaning` continuam aqui só enquanto `src/views/ProductMap.tsx` e
+ * `src/views/BuildMap.tsx` ainda os lerem. São resíduo: quem escrever texto
+ * novo deve usar o dicionário.
+ */
 interface StateMeta {
   /** Símbolo usado no app inteiro. Nunca muda de tela para tela. */
   mark: string
-  /** Nome que o usuário lê. Sem jargão. */
+  /** @deprecated Use `t('estado.<state>')`. */
   label: string
-  /** Uma frase explicando o que esse estado significa de verdade. */
+  /** @deprecated Use `t('estado.<state>.sentido')`. */
   meaning: string
   color: string
 }

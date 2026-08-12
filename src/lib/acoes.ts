@@ -1,5 +1,5 @@
 import { codigoCurto } from '@/lib/format'
-import type { Feature, WtfEvent } from '@/types/protocol'
+import type { ConfigProjeto, Feature, WtfEvent } from '@/types/protocol'
 
 /**
  * O que fazer com um alerta.
@@ -12,16 +12,48 @@ import type { Feature, WtfEvent } from '@/types/protocol'
  * As mensagens são montadas aqui, sem modelo: são instantâneas, previsíveis,
  * funcionam offline e não gastam chamada. O que o modelo já escreveu (a
  * manchete, o motivo do alerta) entra como contexto.
+ *
+ * DOIS IDIOMAS DIFERENTES CONVIVEM NESTE ARQUIVO.
+ *
+ * O que aparece na TELA (rótulo do botão, a nota embaixo dele) segue o idioma
+ * da interface — por isso vem em chave de dicionário, traduzida por quem
+ * desenha o botão (`OQueFazer`), não aqui.
+ *
+ * O CORPO da mensagem segue outro eixo: é instrução para um modelo, não texto
+ * para uma pessoa ler numa língua específica. Traduzi-lo para os três idiomas
+ * da interface seria triplicar a manutenção de um texto que nenhum humano
+ * precisa ler traduzido — e ainda assim erraria, porque a pessoa pode querer
+ * a interface em inglês e as explicações em japonês. Em vez disso o corpo fica
+ * num texto só e ganha, no fim, um pedido explícito de responder no idioma de
+ * CONTEÚDO escolhido (`ConfigProjeto.nomeIdiomaConteudo`).
  */
 
 export interface Acao {
   id: string
-  /** O que o botão diz. Verbo, do ponto de vista da pessoa. */
-  rotulo: string
-  /** Uma linha explicando o que vai acontecer se clicar. */
-  nota: string
-  /** A mensagem que vai para a IA. */
+  /**
+   * Chave do dicionário com o que o botão diz. Verbo, do ponto de vista da
+   * pessoa. Quem renderiza traduz — o texto na tela segue a interface.
+   */
+  chaveRotulo: string
+  /** Chave da linha que explica o que vai acontecer se clicar. */
+  chaveNota: string
+  /** A mensagem que vai para a IA. Já montada, no idioma do conteúdo. */
   mensagem: string
+}
+
+/**
+ * A linha final da mensagem.
+ *
+ * A pessoa escolheu, na configuração do projeto, em que língua quer receber as
+ * explicações. Como esta mensagem sai em nome dela, ela precisa carregar esse
+ * pedido junto — senão a IA responde na língua que ela achar melhor e a pessoa
+ * recebe, no próprio terminal, um texto que talvez não consiga ler.
+ *
+ * Sem config não há pedido: melhor não dizer nada do que chutar uma língua.
+ */
+function pedidoDeIdioma(config?: ConfigProjeto): string {
+  if (!config?.nomeIdiomaConteudo) return ''
+  return `\n\nResponda em ${config.nomeIdiomaConteudo}.`
 }
 
 /**
@@ -59,6 +91,7 @@ export function acoesDoEvento(
   evento: WtfEvent,
   feature?: Feature,
   codigoDoAssunto?: string,
+  config?: ConfigProjeto,
 ): Acao[] {
   const h = evento.human
   if (!h) return []
@@ -83,40 +116,43 @@ export function acoesDoEvento(
   const acoes: Acao[] = [
     {
       id: 'resolver',
-      rotulo: 'Pedir para resolver',
-      nota: 'A IA analisa o ponto de atenção e propõe uma solução antes de mexer.',
+      chaveRotulo: 'acao.resolver',
+      chaveNota: 'acao.resolver.nota',
       mensagem:
         `${contexto}\n` +
         `Preciso que você cuide desse ponto de atenção.\n\n` +
         `Antes de alterar qualquer coisa: verifique se o problema realmente existe, ` +
-        `me explique em português simples o que você encontrou e o que pretende fazer, ` +
+        `me explique em palavras simples o que você encontrou e o que pretende fazer, ` +
         `e só mexa depois que eu confirmar. ` +
         `Se for um alarme falso, diga isso claramente em vez de mexer no código à toa.` +
-        rodape(codigo, parte, arquivos, evento.id),
+        rodape(codigo, parte, arquivos, evento.id) +
+        pedidoDeIdioma(config),
     },
     {
       id: 'explicar',
-      rotulo: 'Pedir para explicar',
-      nota: 'A IA explica o risco em português, sem alterar nada.',
+      chaveRotulo: 'acao.explicar',
+      chaveNota: 'acao.explicar.nota',
       mensagem:
         `${contexto}\n` +
-        `Me explique isso em português simples, como se eu não soubesse programar.\n\n` +
+        `Me explique isso em palavras simples, como se eu não soubesse programar.\n\n` +
         `Quero entender: o que exatamente muda para quem usa o produto, ` +
         `qual é o risco de verdade (e se é grave ou não), e o que costuma ser feito ` +
         `nesses casos. Não altere nenhum arquivo — é só explicação.` +
-        rodape(codigo, parte, arquivos, evento.id),
+        rodape(codigo, parte, arquivos, evento.id) +
+        pedidoDeIdioma(config),
     },
     {
       id: 'verificar',
-      rotulo: 'Pedir para conferir se funciona',
-      nota: 'A IA testa de verdade e mostra a prova, em vez de dizer que está pronto.',
+      chaveRotulo: 'acao.verificar',
+      chaveNota: 'acao.verificar.nota',
       mensagem:
         `${contexto}\n` +
         `Confira se isso está mesmo funcionando e me mostre a prova.\n\n` +
         `Rode os testes que cobrem essa parte, ou crie um teste se não existir. ` +
         `Me mostre a saída real do que você rodou. ` +
         `Se não der para provar que funciona, diga isso com clareza em vez de afirmar que está pronto.` +
-        rodape(codigo, parte, arquivos, evento.id),
+        rodape(codigo, parte, arquivos, evento.id) +
+        pedidoDeIdioma(config),
     },
   ]
 
@@ -124,7 +160,7 @@ export function acoesDoEvento(
 }
 
 /** Ações para trabalho que existe no disco e ainda não foi salvo. */
-export function acoesDeNaoSalvo(features: Feature[]): Acao[] {
+export function acoesDeNaoSalvo(features: Feature[], config?: ConfigProjeto): Acao[] {
   const partes = features.filter((f) => f.unsaved).map((f) => f.name)
   const total = features.reduce((soma, f) => soma + (f.unsavedCount ?? 0), 0)
   if (total === 0) return []
@@ -136,29 +172,31 @@ export function acoesDeNaoSalvo(features: Feature[]): Acao[] {
   return [
     {
       id: 'salvar',
-      rotulo: 'Pedir para guardar o trabalho',
-      nota: 'A IA revisa o que foi feito e guarda no histórico, em partes organizadas.',
+      chaveRotulo: 'acao.salvar',
+      chaveNota: 'acao.salvar.nota',
       mensagem:
         `Contexto (isto foi levantado pelo WTF, um painel que acompanha o projeto):\n` +
         `Existem ${total} arquivos alterados ou criados que ainda não foram salvos no histórico do projeto.\n` +
         lista +
         `\nRevise o que está pendente e guarde no histórico.\n\n` +
-        `Antes de guardar: me diga em português simples o que foi feito e se ficou algo pela metade. ` +
+        `Antes de guardar: me diga em palavras simples o que foi feito e se ficou algo pela metade. ` +
         `Separe em partes que façam sentido para uma pessoa, em vez de guardar tudo de uma vez. ` +
-        `Não guarde nada que pareça arquivo temporário, de teste manual ou com senha dentro.`,
+        `Não guarde nada que pareça arquivo temporário, de teste manual ou com senha dentro.` +
+        pedidoDeIdioma(config),
     },
     {
       id: 'resumir-pendente',
-      rotulo: 'Pedir um resumo do que está em aberto',
-      nota: 'A IA explica o que ficou pela metade, sem mexer em nada.',
+      chaveRotulo: 'acao.resumirPendente',
+      chaveNota: 'acao.resumirPendente.nota',
       mensagem:
         `Contexto (isto foi levantado pelo WTF, um painel que acompanha o projeto):\n` +
         `Existem ${total} arquivos alterados ou criados que ainda não foram salvos no histórico.\n` +
         lista +
-        `\nMe explique, em português simples, o que está em aberto agora.\n\n` +
+        `\nMe explique, em palavras simples, o que está em aberto agora.\n\n` +
         `Quero saber: o que já está terminado, o que ficou pela metade, ` +
         `e se tem alguma coisa aí que possa quebrar o que já funcionava. ` +
-        `Não altere nem guarde nada — é só um resumo.`,
+        `Não altere nem guarde nada — é só um resumo.` +
+        pedidoDeIdioma(config),
     },
   ]
 }

@@ -18,6 +18,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { lerConfig } from './config.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ORIGEM = path.join(__dirname, '..', 'skill')
@@ -75,6 +76,10 @@ export async function instalar(dir) {
     if (EXECUTAVEIS.has(chave)) await fs.chmod(destino, 0o755)
     feito.push(rel)
   }
+
+  // As skills nascem no idioma configurado — o padrão do arquivo de origem é
+  // português, e reescrever aqui evita instalar a instrução errada.
+  await aplicarIdiomaNaSkill(dir, await lerConfig(dir))
 
   // 2. registro dos hooks — merge, preservando o que já existe
   const alvoSettings = path.join(dir, '.claude/settings.local.json')
@@ -176,4 +181,76 @@ async function garantirGitignore(dir) {
   if (conteudo.split('\n').some((l) => l.trim() === linha)) return
   const sufixo = conteudo && !conteudo.endsWith('\n') ? '\n' : ''
   await fs.appendFile(alvo, `${sufixo}\n# WTF — histórico local do que a IA declarou\n${linha}\n`, 'utf8')
+}
+
+// ------------------------------------------------------------------ idioma
+
+/**
+ * O agente escreve para o dono do projeto, não para quem programa — e não é o
+ * idioma da CONVERSA que manda, é o idioma que o dono escolheu no WTF. Como a
+ * skill é um arquivo no disco, a preferência precisa ser gravada dentro dela.
+ *
+ * A seção fica entre marcadores para que reaplicar seja substituição, e não
+ * acúmulo: reescrevemos só o miolo, o resto do arquivo nunca é tocado.
+ */
+const ABRE = '<!-- wtf:idioma -->'
+const FECHA = '<!-- /wtf:idioma -->'
+
+/** Arquivos instalados que carregam a instrução de idioma. */
+const SKILLS_COM_IDIOMA = [
+  ['.claude/skills/wtf/SKILL.md', (nome) =>
+    `Escreva SEMPRE em ${nome}. Isto vale para o \`--text\` das declarações e para ` +
+    'qualquer explicação destinada ao dono do projeto, mesmo que a conversa esteja ' +
+    'em outra língua.'],
+  ['.claude/skills/wtf-mapear/SKILL.md', (nome) =>
+    `Escreva SEMPRE em ${nome}. Isto vale para os nomes e descrições que você grava ` +
+    'em `.wtf/map.json` e para qualquer explicação destinada ao dono do projeto, ' +
+    'mesmo que a conversa esteja em outra língua.'],
+]
+
+/**
+ * Reescreve o trecho de idioma nas skills já instaladas. Idempotente: rodar
+ * duas vezes deixa o arquivo idêntico. Se os marcadores não existirem (skill
+ * instalada por uma versão antiga do WTF), a seção é acrescentada ao final em
+ * vez de o arquivo ser abandonado sem instrução.
+ *
+ * Nunca lança: idioma errado na skill é ruim, mas derrubar a instalação por
+ * causa disso seria pior.
+ */
+export async function aplicarIdiomaNaSkill(dir, config) {
+  if (!dir) return { ok: false, arquivos: [] }
+  const nome = config?.nomeIdiomaConteudo || 'português do Brasil'
+  const tocados = []
+
+  for (const [rel, montar] of SKILLS_COM_IDIOMA) {
+    const alvo = path.join(dir, rel)
+    let conteudo
+    try {
+      conteudo = await fs.readFile(alvo, 'utf8')
+    } catch {
+      continue // skill não instalada: nada a fazer
+    }
+
+    const miolo = `${ABRE}\n${montar(nome)}\n${FECHA}`
+    const ini = conteudo.indexOf(ABRE)
+    const fim = conteudo.indexOf(FECHA)
+
+    let novo
+    if (ini >= 0 && fim > ini) {
+      novo = conteudo.slice(0, ini) + miolo + conteudo.slice(fim + FECHA.length)
+    } else {
+      const sufixo = conteudo.endsWith('\n') ? '' : '\n'
+      novo = `${conteudo}${sufixo}\n## Idioma\n\n${miolo}\n`
+    }
+
+    if (novo === conteudo) continue
+    try {
+      await fs.writeFile(alvo, novo, 'utf8')
+      tocados.push(rel)
+    } catch {
+      /* sem permissão de escrita: segue com as outras */
+    }
+  }
+
+  return { ok: true, arquivos: tocados }
 }

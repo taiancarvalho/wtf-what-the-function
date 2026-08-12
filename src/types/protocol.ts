@@ -224,9 +224,82 @@ export interface EstadoInstalacao {
   mapeado: boolean
 }
 
+/**
+ * Preferências do projeto, em `.wtf/config.json`.
+ *
+ * `idiomaInterface` são os textos do app e só tem três valores possíveis.
+ * `idiomaConteudo` é a língua em que a IA escreve — pode ser qualquer uma,
+ * inclusive uma que a interface não tenha. `nomeIdiomaConteudo` é o nome por
+ * extenso dessa língua, e é ele que entra nos prompts e na skill.
+ */
+export type IdiomaInterface = 'pt-BR' | 'en' | 'es'
+
+export interface ConfigProjeto {
+  v: 1
+  idiomaInterface: IdiomaInterface
+  idiomaConteudo: string
+  nomeIdiomaConteudo: string
+  /**
+   * Modelo usado no "Explique isso" (ex.: `google/gemini-2.0-flash-001`).
+   * Opcional: ausente vale o padrão barato definido em `electron/ask.js`.
+   */
+  modeloPergunta?: string
+}
+
+// ------------------------------------------------------- perguntar sobre algo
+
+/** Provedores de modelo. Hoje só `openrouter` responde de verdade. */
+export type ProvedorChave = 'openrouter' | 'anthropic' | 'openai'
+
+/**
+ * O que o renderer sabe sobre uma chave: que ela existe, como ela começa e
+ * termina, e se está guardada em disco ou só nesta sessão. A chave inteira
+ * NUNCA chega aqui — ver `electron/keys.js`.
+ */
+export interface ChaveMascarada {
+  tem: boolean
+  /** `sk-or-…4f2a`. Suficiente para reconhecer, inútil para usar. */
+  mascara: string
+  /** `false` quando o sistema não ofereceu cofre: vale só até fechar o app. */
+  guardada: boolean
+  at?: string
+}
+
+export interface EstadoChaves {
+  chaves: Partial<Record<ProvedorChave, ChaveMascarada>>
+  /** O cofre do sistema está disponível? Sem ele, não gravamos nada. */
+  podeGuardar: boolean
+  /** Caminho do arquivo cifrado, para a interface poder mostrar onde é. */
+  onde?: string
+  erro?: string
+}
+
+/** O que o painel sabe da mudança e manda junto com a pergunta. */
+export interface ContextoPergunta {
+  headline?: string
+  what?: string
+  why?: string
+  impact?: string
+  attentionReason?: string
+  claim?: string
+  feature?: string
+  files?: string[]
+  patch?: string
+}
+
+/** Um pedaço da resposta chegando (ou o fim, ou o erro). */
+export interface PedacoResposta {
+  id: string
+  pedaco?: string
+  fim?: boolean
+  incompleta?: boolean
+  erro?: string
+}
+
 export interface ProjectSnapshot {
   project: Project
   features: Feature[]
   events: WtfEvent[]
   instalacao?: EstadoInstalacao
+  config?: ConfigProjeto
 }

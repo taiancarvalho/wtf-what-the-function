@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
+import { useT } from '@/lib/i18n'
 import { lerArquivo, type ArquivoAberto } from '@/lib/source'
 
 /**
@@ -14,6 +15,7 @@ export function VisualizadorArquivo({
   caminho: string | null
   onFechar: () => void
 }) {
+  const t = useT()
   const [arquivo, setArquivo] = useState<ArquivoAberto | null>(null)
   const [carregando, setCarregando] = useState(false)
 
@@ -86,11 +88,15 @@ export function VisualizadorArquivo({
               </span>
             )}
             <span className="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-[var(--color-ink-3)]">
-              {linhas ? `${arquivo?.linhas ?? linhas.length} linhas` : ''}
+              {linhas
+                ? (arquivo?.linhas ?? linhas.length) === 1
+                  ? t('arquivo.umaLinha')
+                  : t('arquivo.linhas', { n: arquivo?.linhas ?? linhas.length })
+                : ''}
             </span>
             <button
               onClick={onFechar}
-              aria-label="Fechar o arquivo"
+              aria-label={t('arquivo.fechar')}
               className="-my-1 shrink-0 rounded-md p-1 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
             >
               <X size={15} />
@@ -99,7 +105,7 @@ export function VisualizadorArquivo({
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             {carregando && (
-              <p className="px-4 py-4 text-[13px] text-[var(--color-ink-3)]">Abrindo…</p>
+              <p className="px-4 py-4 text-[13px] text-[var(--color-ink-3)]">{t('arquivo.abrindo')}</p>
             )}
 
             {!carregando && arquivo?.erro && (
@@ -113,7 +119,7 @@ export function VisualizadorArquivo({
 
             {!carregando && !arquivo?.erro && arquivo?.binario && (
               <p className="px-4 py-4 text-[13px] text-[var(--color-ink-3)]">
-                Esse arquivo não é texto.
+                {t('arquivo.naoEhTexto')}
               </p>
             )}
 

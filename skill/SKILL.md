@@ -116,3 +116,11 @@ Por isso, seja honesto no `done`. Se você terminou mas não testou, diga:
 > "A tela está pronta, mas eu não consegui testar o pagamento de verdade."
 
 Isso vale muito mais para ele do que um "concluído" limpo e falso.
+
+## Idioma
+
+<!-- wtf:idioma -->
+Escreva SEMPRE em português do Brasil. Isto vale para o `--text` das declarações
+e para qualquer explicação destinada ao dono do projeto, mesmo que a conversa
+esteja em outra língua.
+<!-- /wtf:idioma -->

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, SquareTerminal } from 'lucide-react'
+import { useT } from '@/lib/i18n'
 import { abrirTerminal, podeAbrirTerminal } from '@/lib/source'
 
 /**
@@ -18,6 +19,7 @@ export function BarraTopo({
   atualizadoEm: number
   onAtualizar: () => void
 }) {
+  const t = useT()
   const [aviso, setAviso] = useState<string | null>(null)
   const [agora, setAgora] = useState(Date.now())
 
@@ -36,13 +38,17 @@ export function BarraTopo({
   async function aoAbrirTerminal() {
     const r = await abrirTerminal()
     if (r?.erro) setAviso(r.erro)
-    else if (r?.agente) setAviso(`${r.agente} abriu numa janela nova.`)
-    else setAviso('Terminal aberto na pasta do projeto.')
+    else if (r?.agente) setAviso(t('topo.agenteAbriu', { agente: r.agente }))
+    else setAviso(t('topo.terminalAberto'))
   }
 
   const segundos = Math.floor((agora - atualizadoEm) / 1000)
   const quando =
-    segundos < 20 ? 'agora mesmo' : segundos < 90 ? 'há 1 min' : `há ${Math.floor(segundos / 60)} min`
+    segundos < 20
+      ? t('topo.agora')
+      : segundos < 90
+        ? t('topo.hum')
+        : t('topo.minutos', { n: Math.floor(segundos / 60) })
 
   return (
     <div className="no-drag absolute top-2 right-5 z-30 flex items-center gap-2">
@@ -56,13 +62,13 @@ export function BarraTopo({
       )}
 
       <span className="mr-0.5 text-[11.5px] text-[var(--color-ink-3)]">
-        atualizado {quando}
+        {t('topo.atualizado', { quando })}
       </span>
 
       <Botao
-        titulo="Atualizar agora"
+        titulo={t('topo.atualizar')}
         onClick={onAtualizar}
-        aria-label="Atualizar"
+        aria-label={t('topo.atualizarRotulo')}
       >
         <RefreshCw
           size={14.5}
@@ -73,12 +79,12 @@ export function BarraTopo({
 
       {podeAbrirTerminal() && (
         <Botao
-          titulo="Abrir a IA nesta pasta, numa janela de terminal"
+          titulo={t('topo.trabalharDica')}
           onClick={aoAbrirTerminal}
           destaque
         >
           <SquareTerminal size={14.5} strokeWidth={2} />
-          <span className="text-[12.5px] font-medium">Trabalhar</span>
+          <span className="text-[12.5px] font-medium">{t('topo.trabalhar')}</span>
         </Botao>
       )}
     </div>

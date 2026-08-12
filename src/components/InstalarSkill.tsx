@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Compass, Plug, Loader2 } from 'lucide-react'
+import { useT } from '@/lib/i18n'
 import { alternarInstalacao, mapearProjeto, podeInstalar, type Carga } from '@/lib/source'
 import type { EstadoInstalacao } from '@/types/protocol'
 
@@ -15,6 +16,7 @@ export function InstalarSkill({
   instalacao: EstadoInstalacao | undefined
   onMudou: (c: Carga) => void
 }) {
+  const t = useT()
   const [ocupado, setOcupado] = useState(false)
 
   if (!podeInstalar() || !instalacao) return null
@@ -39,14 +41,14 @@ export function InstalarSkill({
           <Check size={13} className="mt-[3px] shrink-0" style={{ color: 'var(--color-tested)' }} />
           <div className="min-w-0">
             <p className="text-[12px] leading-snug text-[var(--color-ink-2)]">
-              A IA está avisando o que faz neste projeto.
+              {t('instalar.ligado')}
             </p>
             <button
               onClick={() => agir('desinstalar')}
               disabled={ocupado}
               className="no-drag mt-0.5 text-[11.5px] text-[var(--color-ink-3)] underline underline-offset-2 hover:text-[var(--color-ink-2)]"
             >
-              desligar
+              {t('instalar.desligar')}
             </button>
           </div>
         </div>
@@ -64,11 +66,10 @@ export function InstalarSkill({
       data-slot="instalar"
     >
       <p className="text-[12.5px] leading-snug font-medium">
-        A IA ainda não avisa o que está fazendo.
+        {t('instalar.naoAvisa')}
       </p>
       <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-ink-2)]">
-        Hoje o WTF só vê o que já foi salvo. Ligando isso, você passa a ver o que
-        está sendo construído agora.
+        {t('instalar.naoAvisaNota')}
       </p>
       <button
         onClick={() => agir('instalar')}
@@ -81,7 +82,7 @@ export function InstalarSkill({
         ) : (
           <Plug size={13} />
         )}
-        Ligar no meu projeto
+        {t('instalar.ligar')}
       </button>
     </div>
   )
@@ -95,6 +96,7 @@ export function InstalarSkill({
  * O agente nomeia as partes. Quem decide o estado delas continua sendo o WTF.
  */
 function CardMapear() {
+  const t = useT()
   const [enviado, setEnviado] = useState(false)
 
   async function mapear() {
@@ -111,12 +113,10 @@ function CardMapear() {
       }}
     >
       <p className="text-[12.5px] leading-snug font-medium">
-        Este projeto começou antes do WTF.
+        {t('instalar.antesDoWtf')}
       </p>
       <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-ink-2)]">
-        {enviado
-          ? 'A IA está lendo seu projeto. Quando ela terminar, o painel se organiza sozinho.'
-          : 'As abas Progresso e Mapa ainda mostram nomes técnicos. A IA pode ler seu plano e organizar tudo em português.'}
+        {enviado ? t('instalar.mapeando') : t('instalar.mapearNota')}
       </p>
       {!enviado && (
         <button
@@ -125,7 +125,7 @@ function CardMapear() {
           style={{ background: 'var(--color-implemented)', color: 'var(--color-paper)' }}
         >
           <Compass size={13} />
-          Organizar meu projeto
+          {t('instalar.mapear')}
         </button>
       )}
     </div>

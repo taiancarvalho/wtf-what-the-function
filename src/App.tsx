@@ -1,25 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Blocks, FlaskConical, FolderSearch, ListChecks, Newspaper } from 'lucide-react'
+import { Blocks, FlaskConical, FolderSearch, House, ListChecks, Newspaper } from 'lucide-react'
 import {
   aoMudarProjeto,
   carregar,
   escolherProjeto,
   podeEscolherProjeto,
+  salvarConfig,
   type Carga,
 } from '@/lib/source'
 import { InstalarSkill } from '@/components/InstalarSkill'
+import { EscolherIdioma } from '@/components/EscolherIdioma'
+import { ConfigChaves } from '@/components/ConfigChaves'
+import { IdiomaContext, useT, type Idioma } from '@/lib/i18n'
 import { BarraTopo } from '@/components/BarraTopo'
 import { BuildMap } from '@/views/BuildMap'
 import { ProductMap } from '@/views/ProductMap'
 import { Timeline } from '@/views/Timeline'
+import { Home } from '@/views/Home'
 import { AGENT_LABEL } from '@/lib/state'
 
-type Aba = 'timeline' | 'build' | 'mapa'
+type Aba = 'home' | 'timeline' | 'build' | 'mapa'
 
 const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] = [
-  { id: 'timeline', label: 'Acontecendo', icone: Newspaper, nota: 'O que a IA mexeu' },
-  { id: 'build', label: 'Progresso', icone: ListChecks, nota: 'Onde estamos' },
-  { id: 'mapa', label: 'Mapa', icone: Blocks, nota: 'Do que é feito' },
+  { id: 'home', label: 'nav.home', icone: House, nota: 'nav.home.nota' },
+  { id: 'timeline', label: 'nav.acontecendo', icone: Newspaper, nota: 'nav.acontecendo.nota' },
+  { id: 'build', label: 'nav.progresso', icone: ListChecks, nota: 'nav.progresso.nota' },
+  { id: 'mapa', label: 'nav.mapa', icone: Blocks, nota: 'nav.mapa.nota' },
 ]
 
 /**
@@ -60,7 +66,7 @@ function AvisoErro({ erro }: { erro: string }) {
 
 export function App() {
   const [carga, setCarga] = useState<Carga | null>(null)
-  const [aba, setAba] = useState<Aba>('timeline')
+  const [aba, setAba] = useState<Aba>('home')
   const [atualizando, setAtualizando] = useState(false)
   const [atualizadoEm, setAtualizadoEm] = useState(() => Date.now())
 
@@ -131,7 +137,7 @@ export function App() {
 
   if (!carga) return <div className="drag h-full" />
 
-  const { snapshot, fonte, erro } = carga
+  const { snapshot } = carga
 
   async function trocarProjeto() {
     const nova = await escolherProjeto()
@@ -140,6 +146,56 @@ export function App() {
       setAtualizadoEm(Date.now())
     }
   }
+
+  const idioma = (snapshot.config?.idiomaInterface ?? 'pt-BR') as Idioma
+
+  /** Trocar de idioma reescreve a instrução dentro da skill instalada. */
+  async function trocarIdioma(parcial: Parameters<typeof salvarConfig>[0]) {
+    const r = await salvarConfig(parcial)
+    if (r?.carga) setCarga(r.carga)
+  }
+
+  return (
+    <IdiomaContext.Provider value={idioma}>
+      <Painel
+        aba={aba}
+        setAba={setAba}
+        carga={carga}
+        setCarga={setCarga}
+        atualizando={atualizando}
+        atualizadoEm={atualizadoEm}
+        atualizar={atualizar}
+        trocarProjeto={trocarProjeto}
+        trocarIdioma={trocarIdioma}
+      />
+    </IdiomaContext.Provider>
+  )
+}
+
+/** O app inteiro, já dentro do idioma escolhido. */
+function Painel({
+  aba,
+  setAba,
+  carga,
+  setCarga,
+  atualizando,
+  atualizadoEm,
+  atualizar,
+  trocarProjeto,
+  trocarIdioma,
+}: {
+  aba: Aba
+  setAba: (a: Aba) => void
+  carga: Carga
+  setCarga: (c: Carga) => void
+  atualizando: boolean
+  atualizadoEm: number
+  atualizar: (forcado?: boolean) => void
+  trocarProjeto: () => void
+  trocarIdioma: (parcial: Parameters<typeof salvarConfig>[0]) => Promise<void>
+}) {
+  const t = useT()
+  const { snapshot, fonte, erro } = carga
 
   return (
     <div className="flex h-full">
@@ -171,7 +227,7 @@ export function App() {
               }}
             >
               <FlaskConical size={11} />
-              Projeto de exemplo
+              {t('lateral.exemplo')}
             </span>
           )}
 
@@ -181,13 +237,19 @@ export function App() {
               className="no-drag mt-3 flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
             >
               <FolderSearch size={14} className="shrink-0" />
-              {fonte === 'real' ? 'Trocar de projeto' : 'Abrir um projeto de verdade'}
+              {fonte === 'real' ? t('lateral.trocarProjeto') : t('lateral.abrirProjeto')}
             </button>
           )}
 
           {fonte === 'real' && (
             <InstalarSkill instalacao={snapshot.instalacao} onMudou={setCarga} />
           )}
+
+          {fonte === 'real' && (
+            <EscolherIdioma config={snapshot.config} onSalvar={trocarIdioma} />
+          )}
+
+          {fonte === 'real' && <ConfigChaves />}
 
           {erro && <AvisoErro erro={erro} />}
         </div>
@@ -210,10 +272,10 @@ export function App() {
                 <Icone size={16} className="shrink-0" strokeWidth={ativa ? 2.4 : 1.9} />
                 <span className="min-w-0">
                   <span className="block text-[14px] leading-tight font-medium">
-                    {label}
+                    {t(label)}
                   </span>
                   <span className="block text-[11.5px] leading-tight text-[var(--color-ink-3)]">
-                    {nota}
+                    {t(nota)}
                   </span>
                 </span>
               </button>
@@ -232,13 +294,15 @@ export function App() {
               }}
             />
             <span className="text-[12.5px] text-[var(--color-ink-2)]">
-              {snapshot.project.live ? 'A IA está trabalhando agora' : 'Nada em andamento'}
+              {snapshot.project.live ? t('lateral.trabalhando') : t('lateral.parado')}
             </span>
           </div>
           <p className="mt-2 text-[11.5px] leading-relaxed text-[var(--color-ink-3)]">
             {snapshot.project.connectedAgents.length > 0
-              ? `Acompanhando ${snapshot.project.connectedAgents.map((a) => AGENT_LABEL[a]).join(' e ')}`
-              : 'Lendo o histórico do Git. Nenhum agente assinou as mudanças ainda.'}
+              ? t('lateral.acompanhando', {
+                  agentes: snapshot.project.connectedAgents.map((a) => AGENT_LABEL[a]).join(', '),
+                })
+              : t('lateral.semAgente')}
           </p>
         </div>
       </aside>
@@ -253,6 +317,7 @@ export function App() {
           />
         </div>
         <div className="min-h-0 flex-1">
+          {aba === 'home' && <Home snapshot={snapshot} onIr={setAba} />}
           {aba === 'timeline' && (
             <Timeline snapshot={snapshot} onMudou={() => atualizar(true)} />
           )}

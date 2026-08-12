@@ -123,3 +123,11 @@ nomear — essas são as que ele vai querer corrigir.
 Rodar de novo é seguro. Preserve os `id` que já existem — eles são a memória do
 painel. Renomear um `id` faz o WTF achar que a parte antiga sumiu e uma nova
 apareceu, e o dono do projeto perde o histórico daquela parte.
+
+## Idioma
+
+<!-- wtf:idioma -->
+Escreva SEMPRE em português do Brasil. Isto vale para os nomes e descrições que
+você grava em `.wtf/map.json` e para qualquer explicação destinada ao dono do
+projeto, mesmo que a conversa esteja em outra língua.
+<!-- /wtf:idioma -->
