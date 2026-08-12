@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, Share2, SquareTerminal } from 'lucide-react'
 import { useT } from '@/lib/i18n'
-import { abrirTerminal, podeAbrirTerminal } from '@/lib/source'
+import {
+  abrirTerminal,
+  pedirTerminal,
+  podeAbrirTerminal,
+  podeTerminalEmbutido,
+} from '@/lib/source'
 import { Compartilhar } from '@/components/Compartilhar'
 
 /**
@@ -37,7 +42,19 @@ export function BarraTopo({
     return () => clearTimeout(t)
   }, [aviso])
 
-  async function aoAbrirTerminal() {
+  /*
+   * "Trabalhar" abre a IA DENTRO do app.
+   *
+   * Este botão nasceu antes do terminal embutido e continuou abrindo o
+   * terminal do sistema mesmo depois dele existir — o app ganhou um shell
+   * próprio e o botão principal seguia mandando a pessoa para fora.
+   * Segurando Alt/Option, abre no terminal do sistema, para quem prefere.
+   */
+  async function aoAbrirTerminal(evento?: { altKey?: boolean }) {
+    if (podeTerminalEmbutido() && !evento?.altKey) {
+      pedirTerminal()
+      return
+    }
     const r = await abrirTerminal()
     if (r?.erro) setAviso(r.erro)
     else if (r?.agente) setAviso(t('topo.agenteAbriu', { agente: r.agente }))
@@ -90,7 +107,7 @@ export function BarraTopo({
       {podeAbrirTerminal() && (
         <Botao
           titulo={t('topo.trabalharDica')}
-          onClick={aoAbrirTerminal}
+          onClick={(e) => void aoAbrirTerminal(e)}
           destaque
         >
           <SquareTerminal size={14.5} strokeWidth={2} />
@@ -111,7 +128,7 @@ function Botao({
 }: {
   children: React.ReactNode
   titulo: string
-  onClick: () => void
+  onClick: (evento: React.MouseEvent) => void
   destaque?: boolean
   'aria-label'?: string
 }) {
