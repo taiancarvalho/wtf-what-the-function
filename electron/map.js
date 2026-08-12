@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 // A regra de estado mora em UM lugar só (ver o aviso sobre ela em translate.js).
-import { ehTeste, estadoPorEvidencia, testeCobre } from './translate.js'
+import { estadoPorEvidencia, indexarTestes, testesDe } from './translate.js'
 
 // ------------------------------------------------------------------ leitura
 
@@ -160,18 +160,14 @@ const casaAlgum = (globs, caminho) => globs.some((g) => casa(g, caminho))
  * e uma rede só num deles faria a curva do passado contradizer o presente.
  */
 export function completarTestes(acc, arquivos) {
-  const testes = (Array.isArray(arquivos) ? arquivos : []).filter(ehTeste)
-  if (testes.length === 0) return acc
+  const lista = Array.isArray(arquivos) ? arquivos : []
+  const indice = indexarTestes(lista)
+  if (indice.size === 0) return acc
 
   for (const a of acc.values()) {
     if (a.testes.size > 0 || (a.def?.tests ?? []).length > 0) continue
-    for (const teste of testes) {
-      for (const arquivo of a.arquivos) {
-        if (testeCobre(teste, arquivo)) {
-          a.testes.add(teste)
-          break
-        }
-      }
+    for (const arquivo of a.arquivos) {
+      for (const teste of testesDe(indice, arquivo)) a.testes.add(teste)
     }
   }
   return acc

@@ -95,6 +95,43 @@ function classificarTeste(caminho) {
   return null
 }
 
+const semExtDeTeste = (p) => p.replace(/\.(test|spec)\.[jt]sx?$/, '').replace(/\.[jt]sx?$/, '')
+
+/**
+ * As chaves pelas quais um teste pode ser encontrado, e as chaves pelas quais
+ * um arquivo de código procura. Um par casa quando compartilha uma chave.
+ *
+ * ⚠️ EXISTEM PARA NÃO COMPARAR TUDO COM TUDO.
+ *
+ * A primeira versão disto era um laço triplo — cada parte, cada teste, cada
+ * arquivo — com uma regex dentro. Num repositório pequeno passou despercebido;
+ * num projeto de verdade (milhares de arquivos, centenas de testes, e a mesma
+ * conta repetida para cada um dos 14 marcos do histórico) o processo principal
+ * ficou a 99% de CPU e o aplicativo não abria. Indexado, é uma passada pelos
+ * testes e uma pelos arquivos.
+ *
+ * O prefixo (`b:` de base, `p:` de caminho) impede que o nome de um arquivo
+ * case com o caminho de outro por coincidência.
+ */
+function chavesDoTeste(caminho) {
+  const base = semExtDeTeste(caminho).split('/').pop()
+  const semPrefixo = semExtDeTeste(caminho.replace(RE_TESTE, ''))
+  const chaves = []
+  if (base) chaves.push(`b:${base}`)
+  if (semPrefixo) chaves.push(`p:${semPrefixo}`)
+  return chaves
+}
+
+function chavesDoAlvo(alvo) {
+  const sem = semExtDeTeste(alvo)
+  const base = sem.split('/').pop()
+  const chaves = []
+  if (base) chaves.push(`b:${base}`)
+  chaves.push(`p:${sem.replace(/^src\//, '')}`)
+  chaves.push(`p:${sem}`)
+  return chaves
+}
+
 /**
  * O teste `caminho` verifica o arquivo de código `alvo`?
  *
@@ -109,18 +146,32 @@ function classificarTeste(caminho) {
  */
 export function testeCobre(caminho, alvo) {
   if (!ehTeste(caminho) || typeof alvo !== 'string') return false
+  const doAlvo = new Set(chavesDoAlvo(alvo))
+  return chavesDoTeste(caminho).some((k) => doAlvo.has(k))
+}
 
-  const semExt = (p) => p.replace(/\.(test|spec)\.[jt]sx?$/, '').replace(/\.[jt]sx?$/, '')
-  const base = (p) => semExt(p).split('/').pop()
+/** O índice de `chave → testes`, montado uma vez por varredura. */
+export function indexarTestes(arquivos) {
+  const indice = new Map()
+  for (const caminho of arquivos) {
+    if (!ehTeste(caminho)) continue
+    for (const k of chavesDoTeste(caminho)) {
+      const lista = indice.get(k)
+      if (lista) lista.push(caminho)
+      else indice.set(k, [caminho])
+    }
+  }
+  return indice
+}
 
-  const baseTeste = base(caminho)
-  if (!baseTeste) return false
-  if (baseTeste === base(alvo)) return true
-
-  // `tests/lib/x.test.ts` ↔ `src/lib/x.ts`
-  const semPrefixo = semExt(caminho.replace(RE_TESTE, ''))
-  const alvoSem = semExt(alvo).replace(/^src\//, '')
-  return semPrefixo === alvoSem || semPrefixo === semExt(alvo)
+/** Os testes que cobrem `alvo`, pelo índice. */
+export function testesDe(indice, alvo) {
+  const out = []
+  for (const k of chavesDoAlvo(alvo)) {
+    const lista = indice.get(k)
+    if (lista) out.push(...lista)
+  }
+  return out
 }
 
 const idDe = (area, nome) =>
