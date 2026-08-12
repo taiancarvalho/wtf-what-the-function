@@ -35,12 +35,13 @@ import {
 import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
 import { MODELO_PADRAO, perguntar } from './ask.js'
 import { apagarGerado, listarGerados } from './gerados.js'
+import { alternarDispensado, lerDispensados, separarDispensados } from './dispensados.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import {
   abrirSessao as abrirSessaoEmbutida,
   escrever as escreverNoTerminal,
-  colar as colarNoTerminal,
+  entregar as entregarNoTerminal,
   redimensionar as redimensionarTerminal,
   encerrar as encerrarTerminal,
   encerrarTodas as encerrarTerminais,
@@ -243,6 +244,18 @@ async function lerProjeto(dir) {
    * do Chrome já está vendo.
    */
   snapshot.expostos = await procurarExpostos(dir)
+
+  /*
+   * O que a pessoa já disse que é falso alarme sai da lista — mas não some.
+   *
+   * A varredura procura formatos, não certezas: um e-mail de remetente do
+   * sistema tem exatamente a cara do que ela caça. Sem esta saída, o mesmo
+   * aviso voltaria a cada leitura para sempre, e o que se aprende com um
+   * alerta que nunca some é a ignorar alertas.
+   */
+  const dispensados = await lerDispensados(dir)
+  snapshot.segredos = separarDispensados(snapshot.segredos, dispensados)
+  snapshot.expostos = separarDispensados(snapshot.expostos, dispensados)
 
   /*
    * O passado do projeto — SEMPRE do cache, nunca calculado aqui.
@@ -483,7 +496,7 @@ ipcMain.handle('wtf:terminal-escrever', async (_e, id, dados) => escreverNoTermi
  * que o app manda de uma vez (as mensagens dos botões, os pedidos de mapa)
  * passa por aqui; só as teclas de quem está no painel usam `escrever`.
  */
-ipcMain.handle('wtf:terminal-colar', async (_e, id, texto) => colarNoTerminal(id, texto))
+ipcMain.handle('wtf:terminal-colar', async (_e, id, texto) => entregarNoTerminal(id, texto))
 
 ipcMain.handle('wtf:terminal-redimensionar', async (_e, id, cols, rows) =>
   redimensionarTerminal(id, cols, rows),
@@ -529,6 +542,13 @@ ipcMain.handle('wtf:texto-pedido', async (_e, tipo) => PEDIDOS[tipo] ?? null)
 
 /** Os documentos que a IA escreveu a pedido do painel — e a porta para apagá-los. */
 ipcMain.handle('wtf:gerados', async () => listarGerados(projetoAtual))
+
+/** "Isso não é problema": marca (ou desmarca) um achado como falso alarme. */
+ipcMain.handle('wtf:dispensar-achado', async (_e, achado, nota) => {
+  const r = await alternarDispensado(projetoAtual, achado, nota)
+  if (win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'seguranca')
+  return r
+})
 
 ipcMain.handle('wtf:apagar-gerado', async (_e, chave) => {
   const r = await apagarGerado(projetoAtual, typeof chave === 'string' ? chave : '')

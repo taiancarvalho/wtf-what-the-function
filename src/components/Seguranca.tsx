@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ChevronDown, Eye, KeyRound, ShieldAlert, SquareTerminal } from 'lucide-react'
+import { ChevronDown, Eye, KeyRound, ShieldAlert, SquareTerminal, ThumbsUp } from 'lucide-react'
 import { useT } from '@/lib/i18n'
-import { pedirTerminal, podeTerminalEmbutido } from '@/lib/source'
+import { dispensarAchado, pedirTerminal, podeDispensar, podeTerminalEmbutido } from '@/lib/source'
 import type { AchadoExposto, AchadoSegredo, ProjectSnapshot } from '@/types/protocol'
 
 /**
@@ -135,6 +135,7 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
                 trecho: a.trecho,
                 confianca: a.confianca,
                 porque: t('seg.chavesPorque'),
+                achado: a,
               }))}
             />
           )}
@@ -150,6 +151,7 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
                 trecho: a.trecho,
                 confianca: a.confianca,
                 porque: a.porque,
+                achado: a,
               }))}
             />
           )}
@@ -181,6 +183,43 @@ interface Item {
   trecho: string
   confianca: string
   porque: string
+  /** O achado cru — é ele que vai para o disco quando a pessoa dispensa. */
+  achado: { tipo?: string; arquivo: string; linha: number; trecho: string }
+}
+
+/**
+ * "Isso não é problema."
+ *
+ * A varredura procura formatos, não certezas — e a IA, quando consultada,
+ * costuma concluir que metade é alarme falso. Sem este botão a conversa não
+ * tinha fim: a IA dizia "marque como falso positivo no WTF" e não existia
+ * onde marcar, nem para ela nem para quem leu. O aviso voltava a cada
+ * varredura, para sempre.
+ *
+ * A dispensa CADUCA se o valor daquele lugar mudar — ver `dispensados.js`. É o
+ * que separa "já olhei este achado" de "nunca mais me avise sobre esta linha".
+ */
+function BotaoNaoEProblema({ item, onPronto }: { item: Item; onPronto: () => void }) {
+  const t = useT()
+  const [indo, setIndo] = useState(false)
+
+  if (!podeDispensar()) return null
+
+  return (
+    <button
+      onClick={() => {
+        setIndo(true)
+        void dispensarAchado(item.achado).then(onPronto)
+      }}
+      disabled={indo}
+      title={t('seg.naoEProblemaDica')}
+      className="no-drag mt-2 inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-60"
+      style={{ borderColor: 'var(--color-rule)' }}
+    >
+      <ThumbsUp size={11} />
+      {t('seg.naoEProblema')}
+    </button>
+  )
 }
 
 function Grupo({
@@ -232,6 +271,7 @@ function Grupo({
               {i.onde}
             </p>
             <p className="mt-1 text-[12px] leading-snug text-[var(--color-ink-2)]">{i.porque}</p>
+            <BotaoNaoEProblema item={i} onPronto={() => {}} />
           </li>
         ))}
       </ul>

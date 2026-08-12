@@ -61,6 +61,10 @@ const pt: Dic = {
   'seg.confianca.baixa': 'confira',
   'seg.mais': 'e mais {n}',
   'seg.pedirIA': 'Pedir para a IA verificar',
+  'seg.naoEProblema': 'Isso não é problema',
+  'seg.naoEProblemaDica':
+    'Tira este aviso da lista. Se o valor nesse lugar mudar, o WTF volta a avisar.',
+  'seguranca.dispensados': 'Você marcou {n} como falso alarme. Eles voltam a aparecer se mudarem.',
   'seg.limite': 'O WTF não diz que seu software está seguro — ninguém consegue afirmar isso olhando os arquivos. Ele avisa apenas sobre estes dois casos.',
   // home
   'home.dependeDeVoce': '{n} coisas dependem de você',
@@ -647,6 +651,10 @@ const en: Dic = {
   'seg.confianca.baixa': 'check this',
   'seg.mais': 'and {n} more',
   'seg.pedirIA': 'Ask the AI to check this',
+  'seg.naoEProblema': 'This is not a problem',
+  'seg.naoEProblemaDica':
+    'Removes this notice from the list. If the value in that spot changes, WTF warns you again.',
+  'seguranca.dispensados': 'You marked {n} as a false alarm. They come back if they change.',
   'seg.limite': 'WTF does not claim your software is secure — nobody can claim that by looking at files. It only warns about these two cases.',
   'home.dependeDeVoce': '{n} things depend on you',
   'home.dependeDeVoce1': 'One thing depends on you',
@@ -1205,6 +1213,10 @@ const es: Dic = {
   'seg.confianca.baixa': 'revísalo',
   'seg.mais': 'y {n} más',
   'seg.pedirIA': 'Pedir a la IA que verifique',
+  'seg.naoEProblema': 'Esto no es un problema',
+  'seg.naoEProblemaDica':
+    'Quita este aviso de la lista. Si el valor en ese lugar cambia, WTF vuelve a avisar.',
+  'seguranca.dispensados': 'Marcaste {n} como falsa alarma. Vuelven a aparecer si cambian.',
   'seg.limite': 'WTF no dice que tu software es seguro — nadie puede afirmarlo mirando los archivos. Solo avisa de estos dos casos.',
   'home.dependeDeVoce': '{n} cosas dependen de ti',
   'home.dependeDeVoce1': 'Una cosa depende de ti',

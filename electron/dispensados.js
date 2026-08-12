@@ -1,0 +1,115 @@
+/**
+ * Achados de segurança que a pessoa marcou como falso alarme:
+ * `<projeto>/.wtf/seguranca-dispensada.json`.
+ *
+ * A varredura é heurística — ela procura formatos, não certezas. Um e-mail de
+ * remetente do sistema, um CPF de exemplo na documentação, uma chave de
+ * sandbox: todos parecem exatamente o que ela procura, e nenhum é problema.
+ *
+ * Sem uma saída, o efeito é conhecido e é o pior possível: a varredura roda a
+ * cada leitura, o mesmo aviso volta para sempre, e quem lê aprende a ignorar
+ * avisos de segurança. Um alerta que nunca some ensina a não olhar.
+ *
+ * ⚠️ A DISPENSA CADUCA SOZINHA.
+ *
+ * O que é guardado não é "o arquivo tal, linha tal" — é a IMPRESSÃO DIGITAL do
+ * achado, que inclui o trecho mascarado. Se o valor naquele lugar mudar, a
+ * impressão muda, e o aviso VOLTA. Sem isso, dispensar "e-mail em
+ * auth-providers.ts:14" silenciaria para sempre aquela linha — e o dia em que
+ * alguém colasse ali uma chave de verdade seria o dia em que o painel ficaria
+ * quieto. Dispensar vale para o achado que a pessoa viu, e só para ele.
+ *
+ * Formato: { v: 1, itens: { "<digital>": { at: ISO, por, nota } } }
+ */
+
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
+const arquivoDe = (dir) => path.join(dir, '.wtf', 'seguranca-dispensada.json')
+
+/**
+ * A impressão digital de um achado.
+ *
+ * `trecho` já vem mascarado da varredura (nunca o valor inteiro), e é isso que
+ * faz esta chave poder ser gravada em disco sem virar mais um lugar onde o
+ * segredo existe.
+ */
+export function digitalDoAchado(achado) {
+  if (!achado || typeof achado !== 'object') return null
+  const { tipo, arquivo, linha, trecho } = achado
+  if (typeof arquivo !== 'string' || !arquivo) return null
+  return [tipo ?? '?', arquivo, linha ?? 0, trecho ?? ''].join('|')
+}
+
+/** Lê as dispensas. Nunca lança: arquivo ausente ou podre valem "nenhuma". */
+export async function lerDispensados(dir) {
+  if (!dir) return {}
+  let bruto
+  try {
+    bruto = await readFile(arquivoDe(dir), 'utf8')
+  } catch {
+    return {}
+  }
+
+  let dados
+  try {
+    dados = JSON.parse(bruto)
+  } catch {
+    return {}
+  }
+  const itens = dados?.itens
+  if (!itens || typeof itens !== 'object') return {}
+
+  // Entrada por entrada: uma linha estragada não derruba as outras.
+  const out = {}
+  for (const [chave, v] of Object.entries(itens)) {
+    if (!chave || !v || typeof v !== 'object') continue
+    const at = typeof v.at === 'string' && !Number.isNaN(new Date(v.at).getTime()) ? v.at : null
+    if (!at) continue
+    out[chave] = {
+      at,
+      por: typeof v.por === 'string' ? v.por : 'usuario',
+      nota: typeof v.nota === 'string' ? v.nota : '',
+    }
+  }
+  return out
+}
+
+/** Marca ou desmarca um achado como falso alarme. Só por clique explícito. */
+export async function alternarDispensado(dir, achado, nota) {
+  const chave = digitalDoAchado(achado)
+  if (!dir || !chave) return { dispensado: false, itens: {} }
+
+  const itens = await lerDispensados(dir)
+  const jaTinha = Boolean(itens[chave])
+  if (jaTinha) delete itens[chave]
+  else itens[chave] = { at: new Date().toISOString(), por: 'usuario', nota: String(nota ?? '') }
+
+  await mkdir(path.dirname(arquivoDe(dir)), { recursive: true })
+  await writeFile(arquivoDe(dir), JSON.stringify({ v: 1, itens }, null, 2) + '\n', 'utf8')
+  return { dispensado: !jaTinha, itens }
+}
+
+/**
+ * Separa os achados entre os que continuam valendo e os dispensados.
+ *
+ * Devolve os dois lados, nunca só um: o painel precisa poder dizer "3 achados,
+ * e mais 2 que você marcou como falso alarme". Sumir com o que foi dispensado
+ * transformaria uma decisão da pessoa em apagamento — e ela perderia o caminho
+ * de voltar atrás.
+ */
+export function separarDispensados(varredura, dispensados) {
+  if (!varredura || !Array.isArray(varredura.achados)) return varredura
+  const mapa = dispensados ?? {}
+
+  const valem = []
+  const fora = []
+  for (const a of varredura.achados) {
+    const chave = digitalDoAchado(a)
+    const d = chave ? mapa[chave] : null
+    if (d) fora.push({ ...a, dispensadoEm: d.at, nota: d.nota })
+    else valem.push(a)
+  }
+
+  return { ...varredura, achados: valem, dispensados: fora }
+}

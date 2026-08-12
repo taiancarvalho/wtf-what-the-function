@@ -609,6 +609,8 @@ export interface AchadoSegredo {
 /** Resultado da varredura do caça-segredos. */
 export interface Segredos {
   achados: AchadoSegredo[]
+  /** Os que a pessoa marcou como falso alarme. Ficam à vista, fora da conta. */
+  dispensados?: (AchadoSegredo & { dispensadoEm: string; nota?: string })[]
   /** Arquivos efetivamente lidos. */
   varridos: number
   /** Pulados: binários, grandes demais, gerados, ilegíveis. */
@@ -648,6 +650,8 @@ export interface AchadoExposto {
 /** Resultado da varredura do caça-expostos. */
 export interface Expostos {
   achados: AchadoExposto[]
+  /** Os que a pessoa marcou como falso alarme. Ficam à vista, fora da conta. */
+  dispensados?: (AchadoExposto & { dispensadoEm: string; nota?: string })[]
   /** Arquivos de frente efetivamente lidos. */
   varridos: number
   /** Pulados: testes, mocks, gerados, de servidor, fora do front. */

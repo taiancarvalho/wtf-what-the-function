@@ -52,6 +52,7 @@ interface PonteWtf {
   textoPedido?: (tipo: string) => Promise<string | null>
   gerados?: () => Promise<unknown>
   apagarGerado?: (chave: string) => Promise<unknown>
+  dispensarAchado?: (achado: unknown, nota?: string) => Promise<unknown>
   aoSairDoTerminal?: (cb: (dados: SaidaTerminal) => void) => () => void
   aoTerminarTerminal?: (cb: (dados: FimTerminal) => void) => () => void
   mapear?: () => Promise<unknown>
@@ -216,6 +217,23 @@ export async function lerGerados(): Promise<Gerado[]> {
 export async function apagarGerado(chave: string): Promise<{ ok?: boolean; erro?: string }> {
   const r = await ponte()?.apagarGerado?.(chave)
   return (r as { ok?: boolean; erro?: string }) ?? { erro: 'Só funciona no aplicativo.' }
+}
+
+export const podeDispensar = () => typeof ponte()?.dispensarAchado === 'function'
+
+/**
+ * "Isso não é problema." Marca — ou desmarca — um achado como falso alarme.
+ *
+ * O que vai para o disco é a impressão digital do achado, trecho mascarado
+ * incluído: se o valor daquele lugar mudar, a dispensa caduca e o aviso volta.
+ * Ver `dispensados.js`.
+ */
+export async function dispensarAchado(
+  achado: { tipo?: string; arquivo: string; linha: number; trecho: string },
+  nota?: string,
+): Promise<{ dispensado?: boolean }> {
+  const r = await ponte()?.dispensarAchado?.(achado, nota)
+  return (r as { dispensado?: boolean }) ?? {}
 }
 
 /** Entrega um texto inteiro à sessão aberta. Colagem, nunca digitação. */

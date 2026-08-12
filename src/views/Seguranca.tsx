@@ -47,6 +47,8 @@ export function Seguranca({
   const total = (segredos?.achados.length ?? 0) + (expostos?.achados.length ?? 0)
   const varridos = (segredos?.varridos ?? 0) + (expostos?.varridos ?? 0)
   const truncado = Boolean(segredos?.truncado || expostos?.truncado)
+  const dispensados =
+    (segredos?.dispensados?.length ?? 0) + (expostos?.dispensados?.length ?? 0)
 
   return (
     <div className="h-full overflow-y-auto">
@@ -106,6 +108,14 @@ export function Seguranca({
         )}
 
         <Guardrails />
+
+        {/* Dispensado não é apagado: a conta fica à vista, e o aviso volta se
+            o valor daquele lugar mudar. */}
+        {dispensados > 0 && (
+          <p className="mt-4 text-[12px] text-[var(--color-ink-3)]">
+            {t('seguranca.dispensados', { n: dispensados })}
+          </p>
+        )}
 
         <footer className="mt-8 border-t pt-3">
           <p className="max-w-[62ch] text-[11.5px] leading-relaxed text-[var(--color-ink-3)]">

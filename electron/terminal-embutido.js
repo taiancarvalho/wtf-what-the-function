@@ -13,6 +13,7 @@
  * app: o renderer nunca toca em filesystem, git ou processo.
  */
 
+import { execFile } from 'node:child_process'
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { detectarAgente } from './terminal.js'
@@ -280,6 +281,66 @@ export function escrever(id, dados) {
 export function sequenciaDeColagem(texto) {
   const corpo = String(texto).replace(/\r?\n/g, '\r')
   return `\x1b[200~${corpo}\x1b[201~\r`
+}
+
+/**
+ * O shell desta sessão está sozinho, ou tem um programa rodando dentro dele?
+ *
+ * É a pergunta que decide entre COLAR e EXECUTAR — ver `entregar`. Um filho do
+ * shell significa que há algo lendo o que a gente escrever (o agente); nenhum
+ * filho significa que quem vai ler é o `zsh`.
+ *
+ * Erro vale "sozinho": no pior caso executamos o agente de novo, que é o
+ * desfecho seguro. O contrário — colar texto num shell vazio — é o que não
+ * pode acontecer nunca.
+ */
+function temProgramaRodando(pid) {
+  return new Promise((resolve) => {
+    if (typeof pid !== 'number' || pid <= 0) return resolve(false)
+    execFile('/usr/bin/pgrep', ['-P', String(pid)], (erro, saida) => {
+      resolve(!erro && String(saida ?? '').trim().length > 0)
+    })
+  })
+}
+
+/**
+ * Entrega um pedido à sessão — do jeito certo para o que está do outro lado.
+ *
+ * ⚠️ ESTE É O CONSERTO DE UM ERRO QUE PODIA ESTRAGAR O PROJETO DE ALGUÉM.
+ *
+ * A entrega nasceu assumindo que havia sempre um agente escutando, e colava o
+ * texto direto. Mas a sessão volta ao `zsh` sozinha — o agente termina, a
+ * pessoa aperta Ctrl+C, o projeto muda. Colando ali, a mensagem inteira vira
+ * COMANDO DE SHELL: linha a linha, o zsh tentou executar "Possíveis dados de
+ * pessoa no código", reclamou de cada uma, e um pedido de auditoria de
+ * segurança virou uma sequência de comandos aleatórios rodando no computador
+ * de quem clicou num botão.
+ *
+ * Então perguntamos antes:
+ *   - tem programa rodando → o agente está lá, e o texto vai colado;
+ *   - shell sozinho → o texto vira ARGUMENTO do agente, com aspas, exatamente
+ *     como na abertura da sessão;
+ *   - shell sozinho e nenhum agente instalado → não escrevemos NADA no shell.
+ *     Dizemos isso na tela. Um pedido não entregue é muito melhor que um
+ *     pedido executado como comando.
+ */
+export async function entregar(id, texto) {
+  const s = sessoes.get(id)
+  if (!s || typeof texto !== 'string' || !texto.trim()) return { ok: false }
+
+  if (await temProgramaRodando(s.pty.pid)) {
+    return colar(id, texto)
+  }
+
+  const agente = await detectarAgente()
+  if (!agente) {
+    if (process.env.WTF_DEBUG_PTY) console.log('ENTREGA SEM AGENTE')
+    return { ok: false, erro: 'Nenhum agente de IA encontrado para receber o pedido.' }
+  }
+
+  if (process.env.WTF_DEBUG_PTY) console.log('ENTREGA VIA AGENTE', agente.cmd)
+  s.pty.write(`clear && ${aspasShell(agente.caminho)} ${aspasShell(texto)}\r`)
+  return { ok: true, viaAgente: true }
 }
 
 export function colar(id, texto) {

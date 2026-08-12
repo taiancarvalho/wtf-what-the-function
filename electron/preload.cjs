@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('wtf', {
   /** Documentos que a IA escreveu a pedido do painel. */
   gerados: () => ipcRenderer.invoke('wtf:gerados'),
   apagarGerado: (chave) => ipcRenderer.invoke('wtf:apagar-gerado', chave),
+  /** Marca/desmarca um achado de segurança como falso alarme. */
+  dispensarAchado: (achado, nota) => ipcRenderer.invoke('wtf:dispensar-achado', achado, nota),
   terminalEncerrar: (id) => ipcRenderer.invoke('wtf:terminal-encerrar', id),
   /** A saída do terminal, conforme chega. Devolve como cancelar. */
   aoSairDoTerminal: (cb) => {
