@@ -37,6 +37,7 @@ export const ALVOS = {
   mapear: ['.claude/skills/wtf-mapear/SKILL.md', 'mapear/SKILL.md'],
   pastas: ['.claude/skills/wtf-pastas/SKILL.md', 'pastas/SKILL.md'],
   documentos: ['.claude/skills/wtf-documentos/SKILL.md', 'documentos/SKILL.md'],
+  guardrails: ['.claude/skills/wtf-guardrails/SKILL.md', 'guardrails/SKILL.md'],
   formato: ['.wtf/MAP-FORMAT.md', 'MAP-FORMAT.md'],
   hook: ['.claude/hooks/wtf-observer.cjs', 'hooks/wtf-observer.cjs'],
   cli: ['.wtf/bin/wtf-claim.cjs', 'bin/wtf-claim.cjs'],
@@ -97,6 +98,7 @@ export async function estadoInstalacao(dir) {
     mapear: local.mapear || global.skills.mapear,
     pastas: local.pastas || global.skills.pastas,
     documentos: local.documentos || global.skills.documentos,
+    guardrails: local.guardrails || global.skills.guardrails,
     hook: local.hook || global.hook,
     cli: local.cli,
     formato: local.formato,
@@ -274,6 +276,10 @@ const SKILLS_COM_IDIOMA = [
     '`porque` de cada entrada de `.wtf/docs.json`, e para o resumo final que você ' +
     'dá em conversa, mesmo que ela esteja em outra língua. Os nomes dos arquivos e ' +
     'os caminhos ficam como estão no disco.'],
+  ['.claude/skills/wtf-guardrails/SKILL.md', (nome) =>
+    `Escreva SEMPRE em ${nome}. Isto vale para as regras que você grava em ` +
+    '`GUARDRAILS.md` — quem precisa entendê-las é o dono do projeto, não só ' +
+    'o próximo agente.'],
 ]
 
 /**

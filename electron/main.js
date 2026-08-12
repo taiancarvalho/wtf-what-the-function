@@ -36,8 +36,16 @@ import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './
 import { MODELO_PADRAO, perguntar } from './ask.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
+import {
+  abrirSessao as abrirSessaoEmbutida,
+  escrever as escreverNoTerminal,
+  redimensionar as redimensionarTerminal,
+  encerrar as encerrarTerminal,
+  encerrarTodas as encerrarTerminais,
+} from './terminal-embutido.js'
 import { lerArquivo } from './reader.js'
 import { procurarSegredos } from './secrets.js'
+import { procurarExpostos } from './exposed.js'
 import { contarPendentes, traducaoAutorizada, traduzirEventos } from './translator.js'
 import { lerUso } from './usage.js'
 import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
@@ -222,6 +230,17 @@ async function lerProjeto(dir) {
    * o aviso serve para alguma coisa: depois do commit, a chave já vazou.
    */
   snapshot.segredos = await procurarSegredos(dir)
+
+  /*
+   * O caça-expostos — a outra metade da pergunta.
+   *
+   * Aqui não olhamos "o que ainda não foi salvo": olhamos o código que chega ao
+   * navegador, commitado ou não, procurando dado de PESSOA (e-mail, CPF, CNPJ,
+   * cartão, telefone, endereço, par login+senha). Nesse caso não existe janela
+   * de prevenção: se está no front, qualquer visitante que abrir o inspecionar
+   * do Chrome já está vendo.
+   */
+  snapshot.expostos = await procurarExpostos(dir)
 
   /*
    * O passado do projeto — SEMPRE do cache, nunca calculado aqui.
@@ -440,6 +459,28 @@ ipcMain.handle('wtf:ler-arquivo', async (_e, relativo) => {
 ipcMain.handle('wtf:abrir-terminal', async (_e, promptInicial) =>
   abrirTerminal(projetoAtual, typeof promptInicial === 'string' ? promptInicial : undefined),
 )
+
+/*
+ * Terminal EMBUTIDO. O `cwd` é sempre `projetoAtual` — a pasta que a pessoa
+ * escolheu —, nunca um caminho vindo do renderer. Ver terminal-embutido.js.
+ */
+ipcMain.handle('wtf:terminal-abrir', async (_e, opcoes) =>
+  abrirSessaoEmbutida({
+    win,
+    dir: projetoAtual,
+    mensagem: typeof opcoes?.mensagem === 'string' ? opcoes.mensagem : undefined,
+    cols: opcoes?.cols,
+    rows: opcoes?.rows,
+  }),
+)
+
+ipcMain.handle('wtf:terminal-escrever', async (_e, id, dados) => escreverNoTerminal(id, dados))
+
+ipcMain.handle('wtf:terminal-redimensionar', async (_e, id, cols, rows) =>
+  redimensionarTerminal(id, cols, rows),
+)
+
+ipcMain.handle('wtf:terminal-encerrar', async (_e, id) => encerrarTerminal(id))
 
 /** Dispara o onboarding: abre o agente já pedindo o mapeamento do projeto. */
 ipcMain.handle('wtf:mapear', async () =>
@@ -953,8 +994,12 @@ app.whenReady().then(() => {
   })
 })
 
+// Nenhum shell (nem agente dentro dele) sobrevive ao app.
+app.on('before-quit', () => encerrarTerminais())
+
 app.on('window-all-closed', () => {
   pararObservacao?.()
   pararObservacao = null
+  encerrarTerminais()
   if (process.platform !== 'darwin') app.quit()
 })

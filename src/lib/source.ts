@@ -12,6 +12,9 @@ import type {
   ProjectSnapshot,
   ProvedorChave,
   RespostaTraducao,
+  FimTerminal,
+  SaidaTerminal,
+  SessaoTerminal,
   TraducaoPendente,
   UsoProjeto,
 } from '@/types/protocol'
@@ -41,6 +44,12 @@ interface PonteWtf {
   desabilitarProjeto?: () => Promise<unknown>
   lerPacoteInstalacao?: () => Promise<unknown>
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
+  terminalAbrir?: (opcoes: { mensagem?: string; cols?: number; rows?: number }) => Promise<unknown>
+  terminalEscrever?: (id: string, dados: string) => Promise<unknown>
+  terminalRedimensionar?: (id: string, cols: number, rows: number) => Promise<unknown>
+  terminalEncerrar?: (id: string) => Promise<unknown>
+  aoSairDoTerminal?: (cb: (dados: SaidaTerminal) => void) => () => void
+  aoTerminarTerminal?: (cb: (dados: FimTerminal) => void) => () => void
   mapear?: () => Promise<unknown>
   mapearPastas?: () => Promise<unknown>
   mapearDocumentos?: () => Promise<unknown>
@@ -151,6 +160,74 @@ export async function abrirTerminal(
   const p = ponte()
   if (!p?.abrirTerminal) return null
   return (await p.abrirTerminal(mensagem)) as { agente?: string; erro?: string }
+}
+
+/**
+ * O pedido de abrir o terminal embutido, do fundo da árvore até o rodapé.
+ *
+ * O botão que abre a IA mora dentro de um alerta, lá embaixo; o painel do
+ * terminal mora no rodapé do app. Passar isso por props atravessaria meia
+ * dúzia de componentes que não têm nada a ver com terminal — este mural de
+ * recados é a menor ligação possível entre os dois.
+ */
+type OuvinteTerminal = (mensagem: string | undefined) => void
+const ouvintesTerminal = new Set<OuvinteTerminal>()
+
+/** Pede ao app que abra o terminal embutido, opcionalmente já com a mensagem. */
+export function pedirTerminal(mensagem?: string): void {
+  for (const cb of ouvintesTerminal) cb(mensagem)
+}
+
+/** O rodapé escuta os pedidos. Devolve como cancelar. */
+export function aoPedirTerminal(cb: OuvinteTerminal): () => void {
+  ouvintesTerminal.add(cb)
+  return () => ouvintesTerminal.delete(cb)
+}
+
+export const podeTerminalEmbutido = () => typeof ponte()?.terminalAbrir === 'function'
+
+/**
+ * Abre um shell DENTRO do app, na pasta do projeto. Com `mensagem`, o agente
+ * já começa rodando com o pedido escrito. A pasta nunca é escolhida aqui: o
+ * main usa o projeto aberto, e só ele.
+ */
+export async function terminalAbrir(opcoes: {
+  mensagem?: string
+  cols?: number
+  rows?: number
+}): Promise<SessaoTerminal> {
+  const p = ponte()
+  if (!p?.terminalAbrir) return { erro: 'Só funciona no aplicativo, não no navegador.' }
+  return (await p.terminalAbrir(opcoes)) as SessaoTerminal
+}
+
+/** As teclas digitadas viram bytes no shell. */
+export async function terminalEscrever(id: string, dados: string): Promise<void> {
+  await ponte()?.terminalEscrever?.(id, dados)
+}
+
+/** O painel mudou de tamanho: o programa lá dentro precisa saber. */
+export async function terminalRedimensionar(
+  id: string,
+  cols: number,
+  rows: number,
+): Promise<void> {
+  await ponte()?.terminalRedimensionar?.(id, cols, rows)
+}
+
+/** Fecha a sessão e mata o processo. */
+export async function terminalEncerrar(id: string): Promise<void> {
+  await ponte()?.terminalEncerrar?.(id)
+}
+
+/** A saída do shell, conforme chega. Devolve como cancelar. */
+export function aoSairDoTerminal(cb: (dados: SaidaTerminal) => void): () => void {
+  return ponte()?.aoSairDoTerminal?.(cb) ?? (() => {})
+}
+
+/** O shell terminou. Devolve como cancelar. */
+export function aoTerminarTerminal(cb: (dados: FimTerminal) => void): () => void {
+  return ponte()?.aoTerminarTerminal?.(cb) ?? (() => {})
 }
 
 export const podeLerArquivo = () => typeof ponte()?.lerArquivo === 'function'

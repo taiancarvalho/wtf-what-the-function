@@ -372,6 +372,32 @@ export interface ContextoPergunta {
 }
 
 /** Um pedaço da resposta chegando (ou o fim, ou o erro). */
+/**
+ * Uma sessão do terminal embutido. O `id` é a única coisa que a tela guarda:
+ * o processo em si vive no main (ver electron/terminal-embutido.js).
+ */
+export interface SessaoTerminal {
+  id?: string
+  /** Nome do agente que já começou rodando, quando havia um instalado. */
+  agente?: string | null
+  shell?: string
+  erro?: string
+  /** `true` quando a recusa foi por já haver terminais demais abertos. */
+  limite?: boolean
+}
+
+/** Um pedaço de saída do terminal embutido, como veio do shell. */
+export interface SaidaTerminal {
+  id: string
+  dados: string
+}
+
+/** O shell terminou. `codigo` é o código de saída do processo. */
+export interface FimTerminal {
+  id: string
+  codigo: number
+}
+
 export interface PedacoResposta {
   id: string
   pedaco?: string
@@ -575,6 +601,45 @@ export interface Segredos {
   truncado: boolean
 }
 
+/**
+ * Um dado de PESSOA encontrado dentro do código que vai para o navegador.
+ *
+ * Diferente de `AchadoSegredo` em duas coisas: o escopo (aqui entra também o
+ * que já está commitado — no front, o histórico não protege ninguém) e a
+ * natureza (aqui é e-mail, CPF, cartão, telefone, endereço, login+senha, não
+ * chave de provedor). `trecho` é sempre MASCARADO.
+ */
+export interface AchadoExposto {
+  /** Caminho relativo à raiz do projeto. */
+  arquivo: string
+  /** Linha (base 1). */
+  linha: number
+  /** 'email' | 'email-sensivel' | 'cpf' | 'cnpj' | 'cartao' | 'telefone' | 'endereco' | 'credencial' */
+  tipo: string
+  /** Rótulo humano, sem jargão. */
+  rotulo: string
+  /** O valor MASCARADO. Nunca o dado inteiro. */
+  trecho: string
+  /**
+   * 'alta' = formato inequívoco e validado (CPF formatado, cartão no Luhn).
+   * 'media'/'baixa' = casos com dúvida, ou arquivo que parece rodar no servidor.
+   */
+  confianca: 'alta' | 'media' | 'baixa'
+  /** Uma frase explicando o risco para quem não programa. */
+  porque: string
+}
+
+/** Resultado da varredura do caça-expostos. */
+export interface Expostos {
+  achados: AchadoExposto[]
+  /** Arquivos de frente efetivamente lidos. */
+  varridos: number
+  /** Pulados: testes, mocks, gerados, de servidor, fora do front. */
+  ignorados: number
+  /** Bateu no teto de arquivos ou de bytes; a varredura parou antes do fim. */
+  truncado: boolean
+}
+
 export interface ProjectSnapshot {
   project: Project
   features: Feature[]
@@ -596,6 +661,12 @@ export interface ProjectSnapshot {
    * é a única janela em que o aviso ainda muda o desfecho.
    */
   segredos?: Segredos
+  /**
+   * Dado de pessoa escrito no código que vai para o navegador — commitado ou
+   * não. Aqui não há janela de prevenção: se está no front, já está visível
+   * para quem abrir o inspecionar.
+   */
+  expostos?: Expostos
 }
 
 // ------------------------------------------- o que a instalação vai escrever

@@ -49,6 +49,27 @@ contextBridge.exposeInMainWorld('wtf', {
   lerPacoteInstalacao: () => ipcRenderer.invoke('wtf:pacote-instalacao'),
   /** Abre o terminal do sistema na pasta, já com o agente rodando. */
   abrirTerminal: (mensagem) => ipcRenderer.invoke('wtf:abrir-terminal', mensagem),
+  /**
+   * Terminal EMBUTIDO — o shell dentro do app. Este preload é sandboxed: o
+   * pseudo-terminal vive no processo principal e só bytes cruzam a ponte.
+   */
+  terminalAbrir: (opcoes) => ipcRenderer.invoke('wtf:terminal-abrir', opcoes),
+  terminalEscrever: (id, dados) => ipcRenderer.invoke('wtf:terminal-escrever', id, dados),
+  terminalRedimensionar: (id, cols, rows) =>
+    ipcRenderer.invoke('wtf:terminal-redimensionar', id, cols, rows),
+  terminalEncerrar: (id) => ipcRenderer.invoke('wtf:terminal-encerrar', id),
+  /** A saída do terminal, conforme chega. Devolve como cancelar. */
+  aoSairDoTerminal: (cb) => {
+    const ouvinte = (_evento, dados) => cb(dados)
+    ipcRenderer.on('wtf:terminal-saida', ouvinte)
+    return () => ipcRenderer.off('wtf:terminal-saida', ouvinte)
+  },
+  /** O shell terminou (saiu, ou foi fechado). Devolve como cancelar. */
+  aoTerminarTerminal: (cb) => {
+    const ouvinte = (_evento, dados) => cb(dados)
+    ipcRenderer.on('wtf:terminal-fim', ouvinte)
+    return () => ipcRenderer.off('wtf:terminal-fim', ouvinte)
+  },
   /** Abre o agente já pedindo o mapeamento do projeto (onboarding). */
   mapear: () => ipcRenderer.invoke('wtf:mapear'),
   /** Abre o agente pedindo o MAPA.md das pastas (para que serve cada uma). */

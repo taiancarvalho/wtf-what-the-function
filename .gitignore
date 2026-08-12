@@ -13,3 +13,6 @@ release
 .claude/skills/wtf-mapear/
 .claude/hooks/wtf-observer.cjs
 *.wtf-backup-*
+
+# WTF — histórico local do que a IA declarou
+.wtf/events.jsonl

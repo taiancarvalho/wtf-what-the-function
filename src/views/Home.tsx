@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { montarAssuntos } from '@/lib/assuntos'
+import { Seguranca } from '@/components/Seguranca'
 import { diaRelativo, horaDe } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import { STATE, STATE_ORDER } from '@/lib/state'
@@ -168,6 +169,8 @@ export function Home({
             </ul>
           </Bloco>
         )}
+
+        <Seguranca snapshot={snapshot} />
 
         {/* 5. o geral */}
         <section

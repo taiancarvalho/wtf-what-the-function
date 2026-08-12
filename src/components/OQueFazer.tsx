@@ -1,7 +1,12 @@
 import { useState } from 'react'
-import { Check, Copy, MessageSquare, SquareTerminal } from 'lucide-react'
+import { Check, Copy, MessageSquare, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
 import { useT } from '@/lib/i18n'
-import { abrirTerminal, podeAbrirTerminal } from '@/lib/source'
+import {
+  abrirTerminal,
+  pedirTerminal,
+  podeAbrirTerminal,
+  podeTerminalEmbutido,
+} from '@/lib/source'
 import type { Acao } from '@/lib/acoes'
 
 /**
@@ -31,7 +36,16 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
     }
   }
 
-  async function abrir(a: Acao) {
+  /**
+   * O caminho principal: a IA abre no terminal DENTRO do app, sem trocar de
+   * janela. Quem prefere a janela nativa tem o botão discreto ao lado.
+   */
+  function abrirAqui(a: Acao) {
+    pedirTerminal(a.mensagem)
+    setAviso(t('acao.abriuAqui', { agente: t('acao.aIA') }))
+  }
+
+  async function abrirNoSistema(a: Acao) {
     const r = await abrirTerminal(a.mensagem)
     if (r?.erro) setAviso(r.erro)
     else setAviso(t('acao.abriuComMensagem', { agente: r?.agente ?? t('acao.aIA') }))
@@ -85,14 +99,25 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
           </pre>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            {podeAbrirTerminal() && (
+            {podeTerminalEmbutido() && (
               <button
-                onClick={() => abrir(escolhida)}
+                onClick={() => abrirAqui(escolhida)}
                 className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium"
                 style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
               >
                 <SquareTerminal size={13} />
                 {t('acao.abrirIA')}
+              </button>
+            )}
+
+            {podeAbrirTerminal() && (
+              <button
+                onClick={() => abrirNoSistema(escolhida)}
+                title={t('acao.abrirNoSistema')}
+                className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+              >
+                <SquareArrowOutUpRight size={13} />
+                {t('acao.abrirNoSistema')}
               </button>
             )}
 

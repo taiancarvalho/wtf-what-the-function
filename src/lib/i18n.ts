@@ -47,6 +47,20 @@ export const IDIOMAS_CONTEUDO: { codigo: string; nome: string }[] = [
 type Dic = Record<string, string>
 
 const pt: Dic = {
+  // segurança
+  'seg.um': '1 coisa sensível encontrada',
+  'seg.varios': '{n} coisas sensíveis encontradas',
+  'seg.resumo': '{chaves} chave(s) prestes a ser guardada(s) e {dados} dado(s) de pessoa visível(is) no navegador.',
+  'seg.chaves': 'Chaves e senhas ainda não guardadas',
+  'seg.chavesNota': 'Ainda dá para tirar antes que entrem no histórico do projeto.',
+  'seg.chavesPorque': 'Depois de guardada, uma chave continua no histórico mesmo se você apagar o arquivo.',
+  'seg.dados': 'Dados visíveis no navegador',
+  'seg.dadosNota': 'Está escrito no código que chega ao computador de quem acessa o site.',
+  'seg.confianca.alta': 'quase certeza',
+  'seg.confianca.media': 'talvez',
+  'seg.confianca.baixa': 'confira',
+  'seg.mais': 'e mais {n}',
+  'seg.limite': 'O WTF não diz que seu software está seguro — ninguém consegue afirmar isso olhando os arquivos. Ele avisa apenas sobre estes dois casos.',
   // home
   'home.dependeDeVoce': '{n} coisas dependem de você',
   'home.dependeDeVoce1': 'Uma coisa depende de você',
@@ -356,6 +370,15 @@ const pt: Dic = {
   'acao.naoCopiou': 'Não consegui copiar. Selecione o texto abaixo e copie à mão.',
   'acao.abriuComMensagem': '{agente} abriu numa janela nova com a mensagem.',
   'acao.aIA': 'A IA',
+  'acao.abrirNoSistema': 'Abrir na janela do sistema',
+  'acao.abriuAqui': '{agente} abriu no terminal aqui embaixo, com a mensagem.',
+  'terminal.titulo': 'Terminal',
+  'terminal.regiao': 'Terminal do projeto {projeto}',
+  'terminal.fechar': 'Fechar o terminal',
+  'terminal.noSistema': 'Abrir no terminal do sistema',
+  'terminal.arrastar': 'Arraste para mudar a altura',
+  'terminal.encerrado': 'A sessão terminou.',
+  'terminal.naoAbriu': 'Não consegui abrir o terminal aqui. Use o terminal do sistema.',
 
   // topo (complementos)
   'topo.atualizarRotulo': 'Atualizar',
@@ -572,6 +595,19 @@ const pt: Dic = {
 }
 
 const en: Dic = {
+  'seg.um': '1 sensitive thing found',
+  'seg.varios': '{n} sensitive things found',
+  'seg.resumo': '{chaves} key(s) about to be saved and {dados} personal detail(s) visible in the browser.',
+  'seg.chaves': 'Keys and passwords not saved yet',
+  'seg.chavesNota': 'There is still time to remove them before they enter the project history.',
+  'seg.chavesPorque': 'Once saved, a key stays in the history even if you delete the file.',
+  'seg.dados': 'Details visible in the browser',
+  'seg.dadosNota': 'Written in code that reaches the computer of anyone who visits the site.',
+  'seg.confianca.alta': 'almost certain',
+  'seg.confianca.media': 'maybe',
+  'seg.confianca.baixa': 'check this',
+  'seg.mais': 'and {n} more',
+  'seg.limite': 'WTF does not claim your software is secure — nobody can claim that by looking at files. It only warns about these two cases.',
   'home.dependeDeVoce': '{n} things depend on you',
   'home.dependeDeVoce1': 'One thing depends on you',
   'home.verNoFeed': 'See all',
@@ -859,6 +895,15 @@ const en: Dic = {
   'acao.naoCopiou': 'I could not copy it. Select the text below and copy it by hand.',
   'acao.abriuComMensagem': '{agente} opened in a new window with the message.',
   'acao.aIA': 'The AI',
+  'acao.abrirNoSistema': 'Open in a system window',
+  'acao.abriuAqui': '{agente} opened in the terminal below, with the message.',
+  'terminal.titulo': 'Terminal',
+  'terminal.regiao': 'Terminal for the project {projeto}',
+  'terminal.fechar': 'Close the terminal',
+  'terminal.noSistema': 'Open in the system terminal',
+  'terminal.arrastar': 'Drag to change the height',
+  'terminal.encerrado': 'The session ended.',
+  'terminal.naoAbriu': 'I could not open the terminal here. Use the system terminal.',
 
   'topo.atualizarRotulo': 'Refresh',
   'topo.agenteAbriu': '{agente} opened in a new window.',
@@ -1069,6 +1114,19 @@ const en: Dic = {
 }
 
 const es: Dic = {
+  'seg.um': '1 cosa sensible encontrada',
+  'seg.varios': '{n} cosas sensibles encontradas',
+  'seg.resumo': '{chaves} clave(s) a punto de guardarse y {dados} dato(s) de persona visible(s) en el navegador.',
+  'seg.chaves': 'Claves y contraseñas aún no guardadas',
+  'seg.chavesNota': 'Todavía se pueden quitar antes de que entren en el historial del proyecto.',
+  'seg.chavesPorque': 'Una vez guardada, una clave sigue en el historial aunque borres el archivo.',
+  'seg.dados': 'Datos visibles en el navegador',
+  'seg.dadosNota': 'Está escrito en el código que llega al ordenador de quien visita el sitio.',
+  'seg.confianca.alta': 'casi seguro',
+  'seg.confianca.media': 'quizá',
+  'seg.confianca.baixa': 'revísalo',
+  'seg.mais': 'y {n} más',
+  'seg.limite': 'WTF no dice que tu software es seguro — nadie puede afirmarlo mirando los archivos. Solo avisa de estos dos casos.',
   'home.dependeDeVoce': '{n} cosas dependen de ti',
   'home.dependeDeVoce1': 'Una cosa depende de ti',
   'home.verNoFeed': 'Ver todo',
@@ -1356,6 +1414,15 @@ const es: Dic = {
   'acao.naoCopiou': 'No pude copiarlo. Selecciona el texto de abajo y cópialo a mano.',
   'acao.abriuComMensagem': '{agente} se abrió en una ventana nueva con el mensaje.',
   'acao.aIA': 'La IA',
+  'acao.abrirNoSistema': 'Abrir en una ventana del sistema',
+  'acao.abriuAqui': '{agente} se abrió en la terminal de abajo, con el mensaje.',
+  'terminal.titulo': 'Terminal',
+  'terminal.regiao': 'Terminal del proyecto {projeto}',
+  'terminal.fechar': 'Cerrar la terminal',
+  'terminal.noSistema': 'Abrir en la terminal del sistema',
+  'terminal.arrastar': 'Arrastra para cambiar la altura',
+  'terminal.encerrado': 'La sesión terminó.',
+  'terminal.naoAbriu': 'No pude abrir la terminal aquí. Usa la terminal del sistema.',
 
   'topo.atualizarRotulo': 'Actualizar',
   'topo.agenteAbriu': '{agente} se abrió en una ventana nueva.',

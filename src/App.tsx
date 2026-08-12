@@ -14,11 +14,13 @@ import {
 import {
   aoIrPara,
   aoMudarProjeto,
+  aoPedirTerminal,
   carregar,
   escolherProjeto,
   salvarConfig,
   type Carga,
 } from '@/lib/source'
+import { TerminalEmbutido } from '@/components/Terminal'
 import { InstalarSkill } from '@/components/InstalarSkill'
 import { SeletorProjeto } from '@/components/SeletorProjeto'
 import { Busca } from '@/components/Busca'
@@ -253,6 +255,18 @@ function Painel({
   const t = useT()
   const { snapshot, fonte, erro } = carga
 
+  /*
+   * O terminal embutido vive no rodapé, abaixo das abas — como no VS Code.
+   * `chave` remonta o painel a cada pedido novo: cada pedido é uma sessão,
+   * com a sua mensagem, e reaproveitar a anterior escreveria por cima de um
+   * agente que talvez ainda esteja trabalhando.
+   */
+  const [terminal, setTerminal] = useState<{ chave: number; mensagem?: string } | null>(null)
+  useEffect(
+    () => aoPedirTerminal((mensagem) => setTerminal({ chave: Date.now(), mensagem })),
+    [],
+  )
+
   return (
     <div className="flex h-full">
       <aside className="drag flex w-[236px] shrink-0 flex-col border-r bg-[var(--color-paper-2)]/55">
@@ -403,6 +417,15 @@ function Painel({
             />
           )}
         </div>
+
+        {terminal && (
+          <TerminalEmbutido
+            key={terminal.chave}
+            projeto={snapshot.project.name}
+            mensagem={terminal.mensagem}
+            onFechar={() => setTerminal(null)}
+          />
+        )}
       </main>
 
       <Busca
