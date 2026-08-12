@@ -20,6 +20,19 @@
  * }
  *
  * Diretório do projeto: CLAUDE_PROJECT_DIR → payload.cwd → process.cwd().
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ REGRA CENTRAL — O CONSENTIMENTO É A PASTA `.wtf/`                        │
+ * │                                                                          │
+ * │ Este arquivo pode estar instalado GLOBALMENTE (em `~/.claude/hooks/`),   │
+ * │ e nesse caso ele roda em TODOS os projetos que a pessoa abrir. Isso só   │
+ * │ é aceitável porque ele SAI EM SILÊNCIO, sem gravar nada e com código 0,  │
+ * │ quando o projeto onde rodou NÃO tem a pasta `.wtf/`.                     │
+ * │                                                                          │
+ * │ Ele nunca cria essa pasta. Quem cria é a pessoa, clicando em "habilitar  │
+ * │ neste projeto" no aplicativo do WTF. Instalado em todo lugar, inerte por │
+ * │ padrão: só observa onde foi convidado.                                   │
+ * └──────────────────────────────────────────────────────────────────────────┘
  */
 
 const fs = require('fs');
@@ -39,11 +52,11 @@ function isoLocal(d = new Date()) {
   );
 }
 
-// Append de uma única linha JSON; nunca lança
+// Append de uma única linha JSON; nunca lança.
+// Não cria `.wtf/` — a essa altura ela já foi verificada em habilitado().
 function appendEvent(projectDir, event) {
   try {
     const dir = path.join(projectDir, '.wtf');
-    fs.mkdirSync(dir, { recursive: true });
     fs.appendFileSync(
       path.join(dir, 'events.jsonl'),
       JSON.stringify(event).replace(/\n/g, ' ') + '\n',
@@ -94,9 +107,57 @@ function baseEvent(kind, sessionId) {
   };
 }
 
+/** O projeto tem `.wtf/`? É esta pasta, e só ela, que autoriza o registro. */
+function habilitado(projectDir) {
+  try {
+    return fs.statSync(path.join(projectDir, '.wtf')).isDirectory();
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Deduplicação entre o hook GLOBAL e o hook LOCAL.
+ *
+ * Quem instalou o WTF na versão antiga tem uma cópia deste arquivo dentro do
+ * projeto (`.claude/hooks/wtf-observer.cjs`) e outra entrada de hook no
+ * `settings.local.json`. Com o hook global também registrado, os dois rodariam
+ * no mesmo evento e o evento entraria duas vezes em `events.jsonl`.
+ *
+ * A escolha: quem cede é o GLOBAL. Descobrimos qual cópia está rodando pelo
+ * caminho deste próprio arquivo — se ele NÃO está dentro do projeto, é a cópia
+ * global; e se existe uma cópia local, ela dá conta, então saímos. O contrário
+ * (o local ceder) seria pior: o local é o específico, e é ele que a pessoa vê
+ * no projeto ao auditar o que está sendo registrado.
+ */
+function eDuplicataDoLocal(projectDir) {
+  try {
+    // realpath dos dois lados: em macOS o projeto pode chegar por um caminho
+    // com symlink (/var → /private/var) e a comparação crua daria falso.
+    const real = (p) => {
+      try {
+        return fs.realpathSync(p);
+      } catch (_) {
+        return p;
+      }
+    };
+    const rel = path.relative(real(projectDir), real(__filename));
+    const souLocal = rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+    if (souLocal) return false;
+    return fs.existsSync(path.join(projectDir, '.claude', 'hooks', 'wtf-observer.cjs'));
+  } catch (_) {
+    return false;
+  }
+}
+
 function handle(payload) {
   const projectDir =
     process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
+
+  // Sem `.wtf/`, o WTF não está habilitado aqui: nada é gravado, nada é criado.
+  if (!habilitado(projectDir)) return;
+  if (eDuplicataDoLocal(projectDir)) return;
+
   const sessionId = payload.session_id;
   const name = payload.hook_event_name;
 

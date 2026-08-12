@@ -211,7 +211,35 @@ export interface Project {
   createdAt: string
 }
 
-/** Se a skill e o hook do WTF estão instalados no projeto observado. */
+/** A instalação global, em `~/.claude` — vale para todos os projetos. */
+export interface EstadoGlobal {
+  /** Quais das três skills estão em `~/.claude/skills`. */
+  skills: { skill: boolean; mapear: boolean; pastas: boolean }
+  hook: boolean
+  /** Se `~/.claude/settings.json` já chama o hook do WTF. */
+  hooksRegistrados: boolean
+  instalado: boolean
+  /** Caminho real do `.claude` do usuário. */
+  caminho: string
+}
+
+/**
+ * Se ESTE projeto foi habilitado. A pasta `.wtf/` é o consentimento: sem ela o
+ * hook global roda e sai em silêncio, sem gravar nada aqui.
+ */
+export interface EstadoProjetoWtf {
+  habilitado: boolean
+  cli: boolean
+  formato: boolean
+  pasta: boolean
+}
+
+/**
+ * Se o WTF está instalado e habilitado. Os campos de arquivo (`skill`, `hook`…)
+ * valem `true` quando a peça está disponível — instalada no projeto (modo
+ * antigo) ou em `~/.claude` (modo global). `instalado` significa "o WTF
+ * funciona neste projeto": tudo disponível E o projeto habilitado.
+ */
 export interface EstadoInstalacao {
   skill: boolean
   hook: boolean
@@ -224,6 +252,10 @@ export interface EstadoInstalacao {
   instalado: boolean
   /** Se o onboarding já produziu `.wtf/map.json`. */
   mapeado: boolean
+  /** Nível A — a instalação global. */
+  global?: EstadoGlobal
+  /** Nível B — se este projeto foi habilitado. */
+  projeto?: EstadoProjetoWtf
 }
 
 /**
@@ -355,6 +387,8 @@ export interface ItemInstalacao {
   igual: boolean
   /** Preenchido quando o arquivo de origem não pôde ser lido. */
   erro?: string
+  /** Só nos itens globais: o caminho completo, fora do projeto. */
+  destinoAbsoluto?: string
 }
 
 /** Um hook que seria registrado em `.claude/settings.local.json`. */
@@ -371,5 +405,26 @@ export interface PacoteInstalacao {
   itens: ItemInstalacao[]
   hooks: HookDeclarado[]
   /** Linhas acrescentadas ao `.gitignore`. */
+  gitignore: string[]
+  /** Nível A: o que vai para `~/.claude`, uma vez por computador. */
+  global?: PacoteGlobal
+  /** Nível B: o que vai para dentro do projeto ao habilitá-lo. */
+  projeto?: PacoteProjeto
+}
+
+/** O que a instalação global escreve em `~/.claude`. */
+export interface PacoteGlobal {
+  /** Caminho real do `.claude` do usuário nesta máquina. */
+  caminho: string
+  itens: ItemInstalacao[]
+  hooks: HookDeclarado[]
+  /** Caminho do `settings.json` que recebe o registro dos hooks. */
+  settings: string
+}
+
+/** O que "habilitar neste projeto" escreve dentro do projeto. */
+export interface PacoteProjeto {
+  caminho: string | null
+  itens: ItemInstalacao[]
   gitignore: string[]
 }

@@ -17,6 +17,14 @@ import { lerMapaPastas } from './folders.js'
 import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
 import { lerConfig, salvarConfig } from './config.js'
 import { lerPacoteInstalacao } from './disclosure.js'
+import {
+  casaClaude,
+  desabilitarProjeto,
+  desinstalarGlobal,
+  estadoGlobal,
+  habilitarProjeto,
+  instalarGlobal,
+} from './globalinstall.js'
 import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
 import { MODELO_PADRAO, perguntar } from './ask.js'
 import { observarProjeto } from './watcher.js'
@@ -459,6 +467,112 @@ ipcMain.handle('wtf:desinstalar', async () => {
   if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
   try {
     const feito = await desinstalar(projetoAtual)
+    return { ...feito, snapshot: await lerProjeto(projetoAtual) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+// ------------------------------------------------- nível A: global (~/.claude)
+
+/**
+ * Instala as skills e o hook em `~/.claude`, valendo para todos os projetos.
+ * Escrever na configuração global do Claude Code é coisa séria: pede
+ * confirmação e diz, em texto, que o hook fica INERTE onde não houver `.wtf/`.
+ */
+ipcMain.handle('wtf:instalar-global', async () => {
+  const casa = casaClaude()
+  const r = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Instalar', 'Cancelar'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Instalar o WTF para todos os projetos?',
+    detail:
+      `Isto mexe na configuração global do Claude Code, em ${casa}.\n\n` +
+      'Serão criadas as skills do WTF e o registro do hook em settings.json. ' +
+      'Nada existente é apagado — o arquivo recebe backup datado e todo o resto ' +
+      'é preservado.\n\n' +
+      'Mesmo instalado, o WTF fica desligado em todo projeto: ele só registra ' +
+      'algo onde você clicar em "habilitar neste projeto".',
+  })
+  if (r.response !== 0) return { cancelado: true }
+  try {
+    const config = projetoAtual ? await lerConfig(projetoAtual).catch(() => null) : null
+    const feito = await instalarGlobal(config)
+    return {
+      ...feito,
+      global: await estadoGlobal(),
+      snapshot: projetoAtual ? await lerProjeto(projetoAtual) : undefined,
+    }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+ipcMain.handle('wtf:desinstalar-global', async () => {
+  const casa = casaClaude()
+  const r = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Remover', 'Cancelar'],
+    defaultId: 1,
+    cancelId: 1,
+    message: 'Remover o WTF de todos os projetos?',
+    detail:
+      `Isto mexe na configuração global do Claude Code, em ${casa}.\n\n` +
+      'Só o que é do WTF sai: as skills wtf, wtf-mapear e wtf-pastas, o hook e as ' +
+      'entradas dele em settings.json. Todo o resto da sua configuração fica intacto, ' +
+      'e o arquivo recebe backup antes.\n\n' +
+      'O histórico já registrado nos seus projetos não é apagado.',
+  })
+  if (r.response !== 0) return { cancelado: true }
+  try {
+    const feito = await desinstalarGlobal()
+    return {
+      ...feito,
+      global: await estadoGlobal(),
+      snapshot: projetoAtual ? await lerProjeto(projetoAtual) : undefined,
+    }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+// --------------------------------------------- nível B: habilitar o projeto
+
+/**
+ * Cria `.wtf/` no projeto. É este clique — e só ele — que faz o hook global
+ * sair do silêncio aqui. Escreve dentro do projeto da pessoa, não em
+ * `~/.claude`, então não precisa do aviso sobre configuração global.
+ */
+ipcMain.handle('wtf:habilitar-projeto', async () => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  const r = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Habilitar', 'Cancelar'],
+    defaultId: 0,
+    cancelId: 1,
+    message: `Habilitar o WTF em ${path.basename(projetoAtual)}?`,
+    detail:
+      'Será criada a pasta .wtf/ dentro do projeto, com o programinha que a IA usa ' +
+      'para declarar o que faz. A partir daí o WTF passa a registrar o que acontece ' +
+      'aqui — e só aqui.\n\n' +
+      'Dá para desligar a qualquer momento; o histórico já registrado permanece.',
+  })
+  if (r.response !== 0) return { cancelado: true }
+  try {
+    const config = await lerConfig(projetoAtual).catch(() => null)
+    const feito = await habilitarProjeto(projetoAtual, config)
+    return { ...feito, snapshot: await lerProjeto(projetoAtual) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+ipcMain.handle('wtf:desabilitar-projeto', async () => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  try {
+    const feito = await desabilitarProjeto(projetoAtual)
     return { ...feito, snapshot: await lerProjeto(projetoAtual) }
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }

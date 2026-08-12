@@ -21,6 +21,13 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { ALVOS, COMANDO_HOOK, GITIGNORE, HOOKS, ORIGEM_SKILL, comIdioma } from './installer.js'
+import {
+  ALVOS_GLOBAIS,
+  ALVOS_PROJETO,
+  HOOKS_GLOBAIS,
+  casaClaude,
+  comandoHookGlobal,
+} from './globalinstall.js'
 import { lerConfig } from './config.js'
 
 /**
@@ -57,31 +64,78 @@ const TEXTOS = {
 const SEM_TEXTO = { titulo: '', proposito: '' }
 
 /**
- * O pacote inteiro da instalação, pronto para a tela.
+ * O pacote inteiro da instalação, pronto para a tela — agora nos DOIS níveis:
+ *
+ *   `global`  o que vai para `~/.claude/` uma vez por computador (as três
+ *             skills e o hook), mais os hooks registrados em `settings.json`.
+ *   `projeto` o que vai para dentro do projeto quando a pessoa habilita ali
+ *             (`.wtf/bin/wtf-claim.cjs`, `.wtf/MAP-FORMAT.md`, `.gitignore`).
+ *
+ * `itens`, `hooks` e `gitignore` no topo continuam existindo, com o pacote
+ * legado (instalação por projeto), para não quebrar a tela atual enquanto ela
+ * ainda os lê.
  *
  * @param {string | null | undefined} dir raiz do projeto observado
- * @returns {Promise<{ itens: object[], hooks: object[], gitignore: string[] }>}
  */
 export async function lerPacoteInstalacao(dir) {
   const config = dir ? await lerConfig(dir).catch(() => null) : null
-  const itens = []
+  const casa = casaClaude()
 
+  const itens = []
   for (const [chave, [destino, origem]] of Object.entries(ALVOS)) {
     itens.push(await montarItem(dir, chave, destino, origem, config))
   }
 
+  // Nível A — `~/.claude/`. O destino mostrado é o caminho real na máquina:
+  // escrever fora do projeto exige dizer exatamente onde.
+  const globais = []
+  for (const [chave, { destino, origem, comoProjeto }] of Object.entries(ALVOS_GLOBAIS)) {
+    const item = await montarItem(casa, chave, destino, origem, config, comoProjeto)
+    item.destinoAbsoluto = path.join(casa, destino)
+    globais.push(item)
+  }
+
+  // Nível B — o projeto. Só o que a pasta `.wtf/` contém: é ela o consentimento.
+  const doProjeto = []
+  for (const [chave, [destino, origem]] of Object.entries(ALVOS_PROJETO)) {
+    doProjeto.push(await montarItem(dir, chave, destino, origem, config))
+  }
+
+  const hooksLegado = HOOKS.map(({ evento, matcher }) => ({
+    evento,
+    matcher: matcher ?? null,
+    comando: COMANDO_HOOK,
+  }))
+
   return {
     itens,
-    hooks: HOOKS.map(({ evento, matcher }) => ({
-      evento,
-      matcher: matcher ?? null,
-      comando: COMANDO_HOOK,
-    })),
+    hooks: hooksLegado,
     gitignore: [...GITIGNORE],
+    global: {
+      caminho: casa,
+      itens: globais,
+      hooks: HOOKS_GLOBAIS.map(({ evento, matcher }) => ({
+        evento,
+        matcher: matcher ?? null,
+        comando: comandoHookGlobal(),
+      })),
+      settings: path.join(casa, 'settings.json'),
+    },
+    projeto: {
+      caminho: dir ?? null,
+      itens: doProjeto,
+      gitignore: [...GITIGNORE],
+    },
   }
 }
 
-async function montarItem(dir, chave, destino, origem, config) {
+/**
+ * @param {string | null | undefined} dir raiz onde o arquivo seria escrito
+ * @param {string | null} [chaveIdioma] caminho no formato da instalação por
+ *   projeto — é ele que `comIdioma()` reconhece. Os alvos globais têm outro
+ *   caminho, então precisam informar o equivalente.
+ */
+async function montarItem(dir, chave, destino, origem, config, chaveIdioma) {
   const { titulo, proposito } = TEXTOS[chave] ?? SEM_TEXTO
   const item = { destino, origem, titulo, proposito, conteudo: '', bytes: 0, jaExiste: false, igual: false }
 
@@ -97,7 +151,7 @@ async function montarItem(dir, chave, destino, origem, config) {
 
   // O que vai para o disco é o original já com o idioma escolhido aplicado —
   // é esse texto que a pessoa precisa ver, não o de antes.
-  conteudo = comIdioma(destino, conteudo, config)
+  conteudo = comIdioma(chaveIdioma === undefined ? destino : chaveIdioma, conteudo, config)
   item.conteudo = conteudo
   item.bytes = Buffer.byteLength(conteudo, 'utf8')
 

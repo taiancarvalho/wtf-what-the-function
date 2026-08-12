@@ -51,6 +51,19 @@ function raizDe(evento: WtfEvent, porCodigo: Map<string, WtfEvent>): WtfEvent {
   return atual
 }
 
+/** O evento faz parte de um ciclo de citações? */
+function ehCiclo(evento: WtfEvent, porCodigo: Map<string, WtfEvent>): boolean {
+  const visitados = new Set<string>()
+  let atual: WtfEvent | undefined = evento
+  while (atual?.respondeA) {
+    if (visitados.has(atual.id)) return true
+    visitados.add(atual.id)
+    atual = porCodigo.get(atual.respondeA)
+    if (atual?.id === evento.id) return true
+  }
+  return false
+}
+
 const maisAntigoPrimeiro = (a: WtfEvent, b: WtfEvent) =>
   new Date(a.at).getTime() - new Date(b.at).getTime()
 
@@ -80,6 +93,16 @@ export function montarAssuntos(eventos: WtfEvent[]): Assunto[] {
     if (raiz.id === e.id) {
       raizes.push(e)
       continue
+    }
+    // Ciclo fechado: dois eventos que se citam viram resposta um do outro e
+    // NENHUM dos dois sobra como raiz — os dois some do painel. Esconder
+    // evento é o pior desfecho possível aqui, então o mais antigo do par
+    // assume o papel de aviso e o outro fica como resposta dele.
+    if (ehCiclo(e, porCodigo)) {
+      if (new Date(e.at) <= new Date(raiz.at)) {
+        raizes.push(e)
+        continue
+      }
     }
     const lista = respostasPor.get(raiz.id)
     if (lista) lista.push(e)

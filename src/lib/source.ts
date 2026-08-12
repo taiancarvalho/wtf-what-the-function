@@ -3,6 +3,7 @@ import type {
   ConfigProjeto,
   ContextoPergunta,
   EstadoChaves,
+  EstadoGlobal,
   PacoteInstalacao,
   PedacoResposta,
   ProjectSnapshot,
@@ -23,6 +24,10 @@ interface PonteWtf {
   escolherProjeto?: () => Promise<unknown>
   instalar?: () => Promise<unknown>
   desinstalar?: () => Promise<unknown>
+  instalarGlobal?: () => Promise<unknown>
+  desinstalarGlobal?: () => Promise<unknown>
+  habilitarProjeto?: () => Promise<unknown>
+  desabilitarProjeto?: () => Promise<unknown>
   lerPacoteInstalacao?: () => Promise<unknown>
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
@@ -275,6 +280,54 @@ export async function alternarInstalacao(
 ): Promise<Carga | null> {
   const p = ponte()
   const fn = acao === 'instalar' ? p?.instalar : p?.desinstalar
+  if (!fn) return null
+  const r = (await fn()) as { snapshot?: unknown; erro?: string; cancelado?: boolean }
+  if (r?.cancelado) return null
+  if (ehSnapshot(r?.snapshot)) return { snapshot: r.snapshot, fonte: 'real' }
+  if (r?.erro) return { snapshot: await loadSnapshot(), fonte: 'exemplo', erro: r.erro }
+  return null
+}
+
+// ------------------------------------------------------------ dois níveis
+
+export const podeInstalarGlobal = () => typeof ponte()?.instalarGlobal === 'function'
+export const podeHabilitarProjeto = () => typeof ponte()?.habilitarProjeto === 'function'
+
+/**
+ * Nível A — instala (ou remove) o WTF em `~/.claude`, valendo para todos os
+ * projetos. O aplicativo pede confirmação antes, porque mexe na configuração
+ * global do Claude Code. `null` quando a pessoa cancelou ou fora do app.
+ */
+export async function alternarInstalacaoGlobal(
+  acao: 'instalar' | 'desinstalar',
+): Promise<{ global: EstadoGlobal | null; carga: Carga | null } | null> {
+  const p = ponte()
+  const fn = acao === 'instalar' ? p?.instalarGlobal : p?.desinstalarGlobal
+  if (!fn) return null
+  const r = (await fn()) as {
+    global?: EstadoGlobal
+    snapshot?: unknown
+    erro?: string
+    cancelado?: boolean
+  }
+  if (r?.cancelado) return null
+  if (r?.erro) return { global: null, carga: { snapshot: await loadSnapshot(), fonte: 'exemplo', erro: r.erro } }
+  return {
+    global: r?.global ?? null,
+    carga: ehSnapshot(r?.snapshot) ? { snapshot: r.snapshot, fonte: 'real' } : null,
+  }
+}
+
+/**
+ * Nível B — cria (ou remove) a pasta `.wtf/` no projeto aberto. É essa pasta
+ * que autoriza o WTF a registrar algo aqui; sem ela o hook global fica inerte.
+ * Desabilitar nunca apaga o histórico já gravado.
+ */
+export async function alternarProjeto(
+  acao: 'habilitar' | 'desabilitar',
+): Promise<Carga | null> {
+  const p = ponte()
+  const fn = acao === 'habilitar' ? p?.habilitarProjeto : p?.desabilitarProjeto
   if (!fn) return null
   const r = (await fn()) as { snapshot?: unknown; erro?: string; cancelado?: boolean }
   if (r?.cancelado) return null

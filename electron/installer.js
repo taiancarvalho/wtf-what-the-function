@@ -62,16 +62,49 @@ export const GITIGNORE = ['# WTF — histórico local do que a IA declarou', '.w
 
 // ------------------------------------------------------------------ estado
 
+/**
+ * O estado nos DOIS níveis.
+ *
+ * Os campos antigos continuam existindo e com significado coerente, para quem
+ * já os lê não quebrar:
+ *   - `skill`/`mapear`/`pastas`/`hook`: presentes se estiverem instalados AQUI
+ *     (modo antigo, por projeto) OU em `~/.claude` (modo novo, global) — o que
+ *     interessa a quem lê é "o agente tem esta instrução disponível?".
+ *   - `cli`/`formato`: sempre do projeto; são parte do "habilitar aqui".
+ *   - `hooksRegistrados`: hook registrado no settings local OU no global.
+ *   - `instalado`: tudo disponível E este projeto habilitado (`.wtf/` existe).
+ *     Continua significando "o WTF funciona neste projeto".
+ *   - `mapeado`: inalterado.
+ * E dois campos novos: `global` e `projeto`.
+ *
+ * Importação dinâmica de propósito: `globalinstall.js` importa constantes deste
+ * arquivo, e um import estático nos dois sentidos criaria um ciclo.
+ */
 export async function estadoInstalacao(dir) {
-  const presentes = {}
+  const { estadoGlobal, estadoProjeto } = await import('./globalinstall.js')
+  const [global, projeto] = await Promise.all([estadoGlobal(), estadoProjeto(dir)])
+
+  const local = {}
   for (const [chave, [rel]] of Object.entries(ALVOS)) {
-    presentes[chave] = await existe(path.join(dir, rel))
+    local[chave] = await existe(path.join(dir, rel))
   }
   const settings = await lerJson(path.join(dir, '.claude/settings.local.json'))
-  presentes.hooksRegistrados = temNossoHook(settings)
-  presentes.instalado = Object.values(presentes).every(Boolean)
+  const hooksLocais = temNossoHook(settings)
+
+  const presentes = {
+    skill: local.skill || global.skills.skill,
+    mapear: local.mapear || global.skills.mapear,
+    pastas: local.pastas || global.skills.pastas,
+    hook: local.hook || global.hook,
+    cli: local.cli,
+    formato: local.formato,
+    hooksRegistrados: hooksLocais || global.hooksRegistrados,
+  }
+  presentes.instalado = Object.values(presentes).every(Boolean) && projeto.habilitado
   // O mapa é escrito pelo onboarding, não pela instalação.
   presentes.mapeado = await existe(path.join(dir, '.wtf/map.json'))
+  presentes.global = global
+  presentes.projeto = projeto
   return presentes
 }
 

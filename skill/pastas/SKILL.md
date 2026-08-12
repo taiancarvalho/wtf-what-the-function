@@ -10,6 +10,10 @@ Quando um agente de IA entra e não sabe onde as coisas moram, ele inventa:
 cria `docs/planning-v2/` ao lado de `docs/plano/`, salva uma decisão em três
 lugares, e ninguém mais acha nada.
 
+> **Só vale onde há `.wtf/`.** Se a pasta `.wtf/` não existir no projeto atual, o
+> WTF não está habilitado aqui: não declare nada e não crie a pasta por conta
+> própria. Quem habilita é o dono do projeto, pelo aplicativo.
+
 O `MAPA.md` na raiz do projeto responde, em uma tela, **para que serve cada
 pasta**. Ele existe para duas leituras:
 

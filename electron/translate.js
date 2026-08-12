@@ -44,6 +44,57 @@ function classificar(caminho) {
   return { area: OUTROS[0], nome: OUTROS[1] }
 }
 
+/**
+ * A que parte um arquivo de teste pertence.
+ *
+ * `tests/lib/meta/x.test.ts` verifica `src/lib/meta` — mas, classificado pelo
+ * próprio caminho, ele caía numa feature "Testes automáticos" à parte. O efeito
+ * era duplo e silencioso: a parte que TEM o código nunca recebia crédito pelo
+ * teste que a cobre, e a feature dos testes aparecia como "planejada" mesmo com
+ * dezenas de arquivos de teste no repositório. O estado "Testado" existia no
+ * código e era inalcançável sem mapa — justamente no primeiro contato de quem
+ * abre o app antes de mapear o projeto.
+ *
+ * Aqui tiramos o prefixo de teste e classificamos pelo que sobra: o teste passa
+ * a apontar para a parte que ele verifica. Sem correspondência, ele continua
+ * caindo em "Testes automáticos", que é o destino honesto para um teste que não
+ * cobre nada reconhecível.
+ */
+const RE_TESTE = /^(tests?|spec|__tests__)\//
+const SUFIXO_TESTE = /\.(test|spec)\.[jt]sx?$/
+
+function ehTeste(caminho) {
+  return RE_TESTE.test(caminho) || SUFIXO_TESTE.test(caminho)
+}
+
+/**
+ * Última tentativa: casar `tests/calc.test.ts` com `src/lib/metrics/calc.ts`
+ * pelo nome do arquivo, entre os que vieram no MESMO commit. Nem todo projeto
+ * espelha a estrutura de pastas nos testes, mas quase todos mantêm o nome.
+ */
+function porNomeDeArquivo(caminhoDoTeste, codigo) {
+  const base = caminhoDoTeste
+    .split('/')
+    .pop()
+    .replace(/\.(test|spec)\.[jt]sx?$/, '')
+    .replace(/\.[jt]sx?$/, '')
+  if (!base) return null
+  for (const p of codigo) {
+    const alvo = p.split('/').pop().replace(/\.[jt]sx?$/, '')
+    if (alvo === base) return classificar(p)
+  }
+  return null
+}
+
+function classificarTeste(caminho) {
+  const semPrefixo = caminho.replace(RE_TESTE, '')
+  for (const [re, area, nome] of REGRAS) {
+    // o mesmo caminho, e também com `src/` na frente: `tests/lib/x` ↔ `src/lib/x`
+    if (re.test(semPrefixo) || re.test(`src/${semPrefixo}`)) return { area, nome }
+  }
+  return null
+}
+
 const idDe = (area, nome) =>
   `f-${`${area}-${nome}`
     .toLowerCase()
@@ -189,11 +240,20 @@ export function commitsParaSnapshot(meta, commits) {
   for (const c of relevantes) {
     // features tocadas por este commit
     const tocadas = new Map()
-    for (const f of c.files) {
-      const { area, nome } = classificar(f.path)
+    const caminhos = c.files.map((f) => f.path)
+    // Código primeiro: um teste só sabe a que parte pertence depois de saber
+    // que partes existem neste commit.
+    const codigo = caminhos.filter((p) => !ehTeste(p))
+
+    for (const caminho of [...codigo, ...caminhos.filter(ehTeste)]) {
+      // Arquivo de teste conta para a parte que ele verifica, não para si mesmo.
+      const alvo = ehTeste(caminho)
+        ? (classificarTeste(caminho) ?? porNomeDeArquivo(caminho, codigo))
+        : null
+      const { area, nome } = alvo ?? classificar(caminho)
       const id = idDe(area, nome)
       if (!tocadas.has(id)) tocadas.set(id, { id, area, nome, files: [] })
-      tocadas.get(id).files.push(f.path)
+      tocadas.get(id).files.push(caminho)
     }
 
     for (const t of tocadas.values()) {
@@ -213,7 +273,7 @@ export function commitsParaSnapshot(meta, commits) {
       atual.commits += 1
       for (const p of t.files) {
         if (!atual.files.includes(p)) atual.files.push(p)
-        if (/^tests?\//.test(p)) atual.temTeste = true
+        if (ehTeste(p)) atual.temTeste = true
         else if (!/^docs?\//.test(p)) atual.temCodigo = true
       }
       // commits vêm do mais novo para o mais antigo

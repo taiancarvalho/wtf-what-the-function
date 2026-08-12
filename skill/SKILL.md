@@ -10,6 +10,10 @@ projeto — **uma pessoa que não sabe programar** — o que está sendo constru
 
 Ele não lê código. Ele lê o que você declara aqui.
 
+> **Só vale onde há `.wtf/`.** Se a pasta `.wtf/` não existir no projeto atual, o
+> WTF não está habilitado aqui: não declare nada e não crie a pasta por conta
+> própria. Quem habilita é o dono do projeto, pelo aplicativo.
+
 ## A regra
 
 **Antes** de começar um trabalho, declare. **Depois** de terminar, declare de novo.

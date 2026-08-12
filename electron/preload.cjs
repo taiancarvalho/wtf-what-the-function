@@ -12,6 +12,19 @@ contextBridge.exposeInMainWorld('wtf', {
   instalar: () => ipcRenderer.invoke('wtf:instalar'),
   desinstalar: () => ipcRenderer.invoke('wtf:desinstalar'),
   /**
+   * Nível A — instala as skills e o hook em `~/.claude`, para todos os
+   * projetos. Mexe na configuração global do Claude Code: pede confirmação.
+   */
+  instalarGlobal: () => ipcRenderer.invoke('wtf:instalar-global'),
+  desinstalarGlobal: () => ipcRenderer.invoke('wtf:desinstalar-global'),
+  /**
+   * Nível B — cria (ou remove) a pasta `.wtf/` no projeto aberto. É a
+   * existência dessa pasta que autoriza o WTF a registrar algo aqui; sem ela,
+   * o hook global roda e sai em silêncio.
+   */
+  habilitarProjeto: () => ipcRenderer.invoke('wtf:habilitar-projeto'),
+  desabilitarProjeto: () => ipcRenderer.invoke('wtf:desabilitar-projeto'),
+  /**
    * O que a instalação escreveria no projeto, com o texto integral de cada
    * arquivo. Só leitura — serve para a pessoa ver antes de aceitar.
    */

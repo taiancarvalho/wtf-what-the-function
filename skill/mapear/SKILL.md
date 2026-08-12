@@ -9,6 +9,10 @@ O WTF acabou de ser ligado a um projeto **que já estava em andamento**. Ele nã
 acompanhou a construção, então não sabe do que o projeto é feito — só enxerga
 arquivos e commits.
 
+> **Só vale onde há `.wtf/`.** Se a pasta `.wtf/` não existir no projeto atual, o
+> WTF não está habilitado aqui: não declare nada e não crie a pasta por conta
+> própria. Quem habilita é o dono do projeto, pelo aplicativo.
+
 Sua tarefa: escrever `.wtf/map.json`, o vocabulário do projeto.
 
 O formato completo está em `.wtf/MAP-FORMAT.md`. **Leia esse arquivo antes de
