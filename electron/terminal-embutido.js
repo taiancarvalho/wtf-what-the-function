@@ -206,6 +206,36 @@ export function escrever(id, dados) {
   return { ok: true }
 }
 
+/**
+ * Entrega um texto INTEIRO à sessão, como uma colagem.
+ *
+ * Digitar não serve para texto de várias linhas: cada quebra de linha é um
+ * Enter, e o programa lá dentro recebe uma submissão por linha. Com uma
+ * mensagem de quinze linhas isso vira uma dúzia de perguntas pela metade, cada
+ * uma redesenhando a tela — foi assim que o "pedir para resolver" travou o
+ * aplicativo inteiro: não pela conta de escrever, mas pela avalanche de saída
+ * que as submissões parciais produziram.
+ *
+ * `ESC[200~ … ESC[201~` é o modo de colagem entre colchetes, que todo terminal
+ * moderno entende: o que vem no meio é texto, não teclas. As quebras viram
+ * `\r` porque é isso que um terminal fala; dentro do bloco elas são apenas
+ * quebras, e não envios. O `\r` final, esse sim, é o Enter — um só, depois do
+ * texto completo estar na linha.
+ */
+export function sequenciaDeColagem(texto) {
+  const corpo = String(texto).replace(/\r?\n/g, '\r')
+  return `\x1b[200~${corpo}\x1b[201~\r`
+}
+
+export function colar(id, texto) {
+  const s = sessoes.get(id)
+  if (!s || typeof texto !== 'string') return { ok: false }
+  const bytes = sequenciaDeColagem(texto)
+  if (process.env.WTF_DEBUG_PTY) console.log('COLAGEM', bytes.length)
+  s.pty.write(bytes)
+  return { ok: true }
+}
+
 /** O painel mudou de tamanho: o programa lá dentro precisa saber. */
 export function redimensionar(id, cols, rows) {
   const s = sessoes.get(id)

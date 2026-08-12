@@ -6,6 +6,7 @@ import {
   House,
   Library,
   ListChecks,
+  ShieldCheck,
   Newspaper,
   Search,
   Settings2,
@@ -33,6 +34,7 @@ import { Home } from '@/views/Home'
 import { Historico } from '@/views/Historico'
 import { Pastas } from '@/views/Pastas'
 import { Documentos } from '@/views/Documentos'
+import { Seguranca } from '@/views/Seguranca'
 import { Configuracoes } from '@/views/Configuracoes'
 import { AGENT_LABEL } from '@/lib/state'
 
@@ -44,6 +46,7 @@ type Aba =
   | 'mapa'
   | 'pastas'
   | 'docs'
+  | 'seguranca'
   | 'config'
 
 const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] = [
@@ -54,6 +57,7 @@ const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] 
   { id: 'mapa', label: 'nav.mapa', icone: Blocks, nota: 'nav.mapa.nota' },
   { id: 'pastas', label: 'nav.pastas', icone: FolderTree, nota: 'nav.pastas.nota' },
   { id: 'docs', label: 'nav.docs', icone: Library, nota: 'nav.docs.nota' },
+  { id: 'seguranca', label: 'nav.seguranca', icone: ShieldCheck, nota: 'nav.seguranca.nota' },
   { id: 'config', label: 'nav.config', icone: Settings2, nota: 'nav.config.nota' },
 ]
 
@@ -450,6 +454,7 @@ function Painel({
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
           {aba === 'pastas' && <Pastas snapshot={snapshot} />}
           {aba === 'docs' && <Documentos snapshot={snapshot} />}
+          {aba === 'seguranca' && <Seguranca snapshot={snapshot} />}
           {aba === 'config' && (
             <Configuracoes
               snapshot={snapshot}

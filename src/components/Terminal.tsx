@@ -10,6 +10,7 @@ import {
   aoTerminarTerminal,
   terminalAbrir,
   terminalEncerrar,
+  terminalColar,
   terminalEscrever,
   terminalRedimensionar,
 } from '@/lib/source'
@@ -229,21 +230,21 @@ export function TerminalEmbutido({
   /*
    * Entrega um pedido novo à sessão que já está aberta.
    *
-   * O texto é digitado, não executado: vai para a linha do agente com um
-   * Enter no fim, do mesmo jeito que iria pelos dedos de quem está olhando.
+   * Vai como COLAGEM, não como digitação — a diferença travou o app uma vez.
+   * Digitado, cada quebra de linha da mensagem vira um Enter, e uma mensagem
+   * de quinze linhas vira uma dúzia de perguntas pela metade. Ver `colar()`
+   * no motor do terminal.
+   *
    * Se o agente estiver no meio de um trabalho, ele enfileira — que é
    * justamente o que se quer de um "aproveitando, me explica isso": chega,
    * espera a vez, e não derruba o que está em andamento.
-   *
-   * `\r` e não `\n`: o terminal fala em retorno de carro, e um `\n` aqui
-   * escreve a pergunta na tela sem nunca enviá-la.
    */
   const ultimoEnvio = useRef(0)
   useEffect(() => {
     if (!envio || envio.n === ultimoEnvio.current) return
     if (!idRef.current) return
     ultimoEnvio.current = envio.n
-    void terminalEscrever(idRef.current, `${envio.texto}\r`)
+    void terminalColar(idRef.current, envio.texto)
     termRef.current?.focus()
   }, [envio])
 

@@ -39,6 +39,7 @@ import { abrirTerminal } from './terminal.js'
 import {
   abrirSessao as abrirSessaoEmbutida,
   escrever as escreverNoTerminal,
+  colar as colarNoTerminal,
   redimensionar as redimensionarTerminal,
   encerrar as encerrarTerminal,
   encerrarTodas as encerrarTerminais,
@@ -476,43 +477,64 @@ ipcMain.handle('wtf:terminal-abrir', async (_e, opcoes) =>
 
 ipcMain.handle('wtf:terminal-escrever', async (_e, id, dados) => escreverNoTerminal(id, dados))
 
+/*
+ * Colar é diferente de digitar, e a diferença importa: ver `colar()`. Tudo o
+ * que o app manda de uma vez (as mensagens dos botões, os pedidos de mapa)
+ * passa por aqui; só as teclas de quem está no painel usam `escrever`.
+ */
+ipcMain.handle('wtf:terminal-colar', async (_e, id, texto) => colarNoTerminal(id, texto))
+
 ipcMain.handle('wtf:terminal-redimensionar', async (_e, id, cols, rows) =>
   redimensionarTerminal(id, cols, rows),
 )
 
 ipcMain.handle('wtf:terminal-encerrar', async (_e, id) => encerrarTerminal(id))
 
-/** Dispara o onboarding: abre o agente já pedindo o mapeamento do projeto. */
-ipcMain.handle('wtf:mapear', async () =>
-  abrirTerminal(
-    projetoAtual,
+/**
+ * Os pedidos que o app faz à IA em nome de quem clicou.
+ *
+ * Ficam num só lugar porque cada um tem DOIS destinos: o terminal do sistema
+ * (o caminho antigo) e o terminal de dentro do app. Enquanto os textos moravam
+ * dentro dos handlers, só o caminho de fora existia — e o botão "criar mapa"
+ * continuou jogando a pessoa para fora do aplicativo muito depois de o app ter
+ * um terminal próprio.
+ */
+export const PEDIDOS = {
+  mapear:
     'Use a skill wtf-mapear para mapear este projeto para o WTF. ' +
-      'Leia .wtf/MAP-FORMAT.md e o plano do projeto, e escreva .wtf/map.json. ' +
-      'Lembre: você descreve as partes e como se chamam — você não decide o que está pronto.',
-  ),
-)
+    'Leia .wtf/MAP-FORMAT.md e o plano do projeto, e escreva .wtf/map.json. ' +
+    'Lembre: você descreve as partes e como se chamam — você não decide o que está pronto.',
+  pastas:
+    'Use a skill wtf-pastas para criar ou atualizar o MAPA.md na raiz deste projeto. ' +
+    'Percorra as pastas que importam (ignorando o que é gerado), descubra para que ' +
+    'cada uma serve e escreva a árvore com uma frase curta e sem jargão por pasta. ' +
+    'Se o MAPA.md já existir, preserve as frases das pastas que não mudaram de propósito.',
+  documentos:
+    'Use a skill wtf-documentos para criar ou atualizar o .wtf/docs.json deste projeto. ' +
+    'Comece pela raiz e por docs/, ignore o que é de ferramenta instalada, e diga por ' +
+    'assunto qual documento é o vigente e por quê. Não apague, não mova e não junte ' +
+    'arquivo nenhum: consolidar é decisão do dono do projeto. ' +
+    'Onde a evidência for fraca, diga que está em dúvida em vez de chutar.',
+  guardrails:
+    'Use a skill wtf-guardrails para escrever ou atualizar o GUARDRAILS.md na raiz ' +
+    'deste projeto: a lista do que NÃO se faz aqui. Procure o que já deu errado no ' +
+    'histórico, o que o projeto protege e as verificações que já existem. Cite a ' +
+    'evidência de cada regra, e diga quando for só precaução. Não altere código para ' +
+    'corrigir o que encontrar — anote e deixe a decisão comigo.',
+}
+
+/** O texto de um pedido, para o app entregá-lo ao terminal de dentro. */
+ipcMain.handle('wtf:texto-pedido', async (_e, tipo) => PEDIDOS[tipo] ?? null)
+
+/** Dispara o onboarding: abre o agente já pedindo o mapeamento do projeto. */
+ipcMain.handle('wtf:mapear', async () => abrirTerminal(projetoAtual, PEDIDOS.mapear))
 
 /** Pede o mapa das PASTAS: para que serve cada diretório do repositório. */
-ipcMain.handle('wtf:mapear-pastas', async () =>
-  abrirTerminal(
-    projetoAtual,
-    'Use a skill wtf-pastas para criar ou atualizar o MAPA.md na raiz deste projeto. ' +
-      'Percorra as pastas que importam (ignorando o que é gerado), descubra para que ' +
-      'cada uma serve e escreva a árvore com uma frase curta e sem jargão por pasta. ' +
-      'Se o MAPA.md já existir, preserve as frases das pastas que não mudaram de propósito.',
-  ),
-)
+ipcMain.handle('wtf:mapear-pastas', async () => abrirTerminal(projetoAtual, PEDIDOS.pastas))
 
 /** Pede o mapa dos DOCUMENTOS: quais importam, e qual é o vigente de cada assunto. */
 ipcMain.handle('wtf:mapear-documentos', async () =>
-  abrirTerminal(
-    projetoAtual,
-    'Use a skill wtf-documentos para criar ou atualizar o .wtf/docs.json deste projeto. ' +
-      'Comece pela raiz e por docs/, ignore o que é de ferramenta instalada, e diga por ' +
-      'assunto qual documento é o vigente e por quê. Não apague, não mova e não junte ' +
-      'arquivo nenhum: consolidar é decisão do dono do projeto. ' +
-      'Onde a evidência for fraca, diga que está em dúvida em vez de chutar.',
-  ),
+  abrirTerminal(projetoAtual, PEDIDOS.documentos),
 )
 
 /**

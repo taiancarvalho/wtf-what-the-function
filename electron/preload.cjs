@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld('wtf', {
   terminalEscrever: (id, dados) => ipcRenderer.invoke('wtf:terminal-escrever', id, dados),
   terminalRedimensionar: (id, cols, rows) =>
     ipcRenderer.invoke('wtf:terminal-redimensionar', id, cols, rows),
+  /** Entrega um texto inteiro à sessão, como colagem — não como digitação. */
+  terminalColar: (id, texto) => ipcRenderer.invoke('wtf:terminal-colar', id, texto),
+  /** O texto de um pedido pronto ('mapear', 'pastas', 'documentos', 'guardrails'). */
+  textoPedido: (tipo) => ipcRenderer.invoke('wtf:texto-pedido', tipo),
   terminalEncerrar: (id) => ipcRenderer.invoke('wtf:terminal-encerrar', id),
   /** A saída do terminal, conforme chega. Devolve como cancelar. */
   aoSairDoTerminal: (cb) => {

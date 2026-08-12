@@ -89,6 +89,24 @@ const pt: Dic = {
   'nav.pastas.nota': 'Onde cada coisa mora',
   'nav.docs': 'Documentos',
   'nav.docs.nota': 'O que já foi escrito',
+  'nav.seguranca': 'Segurança',
+  'nav.seguranca.nota': 'o que ficou exposto, e as regras do que não se faz aqui',
+  'seguranca.titulo': 'Segurança',
+  'seguranca.paraQue':
+    'Duas perguntas específicas, respondidas com evidência: alguma chave está prestes a entrar no histórico, e algum dado de pessoa está escrito no código que vai para o navegador. Mais as regras do que não se faz neste projeto.',
+  'seguranca.nadaTitulo': 'Nada encontrado nesta varredura',
+  'seguranca.nadaTexto':
+    'Foram lidos {arquivos} arquivos e nenhuma chave nem dado de pessoa apareceu. Isso não quer dizer que o projeto está seguro — quer dizer que estas duas coisas não foram encontradas.',
+  'seguranca.aindaNao': 'A varredura ainda não rodou neste projeto.',
+  'seguranca.truncado':
+    'A varredura parou antes do fim: o projeto é grande demais para ser lido inteiro. O que está além do limite não foi olhado.',
+  'guard.titulo': 'As regras deste projeto',
+  'guard.vazio':
+    'Uma lista curta do que NÃO se faz aqui, escrita em português e obedecida pela IA nas próximas vezes. Ela procura no histórico o que já deu errado, o que o projeto protege e o que já é verificado — e transforma isso em regras com a evidência de cada uma.',
+  'guard.existe':
+    'A IA lê estas regras antes de trabalhar. O arquivo é seu: pode editar à mão, e o que você escrever vale.',
+  'guard.criar': 'Escrever as regras deste projeto',
+  'guard.atualizar': 'Revisar as regras',
   'nav.config': 'Configurações',
   'nav.config.nota': 'Idioma, chaves e instalação',
 
@@ -640,6 +658,24 @@ const en: Dic = {
   'nav.pastas.nota': 'Where everything lives',
   'nav.docs': 'Documents',
   'nav.docs.nota': 'What has been written',
+  'nav.seguranca': 'Security',
+  'nav.seguranca.nota': 'what got exposed, and the rules of what is not done here',
+  'seguranca.titulo': 'Security',
+  'seguranca.paraQue':
+    'Two specific questions, answered with evidence: is a key about to enter the history, and is personal data written into code that reaches the browser. Plus the rules of what is not done in this project.',
+  'seguranca.nadaTitulo': 'Nothing found in this scan',
+  'seguranca.nadaTexto':
+    '{arquivos} files were read and no key or personal data showed up. That does not mean the project is secure — it means these two things were not found.',
+  'seguranca.aindaNao': 'The scan has not run on this project yet.',
+  'seguranca.truncado':
+    'The scan stopped early: the project is too large to read in full. Anything past the limit was not looked at.',
+  'guard.titulo': 'This project’s rules',
+  'guard.vazio':
+    'A short list of what is NOT done here, written in plain language and obeyed by the AI next time. It looks through the history for what already went wrong, what the project protects and what is already checked — and turns that into rules, each with its evidence.',
+  'guard.existe':
+    'The AI reads these rules before working. The file is yours: edit it by hand, and what you write stands.',
+  'guard.criar': 'Write this project’s rules',
+  'guard.atualizar': 'Review the rules',
   'nav.config': 'Settings',
   'nav.config.nota': 'Language, keys and install',
 
@@ -1165,6 +1201,24 @@ const es: Dic = {
   'nav.pastas.nota': 'Dónde vive cada cosa',
   'nav.docs': 'Documentos',
   'nav.docs.nota': 'Lo que ya está escrito',
+  'nav.seguranca': 'Seguridad',
+  'nav.seguranca.nota': 'lo que quedó expuesto, y las reglas de lo que no se hace aquí',
+  'seguranca.titulo': 'Seguridad',
+  'seguranca.paraQue':
+    'Dos preguntas específicas, respondidas con evidencia: si alguna clave está por entrar en el historial, y si algún dato de persona está escrito en el código que llega al navegador. Más las reglas de lo que no se hace en este proyecto.',
+  'seguranca.nadaTitulo': 'Nada encontrado en este barrido',
+  'seguranca.nadaTexto':
+    'Se leyeron {arquivos} archivos y no apareció ninguna clave ni dato de persona. Eso no significa que el proyecto esté seguro — significa que estas dos cosas no se encontraron.',
+  'seguranca.aindaNao': 'El barrido todavía no se ejecutó en este proyecto.',
+  'seguranca.truncado':
+    'El barrido se detuvo antes del final: el proyecto es demasiado grande para leerlo entero. Lo que está más allá del límite no fue revisado.',
+  'guard.titulo': 'Las reglas de este proyecto',
+  'guard.vazio':
+    'Una lista corta de lo que NO se hace aquí, escrita en lenguaje simple y obedecida por la IA la próxima vez. Busca en el historial lo que ya salió mal, lo que el proyecto protege y lo que ya se verifica — y lo convierte en reglas, cada una con su evidencia.',
+  'guard.existe':
+    'La IA lee estas reglas antes de trabajar. El archivo es tuyo: puedes editarlo a mano, y lo que escribas vale.',
+  'guard.criar': 'Escribir las reglas de este proyecto',
+  'guard.atualizar': 'Revisar las reglas',
   'nav.config': 'Configuración',
   'nav.config.nota': 'Idioma, claves e instalación',
 

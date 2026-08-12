@@ -48,6 +48,8 @@ interface PonteWtf {
   terminalEscrever?: (id: string, dados: string) => Promise<unknown>
   terminalRedimensionar?: (id: string, cols: number, rows: number) => Promise<unknown>
   terminalEncerrar?: (id: string) => Promise<unknown>
+  terminalColar?: (id: string, texto: string) => Promise<unknown>
+  textoPedido?: (tipo: string) => Promise<string | null>
   aoSairDoTerminal?: (cb: (dados: SaidaTerminal) => void) => () => void
   aoTerminarTerminal?: (cb: (dados: FimTerminal) => void) => () => void
   mapear?: () => Promise<unknown>
@@ -185,6 +187,35 @@ export function aoPedirTerminal(cb: OuvinteTerminal): () => void {
 }
 
 export const podeTerminalEmbutido = () => typeof ponte()?.terminalAbrir === 'function'
+
+/** Entrega um texto inteiro à sessão aberta. Colagem, nunca digitação. */
+export async function terminalColar(id: string, texto: string): Promise<void> {
+  await ponte()?.terminalColar?.(id, texto)
+}
+
+/**
+ * Manda um pedido pronto para a IA — pelo terminal DE DENTRO quando ele existe.
+ *
+ * Os pedidos de mapa nasceram antes do terminal embutido e continuaram abrindo
+ * uma janela de fora: clicar em "criar mapa" jogava para o Terminal do sistema
+ * quem tinha acabado de ver o app ganhar um shell próprio. O texto vem do
+ * processo principal, que é onde ele é definido, para o pedido ser exatamente
+ * o mesmo nos dois caminhos.
+ */
+export async function pedirIA(
+  tipo: 'mapear' | 'pastas' | 'documentos' | 'guardrails',
+  reserva: () => Promise<{ agente?: string; erro?: string } | null>,
+): Promise<{ agente?: string; erro?: string } | null> {
+  const p = ponte()
+  if (podeTerminalEmbutido() && p?.textoPedido) {
+    const texto = await p.textoPedido(tipo)
+    if (texto) {
+      pedirTerminal(texto)
+      return { agente: 'a IA' }
+    }
+  }
+  return reserva()
+}
 
 /**
  * Abre um shell DENTRO do app, na pasta do projeto. Com `mensagem`, o agente
@@ -428,9 +459,11 @@ export async function alternarValidado(featureId: string): Promise<Carga | null>
 
 /** Abre o agente pedindo o mapeamento do projeto (onboarding). */
 export async function mapearProjeto(): Promise<{ agente?: string; erro?: string } | null> {
-  const p = ponte()
-  if (!p?.mapear) return null
-  return (await p.mapear()) as { agente?: string; erro?: string }
+  return pedirIA('mapear', async () => {
+    const p = ponte()
+    if (!p?.mapear) return null
+    return (await p.mapear()) as { agente?: string; erro?: string }
+  })
 }
 
 export const podeMapearPastas = () => typeof ponte()?.mapearPastas === 'function'
@@ -440,9 +473,11 @@ export const podeMapearPastas = () => typeof ponte()?.mapearPastas === 'function
  * depois, e o watcher avisa o painel — aqui só disparamos o pedido.
  */
 export async function mapearPastas(): Promise<{ agente?: string; erro?: string } | null> {
-  const p = ponte()
-  if (!p?.mapearPastas) return null
-  return (await p.mapearPastas()) as { agente?: string; erro?: string }
+  return pedirIA('pastas', async () => {
+    const p = ponte()
+    if (!p?.mapearPastas) return null
+    return (await p.mapearPastas()) as { agente?: string; erro?: string }
+  })
 }
 
 export const podeMapearDocumentos = () => typeof ponte()?.mapearDocumentos === 'function'
@@ -452,9 +487,22 @@ export const podeMapearDocumentos = () => typeof ponte()?.mapearDocumentos === '
  * disco depois, e o watcher avisa o painel — aqui só disparamos o pedido.
  */
 export async function mapearDocumentos(): Promise<{ agente?: string; erro?: string } | null> {
-  const p = ponte()
-  if (!p?.mapearDocumentos) return null
-  return (await p.mapearDocumentos()) as { agente?: string; erro?: string }
+  return pedirIA('documentos', async () => {
+    const p = ponte()
+    if (!p?.mapearDocumentos) return null
+    return (await p.mapearDocumentos()) as { agente?: string; erro?: string }
+  })
+}
+
+/**
+ * Pede as regras do que NÃO se faz neste projeto — o `GUARDRAILS.md`.
+ *
+ * Sem caminho de reserva: esta skill nasceu depois do terminal embutido, e não
+ * tem versão "no terminal do sistema" para cair. Fora do aplicativo, o botão
+ * nem aparece.
+ */
+export async function pedirGuardrails(): Promise<{ agente?: string; erro?: string } | null> {
+  return pedirIA('guardrails', async () => null)
 }
 
 /** Inscreve no aviso de "o projeto mudou". Devolve a função de cancelar. */
