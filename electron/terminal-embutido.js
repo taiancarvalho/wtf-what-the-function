@@ -88,6 +88,17 @@ function dirValido(dir) {
 /** Escapa para uma string entre aspas simples do shell. */
 const aspasShell = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`
 
+/*
+ * Instrumentação, ligada por variável de ambiente:
+ *
+ *     WTF_DEBUG_PTY=1 npm start
+ *
+ * Fica no código de propósito. O primeiro problema deste terminal foi
+ * diagnosticado com um andaime temporário que precisou ser escrito, usado e
+ * removido — com estes três logs, o próximo é diagnosticado sem tocar no
+ * código. Silenciosos por padrão: nada aparece sem a variável.
+ */
+
 /**
  * Abre uma sessão. Nunca lança: devolve `{ erro }` legível quando não dá.
  *
@@ -130,13 +141,39 @@ export async function abrirSessao({ win, dir, mensagem, cols, rows }) {
 
   sessoes.set(id, { pty: processo, dir })
 
-  processo.onData((dados) => {
+  /*
+   * A saída vai em LOTES de ~16 ms, não byte a byte.
+   *
+   * Isto não é micro-otimização: um agente de IA desenha a tela inteira várias
+   * vezes por segundo, e cada pedaço vira uma mensagem entre processos. Sem o
+   * lote, a janela recebia milhares de mensagens por segundo e congelava —
+   * medido, não suposto. Um quadro a cada 16 ms é o que o olho vê de qualquer
+   * jeito, e o terminal volta a responder.
+   */
+  let acumulado = ''
+  let agendado = null
+  const despejar = () => {
+    agendado = null
+    if (!acumulado) return
+    const lote = acumulado
+    acumulado = ''
     if (!win || win.isDestroyed()) return
-    win.webContents.send('wtf:terminal-saida', { id, dados })
+    if (process.env.WTF_DEBUG_PTY) console.log('SAIDA', lote.length, JSON.stringify(lote.slice(0, 120)))
+    win.webContents.send('wtf:terminal-saida', { id, dados: lote })
+  }
+
+  processo.onData((dados) => {
+    acumulado += dados
+    // Teto de segurança: se o programa despejar megabytes de uma vez, ficamos
+    // com o fim (é o que está na tela) em vez de engasgar com o começo.
+    if (acumulado.length > 400_000) acumulado = acumulado.slice(-400_000)
+    if (!agendado) agendado = setTimeout(despejar, 16)
   })
 
   processo.onExit(({ exitCode }) => {
     sessoes.delete(id)
+    if (agendado) clearTimeout(agendado)
+    despejar()
     if (!win || win.isDestroyed()) return
     win.webContents.send('wtf:terminal-fim', { id, codigo: exitCode })
   })
@@ -164,6 +201,7 @@ export async function abrirSessao({ win, dir, mensagem, cols, rows }) {
 export function escrever(id, dados) {
   const s = sessoes.get(id)
   if (!s || typeof dados !== 'string') return { ok: false }
+  if (process.env.WTF_DEBUG_PTY) console.log('ENTRADA', JSON.stringify(dados))
   s.pty.write(dados)
   return { ok: true }
 }
@@ -172,6 +210,7 @@ export function escrever(id, dados) {
 export function redimensionar(id, cols, rows) {
   const s = sessoes.get(id)
   if (!s) return { ok: false }
+  if (process.env.WTF_DEBUG_PTY) console.log('REDIM', cols, rows)
   try {
     s.pty.resize(Math.max(20, Math.min(500, Number(cols) || 80)), Math.max(5, Math.min(200, Number(rows) || 24)))
   } catch {

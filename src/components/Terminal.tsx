@@ -63,16 +63,23 @@ export function TerminalEmbutido({
   const termRef = useRef<XTerm | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const idRef = useRef<string | null>(null)
+  /** O último tamanho JÁ aplicado. Ver o porquê em `ajustar`. */
+  const ultimoTamanho = useRef({ cols: 0, rows: 0 })
   const [altura, setAltura] = useState(ALTURA_PADRAO)
   const [aviso, setAviso] = useState<string | null>(null)
 
   /**
    * Recalcula colunas e linhas e avisa o shell.
    *
-   * A medida é conferida antes de ser usada: quando a caixa ainda não tem
-   * tamanho (ou a fonte não mediu), o `fit()` propõe números absurdos, e um
-   * terminal de dez mil colunas trava a janela. Melhor não redimensionar do
-   * que redimensionar errado.
+   * Duas travas, e as duas foram pagas com janela congelada:
+   *
+   *  1. a medida é conferida antes de ser usada — com a caixa ainda sem
+   *     tamanho, a proposta vem absurda, e um terminal de dez mil colunas
+   *     trava tudo;
+   *  2. tamanho igual ao último NÃO é reaplicado. Redimensionar faz o programa
+   *     lá dentro redesenhar a tela inteira, o redesenho mexe no layout, e o
+   *     observador dispara de novo: sem esta comparação, os dois processos
+   *     ficam girando a 100% de CPU para sempre.
    */
   const ajustar = useCallback(() => {
     const term = termRef.current
@@ -90,9 +97,11 @@ export function TerminalEmbutido({
     ) {
       return
     }
-    if (proposta.cols !== term.cols || proposta.rows !== term.rows) {
-      term.resize(proposta.cols, proposta.rows)
+    if (proposta.cols === ultimoTamanho.current.cols && proposta.rows === ultimoTamanho.current.rows) {
+      return
     }
+    ultimoTamanho.current = { cols: proposta.cols, rows: proposta.rows }
+    term.resize(proposta.cols, proposta.rows)
     if (idRef.current) void terminalRedimensionar(idRef.current, term.cols, term.rows)
   }, [])
 
@@ -140,7 +149,11 @@ export function TerminalEmbutido({
       term.write(`\r\n\x1b[2m${t('terminal.encerrado')}\x1b[0m\r\n`)
     })
 
-    void terminalAbrir({ mensagem, cols: term.cols, rows: term.rows }).then((s) => {
+    void terminalAbrir({
+      mensagem,
+      cols: term.cols,
+      rows: term.rows,
+    }).then((s) => {
       if (!vivo) {
         // O painel fechou antes de a sessão nascer: não deixa processo solto.
         if (s.id) void terminalEncerrar(s.id)
@@ -172,12 +185,23 @@ export function TerminalEmbutido({
   useEffect(() => {
     const alvo = caixa.current
     if (!alvo) return
-    const observer = new ResizeObserver(() => ajustar())
+    // Com atraso: durante um arrasto chegam dezenas de medidas por segundo, e
+    // cada uma custaria um redesenho da tela inteira do programa lá dentro.
+    let atraso: ReturnType<typeof setTimeout> | null = null
+    const adiar = () => {
+      if (atraso) clearTimeout(atraso)
+      atraso = setTimeout(() => {
+        atraso = null
+        ajustar()
+      }, 120)
+    }
+    const observer = new ResizeObserver(adiar)
     observer.observe(alvo)
-    window.addEventListener('resize', ajustar)
+    window.addEventListener('resize', adiar)
     return () => {
+      if (atraso) clearTimeout(atraso)
       observer.disconnect()
-      window.removeEventListener('resize', ajustar)
+      window.removeEventListener('resize', adiar)
     }
   }, [ajustar])
 
