@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SquareArrowOutUpRight, X } from 'lucide-react'
+import { PanelBottom, PanelRight, SquareArrowOutUpRight, X } from 'lucide-react'
 import { Terminal as XTerm } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
@@ -16,6 +16,11 @@ import {
 
 const ALTURA_PADRAO = 320
 const ALTURA_MIN = 140
+const LARGURA_PADRAO = 440
+const LARGURA_MIN = 300
+
+/** Onde o terminal fica ancorado na janela. */
+export type Doca = 'baixo' | 'direita'
 
 /** Lê uma cor do sistema visual do app. O terminal não inventa paleta própria. */
 function token(nome: string, alternativa: string): string {
@@ -52,10 +57,17 @@ function temaDoApp() {
 export function TerminalEmbutido({
   projeto,
   mensagem,
+  envio,
+  doca,
+  onDoca,
   onFechar,
 }: {
   projeto: string
   mensagem?: string
+  /** Um texto para entregar à sessão que já está rodando. */
+  envio?: { texto: string; n: number }
+  doca: Doca
+  onDoca: (d: Doca) => void
   onFechar: () => void
 }) {
   const t = useT()
@@ -65,7 +77,16 @@ export function TerminalEmbutido({
   const idRef = useRef<string | null>(null)
   /** O último tamanho JÁ aplicado. Ver o porquê em `ajustar`. */
   const ultimoTamanho = useRef({ cols: 0, rows: 0 })
+  /*
+   * As duas medidas vivem separadas de propósito.
+   *
+   * Quem deixou o terminal ocupando meia tela embaixo e o move para a direita
+   * não quer uma coluna de metade da janela — e ao voltar quer a altura que
+   * tinha escolhido, não a que sobrou da largura.
+   */
   const [altura, setAltura] = useState(ALTURA_PADRAO)
+  const [largura, setLargura] = useState(LARGURA_PADRAO)
+  const naDireita = doca === 'direita'
   const [aviso, setAviso] = useState<string | null>(null)
 
   /**
@@ -205,6 +226,27 @@ export function TerminalEmbutido({
     }
   }, [ajustar])
 
+  /*
+   * Entrega um pedido novo à sessão que já está aberta.
+   *
+   * O texto é digitado, não executado: vai para a linha do agente com um
+   * Enter no fim, do mesmo jeito que iria pelos dedos de quem está olhando.
+   * Se o agente estiver no meio de um trabalho, ele enfileira — que é
+   * justamente o que se quer de um "aproveitando, me explica isso": chega,
+   * espera a vez, e não derruba o que está em andamento.
+   *
+   * `\r` e não `\n`: o terminal fala em retorno de carro, e um `\n` aqui
+   * escreve a pergunta na tela sem nunca enviá-la.
+   */
+  const ultimoEnvio = useRef(0)
+  useEffect(() => {
+    if (!envio || envio.n === ultimoEnvio.current) return
+    if (!idRef.current) return
+    ultimoEnvio.current = envio.n
+    void terminalEscrever(idRef.current, `${envio.texto}\r`)
+    termRef.current?.focus()
+  }, [envio])
+
   // Claro ↔ escuro: o terminal acompanha o resto do app na hora.
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -215,14 +257,19 @@ export function TerminalEmbutido({
     return () => mq.removeEventListener('change', trocar)
   }, [])
 
-  /** Arrastar a borda de cima muda a altura do painel. */
+  /** Arrastar a borda livre do painel — a de cima, ou a da esquerda. */
   function arrastar(ev: React.MouseEvent) {
     ev.preventDefault()
-    const inicioY = ev.clientY
-    const inicioAltura = altura
+    const inicio = naDireita ? ev.clientX : ev.clientY
+    const inicioTamanho = naDireita ? largura : altura
     const mover = (e: MouseEvent) => {
-      const nova = inicioAltura + (inicioY - e.clientY)
-      setAltura(Math.max(ALTURA_MIN, Math.min(window.innerHeight - 120, nova)))
+      const atual = naDireita ? e.clientX : e.clientY
+      const novo = inicioTamanho + (inicio - atual)
+      if (naDireita) {
+        setLargura(Math.max(LARGURA_MIN, Math.min(window.innerWidth - 320, novo)))
+      } else {
+        setAltura(Math.max(ALTURA_MIN, Math.min(window.innerHeight - 120, novo)))
+      }
     }
     const soltar = () => {
       window.removeEventListener('mousemove', mover)
@@ -236,21 +283,26 @@ export function TerminalEmbutido({
   return (
     <section
       aria-label={t('terminal.regiao', { projeto })}
-      className="no-drag flex shrink-0 flex-col border-t"
-      style={{ height: altura, borderColor: 'var(--color-rule)', background: 'var(--color-paper-2)' }}
+      className={`no-drag relative flex shrink-0 flex-col ${naDireita ? 'border-l' : 'border-t'}`}
+      style={{
+        height: naDireita ? undefined : altura,
+        width: naDireita ? largura : undefined,
+        borderColor: 'var(--color-rule)',
+        background: 'var(--color-paper-2)',
+      }}
     >
-      {/* a borda de cima é a alça: arrastar muda a altura */}
+      {/* a borda livre é a alça: arrastar muda o tamanho do painel */}
       <div
         onMouseDown={arrastar}
         role="separator"
-        aria-orientation="horizontal"
+        aria-orientation={naDireita ? 'vertical' : 'horizontal'}
         title={t('terminal.arrastar')}
-        className="h-1.5 shrink-0"
-        style={{ cursor: 'ns-resize' }}
+        className={naDireita ? 'absolute top-0 left-0 h-full w-1.5' : 'h-1.5 shrink-0'}
+        style={{ cursor: naDireita ? 'ew-resize' : 'ns-resize' }}
       />
 
       <header
-        className="flex items-center gap-2 px-4 pb-1.5"
+        className={`flex items-center gap-2 px-4 pb-1.5 ${naDireita ? 'pt-1.5' : ''}`}
         style={{ borderColor: 'var(--color-rule)' }}
       >
         <span className="text-[10.5px] tracking-[0.14em] text-[var(--color-ink-3)] uppercase">
@@ -261,10 +313,18 @@ export function TerminalEmbutido({
         </span>
 
         <button
+          onClick={() => onDoca(naDireita ? 'baixo' : 'direita')}
+          title={t(naDireita ? 'terminal.paraBaixo' : 'terminal.paraDireita')}
+          aria-label={t(naDireita ? 'terminal.paraBaixo' : 'terminal.paraDireita')}
+          className="ml-auto shrink-0 rounded-md p-1 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
+        >
+          {naDireita ? <PanelBottom size={14} /> : <PanelRight size={14} />}
+        </button>
+        <button
           onClick={() => void abrirTerminal(mensagem)}
           title={t('terminal.noSistema')}
           aria-label={t('terminal.noSistema')}
-          className="ml-auto shrink-0 rounded-md p-1 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
+          className="shrink-0 rounded-md p-1 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)]"
         >
           <SquareArrowOutUpRight size={14} />
         </button>

@@ -51,6 +51,16 @@ const TEXTOS = {
     titulo: 'Descobrir qual documento vale',
     proposito: 'Ensina a IA a organizar os documentos por assunto e dizer qual é o atual.',
   },
+  guardrails: {
+    titulo: 'Escrever as regras do que não se faz aqui',
+    proposito:
+      'Ensina a IA a listar o que é perigoso NESTE projeto — e a obedecer a lista depois.',
+  },
+  btw: {
+    titulo: 'Perguntar sem atrapalhar',
+    proposito:
+      'Cria o comando /btw, que faz a IA responder uma dúvida sua e voltar ao trabalho.',
+  },
   formato: {
     titulo: 'Formato do mapa do projeto',
     proposito: 'Documento de referência que diz como o mapa deve ser escrito.',
@@ -65,7 +75,18 @@ const TEXTOS = {
   },
 }
 
-const SEM_TEXTO = { titulo: '', proposito: '' }
+/*
+ * O que aparece quando alguém acrescenta um alvo e esquece do rótulo.
+ *
+ * Já aconteceu: a skill de guardrails entrou em ALVOS e apareceu na tela de
+ * transparência como uma linha SEM NOME NENHUM — justo na tela cujo trabalho
+ * é dizer o que vai ser escrito no computador da pessoa. Uma linha muda ali é
+ * pior que um nome feio: é a tela falhando na única coisa que ela promete.
+ */
+const semTexto = (chave) => ({
+  titulo: String(chave),
+  proposito: 'Ainda sem descrição. Veja o conteúdo abaixo antes de instalar.',
+})
 
 /**
  * O pacote inteiro da instalação, pronto para a tela — agora nos DOIS níveis:
@@ -140,7 +161,7 @@ export async function lerPacoteInstalacao(dir) {
  *   caminho, então precisam informar o equivalente.
  */
 async function montarItem(dir, chave, destino, origem, config, chaveIdioma) {
-  const { titulo, proposito } = TEXTOS[chave] ?? SEM_TEXTO
+  const { titulo, proposito } = TEXTOS[chave] ?? semTexto(chave)
   const item = { destino, origem, titulo, proposito, conteudo: '', bytes: 0, jaExiste: false, igual: false }
 
   let conteudo = null

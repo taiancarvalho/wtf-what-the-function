@@ -56,6 +56,16 @@ export function InstalarSkill({
     )
   }
 
+  /*
+   * Quem já ligou o WTF aqui não é perguntado de novo.
+   *
+   * Uma skill nova fazia o projeto inteiro voltar a parecer desligado — a
+   * pessoa via "o WTF não avisa neste projeto" num projeto que ela habilitou
+   * e que estava funcionando. Aqui a diferença aparece: falta UMA peça, e o
+   * botão diz o que ele faz.
+   */
+  const atualizando = instalacao.desatualizado
+
   return (
     <div
       className="mt-4 rounded-lg border p-3"
@@ -66,10 +76,10 @@ export function InstalarSkill({
       data-slot="instalar"
     >
       <p className="text-[12.5px] leading-snug font-medium">
-        {t('instalar.naoAvisa')}
+        {t(atualizando ? 'instalar.temNovidade' : 'instalar.naoAvisa')}
       </p>
       <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-ink-2)]">
-        {t('instalar.naoAvisaNota')}
+        {t(atualizando ? 'instalar.temNovidadeNota' : 'instalar.naoAvisaNota')}
       </p>
       <button
         onClick={() => agir('instalar')}
@@ -82,7 +92,7 @@ export function InstalarSkill({
         ) : (
           <Plug size={13} />
         )}
-        {t('instalar.ligar')}
+        {t(atualizando ? 'instalar.atualizar' : 'instalar.ligar')}
       </button>
     </div>
   )

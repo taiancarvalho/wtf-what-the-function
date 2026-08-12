@@ -371,12 +371,14 @@ const pt: Dic = {
   'acao.abriuComMensagem': '{agente} abriu numa janela nova com a mensagem.',
   'acao.aIA': 'A IA',
   'acao.abrirNoSistema': 'Abrir na janela do sistema',
-  'acao.abriuAqui': '{agente} abriu no terminal aqui embaixo, com a mensagem.',
+  'acao.abriuAqui': 'A mensagem foi entregue a {agente} no terminal do app.',
   'terminal.titulo': 'Terminal',
   'terminal.regiao': 'Terminal do projeto {projeto}',
   'terminal.fechar': 'Fechar o terminal',
   'terminal.noSistema': 'Abrir no terminal do sistema',
-  'terminal.arrastar': 'Arraste para mudar a altura',
+  'terminal.arrastar': 'Arraste para mudar o tamanho',
+  'terminal.paraDireita': 'Levar o terminal para a lateral direita',
+  'terminal.paraBaixo': 'Levar o terminal para a barra de baixo',
   'terminal.encerrado': 'A sessão terminou.',
   'terminal.naoAbriu': 'Não consegui abrir o terminal aqui. Use o terminal do sistema.',
 
@@ -392,6 +394,10 @@ const pt: Dic = {
   'instalar.naoAvisaNota':
     'Hoje o WTF só vê o que já foi salvo. Ligando isso, você passa a ver o que está sendo construído agora.',
   'instalar.ligar': 'Ligar no meu projeto',
+  'instalar.temNovidade': 'Tem uma parte nova do WTF para este projeto.',
+  'instalar.temNovidadeNota':
+    'Você já ligou o WTF aqui. Desde então ele ganhou algo novo, que ainda não está neste projeto. Aplicar não mexe no que já funciona.',
+  'instalar.atualizar': 'Aplicar a novidade',
   'instalar.antesDoWtf': 'Este projeto começou antes do WTF.',
   'instalar.mapeando':
     'A IA está lendo seu projeto. Quando ela terminar, o painel se organiza sozinho.',
@@ -896,12 +902,14 @@ const en: Dic = {
   'acao.abriuComMensagem': '{agente} opened in a new window with the message.',
   'acao.aIA': 'The AI',
   'acao.abrirNoSistema': 'Open in a system window',
-  'acao.abriuAqui': '{agente} opened in the terminal below, with the message.',
+  'acao.abriuAqui': 'The message was delivered to {agente} in the app terminal.',
   'terminal.titulo': 'Terminal',
   'terminal.regiao': 'Terminal for the project {projeto}',
   'terminal.fechar': 'Close the terminal',
   'terminal.noSistema': 'Open in the system terminal',
-  'terminal.arrastar': 'Drag to change the height',
+  'terminal.arrastar': 'Drag to resize',
+  'terminal.paraDireita': 'Move the terminal to the right side',
+  'terminal.paraBaixo': 'Move the terminal to the bottom',
   'terminal.encerrado': 'The session ended.',
   'terminal.naoAbriu': 'I could not open the terminal here. Use the system terminal.',
 
@@ -915,6 +923,10 @@ const en: Dic = {
   'instalar.naoAvisaNota':
     'Right now WTF only sees what was already saved. Turn this on and you start seeing what is being built as it happens.',
   'instalar.ligar': 'Turn it on for my project',
+  'instalar.temNovidade': 'There is a new part of WTF for this project.',
+  'instalar.temNovidadeNota':
+    'You already turned WTF on here. Since then it gained something new that is not in this project yet. Applying it does not touch what already works.',
+  'instalar.atualizar': 'Apply the new part',
   'instalar.antesDoWtf': 'This project started before WTF.',
   'instalar.mapeando':
     'The AI is reading your project. When it finishes, the panel organizes itself.',
@@ -1415,12 +1427,14 @@ const es: Dic = {
   'acao.abriuComMensagem': '{agente} se abrió en una ventana nueva con el mensaje.',
   'acao.aIA': 'La IA',
   'acao.abrirNoSistema': 'Abrir en una ventana del sistema',
-  'acao.abriuAqui': '{agente} se abrió en la terminal de abajo, con el mensaje.',
+  'acao.abriuAqui': 'El mensaje fue entregado a {agente} en la terminal de la app.',
   'terminal.titulo': 'Terminal',
   'terminal.regiao': 'Terminal del proyecto {projeto}',
   'terminal.fechar': 'Cerrar la terminal',
   'terminal.noSistema': 'Abrir en la terminal del sistema',
-  'terminal.arrastar': 'Arrastra para cambiar la altura',
+  'terminal.arrastar': 'Arrastra para cambiar el tamaño',
+  'terminal.paraDireita': 'Llevar la terminal al lado derecho',
+  'terminal.paraBaixo': 'Llevar la terminal a la barra de abajo',
   'terminal.encerrado': 'La sesión terminó.',
   'terminal.naoAbriu': 'No pude abrir la terminal aquí. Usa la terminal del sistema.',
 
@@ -1434,6 +1448,10 @@ const es: Dic = {
   'instalar.naoAvisaNota':
     'Hoy WTF solo ve lo que ya se guardó. Si activas esto, empiezas a ver lo que se está construyendo ahora.',
   'instalar.ligar': 'Activarlo en mi proyecto',
+  'instalar.temNovidade': 'Hay una parte nueva de WTF para este proyecto.',
+  'instalar.temNovidadeNota':
+    'Ya activaste WTF aquí. Desde entonces ganó algo nuevo que todavía no está en este proyecto. Aplicarlo no toca lo que ya funciona.',
+  'instalar.atualizar': 'Aplicar la novedad',
   'instalar.antesDoWtf': 'Este proyecto empezó antes que WTF.',
   'instalar.mapeando':
     'La IA está leyendo tu proyecto. Cuando termine, el panel se organiza solo.',

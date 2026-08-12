@@ -38,6 +38,14 @@ export const ALVOS = {
   pastas: ['.claude/skills/wtf-pastas/SKILL.md', 'pastas/SKILL.md'],
   documentos: ['.claude/skills/wtf-documentos/SKILL.md', 'documentos/SKILL.md'],
   guardrails: ['.claude/skills/wtf-guardrails/SKILL.md', 'guardrails/SKILL.md'],
+  /*
+   * Fora do prefixo `wtf-` de propósito.
+   *
+   * Este é o único alvo que a PESSOA digita, e ela digita no meio de um
+   * trabalho em andamento: `/btw por que isso demora tanto?`. `/wtf-btw` seria
+   * mais arrumado e ninguém usaria.
+   */
+  btw: ['.claude/skills/btw/SKILL.md', 'btw/SKILL.md'],
   formato: ['.wtf/MAP-FORMAT.md', 'MAP-FORMAT.md'],
   hook: ['.claude/hooks/wtf-observer.cjs', 'hooks/wtf-observer.cjs'],
   cli: ['.wtf/bin/wtf-claim.cjs', 'bin/wtf-claim.cjs'],
@@ -99,12 +107,26 @@ export async function estadoInstalacao(dir) {
     pastas: local.pastas || global.skills.pastas,
     documentos: local.documentos || global.skills.documentos,
     guardrails: local.guardrails || global.skills.guardrails,
+    btw: local.btw || global.skills.btw,
     hook: local.hook || global.hook,
     cli: local.cli,
     formato: local.formato,
     hooksRegistrados: hooksLocais || global.hooksRegistrados,
   }
   presentes.instalado = Object.values(presentes).every(Boolean) && projeto.habilitado
+
+  /*
+   * Habilitado aqui, mas faltando peça.
+   *
+   * Toda vez que o WTF ganha uma skill nova, ela entra em ALVOS — e todo
+   * projeto instalado ANTES dela passa a falhar o `every(Boolean)` acima.
+   * Sem esta distinção o app dizia "o WTF não está ligado neste projeto" para
+   * quem tinha ligado semanas atrás, e oferecia instalar do zero o que já
+   * estava quase todo lá. Quem já disse sim uma vez não deve ser perguntado de
+   * novo: deve ser avisado de que há uma peça nova, e ela é a mesma
+   * `instalar()` idempotente que roda por cima.
+   */
+  presentes.desatualizado = Boolean(projeto.habilitado) && !presentes.instalado
   // O mapa é escrito pelo onboarding, não pela instalação.
   presentes.mapeado = await existe(path.join(dir, '.wtf/map.json'))
   presentes.global = global

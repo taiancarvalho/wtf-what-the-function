@@ -51,6 +51,22 @@ export interface Acao {
  *
  * Sem config não há pedido: melhor não dizer nada do que chutar uma língua.
  */
+/**
+ * O fecho das perguntas que NÃO pedem trabalho.
+ *
+ * O botão pode ser clicado com a IA no meio de outra coisa: o texto entra na
+ * fila do terminal aberto e é lido quando ela terminar o turno. Sem esta
+ * frase, uma pergunta inocente ("me explica isso") faz o agente largar o que
+ * estava fazendo e ir investigar — a pessoa perguntou e, sem querer, parou a
+ * obra.
+ *
+ * É frase, e não o comando `/btw`: assim vale mesmo em projeto onde o comando
+ * não foi instalado. Um `/btw` inexistente não perguntaria nada.
+ */
+const NAO_ATRAPALHE =
+  '\n\nSe você estiver no meio de outro trabalho, responda a isto e volte para ' +
+  'ele de onde parou. Não troque de tarefa por causa desta pergunta.'
+
 function pedidoDeIdioma(config?: ConfigProjeto): string {
   if (!config?.nomeIdiomaConteudo) return ''
   return `\n\nResponda em ${config.nomeIdiomaConteudo}.`
@@ -138,6 +154,7 @@ export function acoesDoEvento(
         `Quero entender: o que exatamente muda para quem usa o produto, ` +
         `qual é o risco de verdade (e se é grave ou não), e o que costuma ser feito ` +
         `nesses casos. Não altere nenhum arquivo — é só explicação.` +
+        NAO_ATRAPALHE +
         rodape(codigo, parte, arquivos, evento.id) +
         pedidoDeIdioma(config),
     },
@@ -196,6 +213,7 @@ export function acoesDeNaoSalvo(features: Feature[], config?: ConfigProjeto): Ac
         `Quero saber: o que já está terminado, o que ficou pela metade, ` +
         `e se tem alguma coisa aí que possa quebrar o que já funcionava. ` +
         `Não altere nem guarde nada — é só um resumo.` +
+        NAO_ATRAPALHE +
         pedidoDeIdioma(config),
     },
   ]

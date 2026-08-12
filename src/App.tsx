@@ -20,7 +20,7 @@ import {
   salvarConfig,
   type Carga,
 } from '@/lib/source'
-import { TerminalEmbutido } from '@/components/Terminal'
+import { TerminalEmbutido, type Doca } from '@/components/Terminal'
 import { InstalarSkill } from '@/components/InstalarSkill'
 import { SeletorProjeto } from '@/components/SeletorProjeto'
 import { Busca } from '@/components/Busca'
@@ -261,9 +261,46 @@ function Painel({
    * com a sua mensagem, e reaproveitar a anterior escreveria por cima de um
    * agente que talvez ainda esteja trabalhando.
    */
-  const [terminal, setTerminal] = useState<{ chave: number; mensagem?: string } | null>(null)
+  const [terminal, setTerminal] = useState<{
+    chave: number
+    mensagem?: string
+    /** Texto a entregar ao shell já aberto. `n` faz o mesmo texto valer duas vezes. */
+    envio?: { texto: string; n: number }
+  } | null>(null)
+
+  /*
+   * Embaixo ou à direita — e a escolha sobrevive ao fechar o app.
+   *
+   * Não vai para a configuração do projeto: é preferência de quem está
+   * olhando, não fato sobre o software. Numa tela larga o terminal cabe ao
+   * lado sem espremer o painel; numa estreita, embaixo é o único jeito de os
+   * dois serem legíveis. Quem decide isso é quem está na frente da tela.
+   */
+  const [doca, setDoca] = useState<Doca>(() =>
+    localStorage.getItem('wtf.terminal.doca') === 'direita' ? 'direita' : 'baixo',
+  )
+  const trocarDoca = useCallback((d: Doca) => {
+    setDoca(d)
+    localStorage.setItem('wtf.terminal.doca', d)
+  }, [])
+  /*
+   * Com o terminal JÁ aberto, o pedido não abre outro: ele é entregue ao que
+   * está lá.
+   *
+   * Abrir uma sessão nova a cada botão seria matar o agente que está no meio
+   * de um trabalho — exatamente a pessoa que a pergunta tem por destino. Como
+   * o `key` do painel é `chave`, mexer nela remonta o componente e derruba o
+   * shell; por isso, com painel vivo, `chave` fica intocada e só `envio` muda.
+   */
   useEffect(
-    () => aoPedirTerminal((mensagem) => setTerminal({ chave: Date.now(), mensagem })),
+    () =>
+      aoPedirTerminal((mensagem) =>
+        setTerminal((atual) =>
+          atual
+            ? { ...atual, envio: mensagem ? { texto: mensagem, n: Date.now() } : atual.envio }
+            : { chave: Date.now(), mensagem },
+        ),
+      ),
     [],
   )
 
@@ -395,7 +432,13 @@ function Painel({
             onAtualizar={() => atualizar(true)}
           />
         </div>
-        <div className="min-h-0 flex-1">
+        {/*
+          O terminal divide o espaço com o conteúdo — embaixo ou à direita.
+          A barra de cima fica de fora da divisão: ela é a alça de arrastar a
+          janela, e uma alça pela metade é pior que nenhuma.
+        */}
+        <div className={`flex min-h-0 min-w-0 flex-1 ${doca === 'direita' ? 'flex-row' : 'flex-col'}`}>
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
           {aba === 'home' && <Home snapshot={snapshot} onIr={setAba} />}
           {aba === 'timeline' && (
             <Timeline snapshot={snapshot} onMudou={() => atualizar(true)} />
@@ -423,9 +466,13 @@ function Painel({
             key={terminal.chave}
             projeto={snapshot.project.name}
             mensagem={terminal.mensagem}
+            envio={terminal.envio}
+            doca={doca}
+            onDoca={trocarDoca}
             onFechar={() => setTerminal(null)}
           />
         )}
+        </div>
       </main>
 
       <Busca

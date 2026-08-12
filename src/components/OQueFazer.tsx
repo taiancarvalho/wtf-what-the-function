@@ -12,11 +12,11 @@ import type { Acao } from '@/lib/acoes'
 /**
  * A saída para um alerta.
  *
- * Duas formas de agir, porque há dois jeitos de trabalhar: abrir a IA numa
- * janela nova já com a mensagem escrita, ou copiar a mensagem para colar numa
- * sessão que já está aberta. Não é possível injetar texto numa sessão em
- * andamento — daí o "copiar" existir como caminho de primeira classe, e não
- * como consolo.
+ * Com o terminal do app aberto, a mensagem é ENTREGUE à sessão que já está
+ * rodando: ela entra na fila do agente e é lida quando ele terminar o turno.
+ * Antes isto era impossível — a IA morava numa janela de fora, e "copiar" era
+ * o único caminho até ela. Copiar continua existindo, porque quem trabalha com
+ * a sessão fora do app precisa dele, mas deixou de ser o caminho principal.
  */
 export function OQueFazer({ acoes }: { acoes: Acao[] }) {
   const t = useT()
@@ -44,6 +44,7 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
     pedirTerminal(a.mensagem)
     setAviso(t('acao.abriuAqui', { agente: t('acao.aIA') }))
   }
+
 
   async function abrirNoSistema(a: Acao) {
     const r = await abrirTerminal(a.mensagem)

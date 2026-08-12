@@ -214,7 +214,14 @@ export interface Project {
 /** A instalação global, em `~/.claude` — vale para todos os projetos. */
 export interface EstadoGlobal {
   /** Quais das skills do WTF estão em `~/.claude/skills`. */
-  skills: { skill: boolean; mapear: boolean; pastas: boolean; documentos: boolean }
+  skills: {
+    skill: boolean
+    mapear: boolean
+    pastas: boolean
+    documentos: boolean
+    guardrails: boolean
+    btw: boolean
+  }
   hook: boolean
   /** Se `~/.claude/settings.json` já chama o hook do WTF. */
   hooksRegistrados: boolean
@@ -249,9 +256,18 @@ export interface EstadoInstalacao {
   pastas: boolean
   /** A skill que escreve e mantém o mapa dos documentos em `.wtf/docs.json`. */
   documentos: boolean
+  /** A skill que escreve o `GUARDRAILS.md` — o que não se faz neste projeto. */
+  guardrails: boolean
+  /** O comando `/btw`: pergunta respondida sem derrubar o trabalho em curso. */
+  btw: boolean
   formato: boolean
   hooksRegistrados: boolean
   instalado: boolean
+  /**
+   * Ligado aqui, mas faltando alguma peça — quase sempre uma skill que passou
+   * a existir depois. Não é "desligado": é "há novidade para aplicar".
+   */
+  desatualizado: boolean
   /** Se o onboarding já produziu `.wtf/map.json`. */
   mapeado: boolean
   /** Nível A — a instalação global. */
