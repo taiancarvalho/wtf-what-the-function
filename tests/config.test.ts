@@ -40,6 +40,58 @@ describe('lerConfig — padrões', () => {
   })
 })
 
+/*
+ * Consumo: o app não pode gastar recurso da pessoa sem ela mandar. O padrão
+ * 'perguntar' e o teto conservador são a garantia disso — e por isso estão
+ * aqui, provados, e não só combinados em conversa.
+ */
+describe('lerConfig — consumo', () => {
+  it('o padrão da tradução automática é perguntar antes', async () => {
+    expect((await lerConfig(await projeto())).traduzirAuto).toBe('perguntar')
+    expect(CONFIG_PADRAO.traduzirAuto).toBe('perguntar')
+  })
+
+  it('o teto padrão por rodada é conservador (8, não 32)', async () => {
+    expect((await lerConfig(await projeto())).maxTraducoesPorRodada).toBe(8)
+  })
+
+  it('o aviso de custo começa não aceito', async () => {
+    expect((await lerConfig(await projeto())).avisoCustoAceito).toBe(false)
+  })
+
+  it('valor estranho de tradução automática cai em perguntar', async () => {
+    const dir = await projeto(JSON.stringify({ v: 1, traduzirAuto: 'talvez' }))
+    expect((await lerConfig(dir)).traduzirAuto).toBe('perguntar')
+  })
+
+  it('aceita as três respostas possíveis', async () => {
+    for (const valor of ['perguntar', 'sim', 'nao']) {
+      const dir = await projeto(JSON.stringify({ v: 1, traduzirAuto: valor }))
+      expect((await lerConfig(dir)).traduzirAuto).toBe(valor)
+    }
+  })
+
+  it('teto negativo vira zero em vez de virar teto infinito', async () => {
+    const dir = await projeto(JSON.stringify({ v: 1, maxTraducoesPorRodada: -5 }))
+    expect((await lerConfig(dir)).maxTraducoesPorRodada).toBe(0)
+  })
+
+  it('teto absurdo é limitado', async () => {
+    const dir = await projeto(JSON.stringify({ v: 1, maxTraducoesPorRodada: 99999 }))
+    expect((await lerConfig(dir)).maxTraducoesPorRodada).toBe(200)
+  })
+
+  it('teto não numérico cai no padrão', async () => {
+    const dir = await projeto(JSON.stringify({ v: 1, maxTraducoesPorRodada: 'muitos' }))
+    expect((await lerConfig(dir)).maxTraducoesPorRodada).toBe(8)
+  })
+
+  it('aviso de custo só é aceito com o booleano verdadeiro', async () => {
+    const dir = await projeto(JSON.stringify({ v: 1, avisoCustoAceito: 'sim' }))
+    expect((await lerConfig(dir)).avisoCustoAceito).toBe(false)
+  })
+})
+
 describe('lerConfig — idiomas', () => {
   it('cai no padrão quando o idioma de interface não é um dos três suportados', async () => {
     const dir = await projeto(JSON.stringify({ v: 1, idiomaInterface: 'tlh' }))
@@ -130,6 +182,28 @@ describe('salvarConfig', () => {
     const final = await salvarConfig(dir, { idiomaInterface: 'en' })
 
     expect(final.modeloPergunta).toBe('claude-opus-5')
+  })
+
+  it('guarda a autorização da tradução automática', async () => {
+    const dir = await projeto()
+    await salvarConfig(dir, { traduzirAuto: 'sim' })
+
+    expect((await lerConfig(dir)).traduzirAuto).toBe('sim')
+  })
+
+  it('guarda o aviso de custo aceito', async () => {
+    const dir = await projeto()
+    await salvarConfig(dir, { avisoCustoAceito: true })
+
+    expect((await lerConfig(dir)).avisoCustoAceito).toBe(true)
+  })
+
+  it('preserva a autorização da tradução ao salvar outra preferência', async () => {
+    const dir = await projeto()
+    await salvarConfig(dir, { traduzirAuto: 'nao' })
+    const final = await salvarConfig(dir, { idiomaInterface: 'en' })
+
+    expect(final.traduzirAuto).toBe('nao')
   })
 
   it('mescla sobre o que já existia em vez de apagar', async () => {

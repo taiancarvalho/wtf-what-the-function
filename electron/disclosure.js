@@ -47,6 +47,10 @@ const TEXTOS = {
     titulo: 'Explicar para que serve cada pasta',
     proposito: 'Ensina a IA a desenhar o mapa das pastas do projeto em uma frase cada.',
   },
+  documentos: {
+    titulo: 'Descobrir qual documento vale',
+    proposito: 'Ensina a IA a organizar os documentos por assunto e dizer qual é o atual.',
+  },
   formato: {
     titulo: 'Formato do mapa do projeto',
     proposito: 'Documento de referência que diz como o mapa deve ser escrito.',

@@ -8,6 +8,9 @@ import type {
   PedacoResposta,
   ProjectSnapshot,
   ProvedorChave,
+  RespostaTraducao,
+  TraducaoPendente,
+  UsoProjeto,
 } from '@/types/protocol'
 
 /** De onde vieram os dados na tela. O usuário precisa saber disso. */
@@ -32,6 +35,7 @@ interface PonteWtf {
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
   mapearPastas?: () => Promise<unknown>
+  mapearDocumentos?: () => Promise<unknown>
   lerArquivo?: (relativo: string) => Promise<unknown>
   lerConfig?: () => Promise<unknown>
   salvarConfig?: (parcial: Partial<ConfigProjeto>) => Promise<unknown>
@@ -43,6 +47,9 @@ interface PonteWtf {
   apagarChave?: (provedor: string) => Promise<unknown>
   perguntar?: (pedido: unknown) => Promise<unknown>
   aoReceberResposta?: (cb: (dados: PedacoResposta) => void) => () => void
+  lerUso?: () => Promise<unknown>
+  responderTraducao?: (resposta: RespostaTraducao) => Promise<unknown>
+  aoPedirTraducao?: (cb: (dados: TraducaoPendente) => void) => () => void
 }
 
 /** Um arquivo do projeto, aberto dentro do app. */
@@ -157,6 +164,46 @@ export async function salvarConfig(
   }
 }
 
+// ------------------------------------------------------------------- consumo
+
+/** Contador zerado: o que a interface mostra fora do app ou sem gasto algum. */
+export const USO_VAZIO: UsoProjeto = {
+  v: 1,
+  traducoes: { chamadas: 0, eventos: 0, cache: 0 },
+  perguntas: { chamadas: 0, porProvedor: {} },
+  desde: null,
+}
+
+/** Quanto recurso da pessoa o app já consumiu neste projeto. */
+export async function lerUso(): Promise<UsoProjeto> {
+  const p = ponte()
+  if (!p?.lerUso) return USO_VAZIO
+  const r = (await p.lerUso()) as { uso?: UsoProjeto } | undefined
+  return r?.uso ?? USO_VAZIO
+}
+
+export const podeResponderTraducao = () => typeof ponte()?.responderTraducao === 'function'
+
+/**
+ * Responde ao pedido de tradução: uma vez, sempre ou nunca. Devolve o config
+ * já gravado — a escolha vale para as próximas rodadas na hora.
+ */
+export async function responderTraducao(
+  resposta: RespostaTraducao,
+): Promise<ConfigProjeto | null> {
+  const p = ponte()
+  if (!p?.responderTraducao) return null
+  const r = (await p.responderTraducao(resposta)) as { config?: ConfigProjeto } | undefined
+  return r?.config ?? null
+}
+
+/** Inscreve no pedido de autorização de tradução. Devolve como cancelar. */
+export function aoPedirTraducao(cb: (dados: TraducaoPendente) => void): () => void {
+  const p = ponte()
+  if (!p?.aoPedirTraducao) return () => {}
+  return p.aoPedirTraducao(cb)
+}
+
 // ------------------------------------------------------ perguntar sobre algo
 
 export const podePerguntar = () => typeof ponte()?.perguntar === 'function'
@@ -265,6 +312,18 @@ export async function mapearPastas(): Promise<{ agente?: string; erro?: string }
   const p = ponte()
   if (!p?.mapearPastas) return null
   return (await p.mapearPastas()) as { agente?: string; erro?: string }
+}
+
+export const podeMapearDocumentos = () => typeof ponte()?.mapearDocumentos === 'function'
+
+/**
+ * Abre o agente pedindo o mapa dos documentos. O `.wtf/docs.json` aparece no
+ * disco depois, e o watcher avisa o painel — aqui só disparamos o pedido.
+ */
+export async function mapearDocumentos(): Promise<{ agente?: string; erro?: string } | null> {
+  const p = ponte()
+  if (!p?.mapearDocumentos) return null
+  return (await p.mapearDocumentos()) as { agente?: string; erro?: string }
 }
 
 /** Inscreve no aviso de "o projeto mudou". Devolve a função de cancelar. */

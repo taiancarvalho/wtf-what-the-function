@@ -213,8 +213,8 @@ export interface Project {
 
 /** A instalação global, em `~/.claude` — vale para todos os projetos. */
 export interface EstadoGlobal {
-  /** Quais das três skills estão em `~/.claude/skills`. */
-  skills: { skill: boolean; mapear: boolean; pastas: boolean }
+  /** Quais das skills do WTF estão em `~/.claude/skills`. */
+  skills: { skill: boolean; mapear: boolean; pastas: boolean; documentos: boolean }
   hook: boolean
   /** Se `~/.claude/settings.json` já chama o hook do WTF. */
   hooksRegistrados: boolean
@@ -247,6 +247,8 @@ export interface EstadoInstalacao {
   mapear: boolean
   /** A skill que escreve e mantém o `MAPA.md` das pastas. */
   pastas: boolean
+  /** A skill que escreve e mantém o mapa dos documentos em `.wtf/docs.json`. */
+  documentos: boolean
   formato: boolean
   hooksRegistrados: boolean
   instalado: boolean
@@ -278,6 +280,44 @@ export interface ConfigProjeto {
    * Opcional: ausente vale o padrão barato definido em `electron/ask.js`.
    */
   modeloPergunta?: string
+  /**
+   * Tradução automática: pode o WTF chamar o agente instalado para reescrever
+   * as mudanças em linguagem humana?
+   *
+   * `'perguntar'` (padrão) espera a pessoa autorizar. `'nao'` nunca chama — e
+   * o painel segue completo com o texto heurístico: estados, avisos, mapa e
+   * progresso não dependem de tradução nenhuma.
+   */
+  traduzirAuto?: TraduzirAuto
+  /** Teto de eventos traduzidos por rodada. Padrão conservador: 8. */
+  maxTraducoesPorRodada?: number
+  /** A pessoa já leu o aviso de que perguntar consome créditos da chave dela. */
+  avisoCustoAceito?: boolean
+}
+
+export type TraduzirAuto = 'perguntar' | 'sim' | 'nao'
+
+/** A resposta ao pedido de tradução: uma vez, sempre ou nunca. */
+export type RespostaTraducao = 'agora' | 'sempre' | 'nunca'
+
+/** Quantos eventos estão sem tradução porque ninguém autorizou o gasto. */
+export interface TraducaoPendente {
+  pendentes: number
+  maxPorRodada: number
+}
+
+/**
+ * Consumo de recurso da pessoa, contado dentro do projeto (`.wtf/usage.json`).
+ *
+ * `traducoes.cache` é o número que prova a economia: quantas vezes o app
+ * reaproveitou uma tradução já feita em vez de gastar de novo.
+ */
+export interface UsoProjeto {
+  v: 1
+  traducoes: { chamadas: number; eventos: number; cache: number }
+  perguntas: { chamadas: number; porProvedor: Record<string, number> }
+  /** ISO do primeiro gasto contado. `null` enquanto nada foi consumido. */
+  desde: string | null
 }
 
 // ------------------------------------------------------- perguntar sobre algo
@@ -356,14 +396,89 @@ export interface MapaPastas {
   existe: true
 }
 
+// ------------------------------------------------------------- documentos
+
+/**
+ * Um grupo de documentos que parecem falar do mesmo assunto.
+ *
+ * `nome`   o MESMO nome base em pastas diferentes (os 26 `README.md`).
+ * `versao` o mesmo nome com sufixo colado: `plano`, `plano-v2`, `plano-final`.
+ */
+export interface FamiliaDocs {
+  /** O nome base mais curto do grupo — o candidato a "original". */
+  base: string
+  /** A chave de agrupamento: o nome sem acento e sem sufixo de versão. */
+  raiz: string
+  tipo: 'nome' | 'versao'
+  arquivos: {
+    caminho: string
+    /** Data ISO do último commit que tocou o arquivo. `null` = sem data. */
+    ultimoCommitEm: string | null
+  }[]
+}
+
+/** A varredura determinística: fatos sobre os documentos, sem opinião de IA. */
+export interface VarreduraDocs {
+  /** Todos os documentos rastreados pelo Git (`.md`, `.mdx`, `.txt`). */
+  total: number
+  naRaiz: number
+  emDocs: number
+  /** Contagem por pasta de primeiro nível, da maior para a menor. */
+  porPasta: { pasta: string; total: number }[]
+  familias: FamiliaDocs[]
+  /** HEURÍSTICA: pastas com cara de material instalado de terceiros. */
+  provavelmenteDeFerramenta: { pasta: string; arquivos: number; motivo: string }[]
+  /** Quantos arquivos de família ficaram sem data de commit. */
+  semData: number
+}
+
+/** Um assunto do mapa: qual documento vale hoje, e por quê. */
+export interface AssuntoDocs {
+  assunto: string
+  resumo: string
+  /** Caminho do documento vigente. Ausente quando a IA não soube dizer. */
+  vigente?: string
+  confianca: 'alta' | 'media' | 'baixa'
+  /** A justificativa — é ela que permite ao dono do projeto discordar. */
+  porque: string
+  outros: { caminho: string; situacao: string; porque: string }[]
+}
+
+/** `.wtf/docs.json`: o julgamento da skill `wtf-documentos`. */
+export interface MapaDocs {
+  v: 1
+  geradoEm?: string
+  totalEncontrados: number
+  /** Quantos a IA realmente abriu — número honesto vale mais que cobertura fingida. */
+  totalLidos: number
+  ignorados: { pasta: string; motivo: string; arquivos?: number }[]
+  assuntos: AssuntoDocs[]
+  orfaos: { caminho: string; porque: string }[]
+}
+
+/** O que o painel recebe: fato e opinião lado a lado, sempre distinguíveis. */
+export interface DocumentosProjeto {
+  varredura: VarreduraDocs
+  /** `null` enquanto ninguém rodou a skill — a varredura sozinha já vale a tela. */
+  mapa: MapaDocs | null
+  temMapa: boolean
+  geradoEm?: string
+  /** Pista (não veredito) de que nasceram muitos documentos depois do mapa. */
+  desatualizado: boolean
+}
+
 export interface ProjectSnapshot {
   project: Project
   features: Feature[]
   events: WtfEvent[]
   instalacao?: EstadoInstalacao
   config?: ConfigProjeto
+  /** Consumo acumulado. Ausente fora do aplicativo. */
+  uso?: UsoProjeto
   /** Ausente quando o projeto ainda não tem `MAPA.md`. */
   pastas?: MapaPastas
+  /** Ausente fora do aplicativo. A varredura existe mesmo sem `.wtf/docs.json`. */
+  documentos?: DocumentosProjeto
 }
 
 // ------------------------------------------- o que a instalação vai escrever

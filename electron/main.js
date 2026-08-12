@@ -14,6 +14,7 @@ import { commitsParaSnapshot } from './translate.js'
 import { mesclarClaims, readAgentEvents } from './events.js'
 import { aplicarMapa, readProjectMap } from './map.js'
 import { lerMapaPastas } from './folders.js'
+import { juntarDocs, lerMapaDocs, varrerDocumentos } from './docs.js'
 import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
 import { lerConfig, salvarConfig } from './config.js'
 import { lerPacoteInstalacao } from './disclosure.js'
@@ -30,7 +31,8 @@ import { MODELO_PADRAO, perguntar } from './ask.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import { lerArquivo } from './reader.js'
-import { traduzirEventos } from './translator.js'
+import { contarPendentes, traducaoAutorizada, traduzirEventos } from './translator.js'
+import { lerUso } from './usage.js'
 import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
 import {
   alternarValidado,
@@ -41,7 +43,16 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_URL = 'http://localhost:5273'
-const isDev = !app.isPackaged
+/*
+ * Como decidir entre o servidor de desenvolvimento e a interface compilada.
+ *
+ * `app.isPackaged` sozinho não serve: aberto pelo comando `wtf`, o app NÃO
+ * está empacotado e mesmo assim precisa carregar o `dist/`. Confiando só nele,
+ * a janela tentava falar com um servidor que ninguém subiu — e o resultado era
+ * uma tela branca, sem erro visível. Por isso o comando marca `NODE_ENV` e o
+ * modo de desenvolvimento passa a ser a exceção declarada, não o padrão.
+ */
+const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production'
 
 /** @type {BrowserWindow | null} */
 let win = null
@@ -73,10 +84,29 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  const compilado = path.join(__dirname, '..', 'dist', 'index.html')
+
+  // Tela branca é o pior erro possível: não diz nada a ninguém. Se o
+  // carregamento falhar, avisamos na própria janela em vez de deixar no vazio.
+  win.webContents.on('did-fail-load', (_e, codigo, descricao, url) => {
+    if (!win || win.isDestroyed()) return
+    const detalhe = `${descricao || 'falha ao carregar'} (${codigo})\n${url}`
+    win.webContents.executeJavaScript(
+      `document.body.innerHTML = ${JSON.stringify(
+        `<div style="font:15px/1.6 system-ui;padding:40px;max-width:60ch">
+           <h1 style="font-size:19px;margin:0 0 8px">O WTF não conseguiu abrir a tela.</h1>
+           <p style="color:#666">Tente fechar e abrir de novo. Se continuar, rode
+           <code>npm run build</code> na pasta do WTF.</p>
+           <pre style="color:#999;font-size:12px;white-space:pre-wrap">${detalhe}</pre>
+         </div>`,
+      )}`,
+    ).catch(() => {})
+  })
+
   if (isDev) {
     win.loadURL(DEV_URL)
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    win.loadFile(compilado)
   }
 }
 
@@ -130,7 +160,12 @@ async function lerProjeto(dir) {
 
   // Traduções JÁ prontas entram na hora (`maxChamadas: 0` não chama o modelo).
   // As que faltam são feitas depois, fora do caminho crítico — ver `traduzirAoFundo`.
-  aplicarTraducoes(snapshot, await traduzirEventos(dir, snapshot.events, { maxChamadas: 0 }))
+  // `registrarUso: false`: esta leitura acontece a cada pintura do painel;
+  // contar cache aqui inflaria o número e mentiria sobre a economia real.
+  aplicarTraducoes(
+    snapshot,
+    await traduzirEventos(dir, snapshot.events, { maxChamadas: 0, registrarUso: false }),
+  )
 
   // Por último: o que a PESSOA marcou como resolvido à mão. Vem depois de tudo
   // porque é a palavra final — nem o Git nem a IA desfazem essa decisão.
@@ -142,10 +177,23 @@ async function lerProjeto(dir) {
   const pastas = await lerMapaPastas(dir)
   if (pastas) snapshot.pastas = pastas
 
+  /*
+   * Os documentos: FATO primeiro, opinião depois.
+   *
+   * A varredura é determinística (Git + nome de arquivo + data de commit) e
+   * existe mesmo que nenhuma IA tenha passado por aqui. O `.wtf/docs.json` é o
+   * julgamento da skill `wtf-documentos` — qual é o vigente, e por quê. Os dois
+   * viajam juntos, e separados, para o painel nunca vender palpite como número.
+   */
+  snapshot.documentos = juntarDocs(await varrerDocumentos(dir), await lerMapaDocs(dir))
+
   snapshot.instalacao = await estadoInstalacao(dir)
   // As preferências viajam junto com o snapshot: o painel precisa saber em que
   // idioma se desenhar já na primeira pintura, sem uma segunda ida ao main.
   snapshot.config = await lerConfig(dir)
+  // O consumo viaja junto: a pessoa precisa poder ver, a qualquer momento,
+  // quanto do recurso dela o app usou — e quanto ele economizou com o cache.
+  snapshot.uso = await lerUso(dir)
   return snapshot
 }
 
@@ -168,11 +216,47 @@ function aplicarTraducoes(snapshot, traducoes) {
  */
 let traduzindo = false
 
-async function traduzirAoFundo(dir, eventos) {
+/**
+ * Os eventos da última leitura, guardados para o caso de a pessoa autorizar a
+ * tradução depois de ver o pedido. Sem isto, dizer "sim" não teria o que
+ * traduzir até o próximo commit.
+ */
+let ultimosEventos = []
+
+/**
+ * Traduzir consome a assinatura de quem tem plano limitado. Então, com
+ * `traduzirAuto: 'perguntar'` (o padrão), esta função NÃO chama o modelo:
+ * conta quantos eventos estão sem tradução e avisa o renderer, que pergunta.
+ *
+ * Enquanto ninguém responde, o painel segue inteiro com o texto heurístico —
+ * estados, avisos, mapa e progresso não dependem de tradução nenhuma.
+ */
+async function traduzirAoFundo(dir, eventos, autorizadoAgora = false) {
   if (traduzindo || !dir) return
   traduzindo = true
   try {
-    const feitas = await traduzirEventos(dir, eventos, { maxChamadas: 4 })
+    ultimosEventos = Array.isArray(eventos) ? eventos : []
+    const config = await lerConfig(dir)
+
+    if (!traducaoAutorizada(config, autorizadoAgora)) {
+      // Com 'nao' não se pergunta mais nada: a pessoa já decidiu.
+      if (config.traduzirAuto === 'perguntar') {
+        const pendentes = await contarPendentes(dir, ultimosEventos)
+        if (pendentes > 0 && win && !win.isDestroyed()) {
+          win.webContents.send('wtf:traducao-pendente', {
+            pendentes,
+            maxPorRodada: config.maxTraducoesPorRodada,
+          })
+        }
+      }
+      return
+    }
+
+    const feitas = await traduzirEventos(dir, ultimosEventos, {
+      maxChamadas: 4,
+      config,
+      autorizadoAgora,
+    })
     if (feitas.size > 0 && win && !win.isDestroyed()) {
       win.webContents.send('wtf:mudou', 'traducao')
     }
@@ -182,6 +266,39 @@ async function traduzirAoFundo(dir, eventos) {
     traduzindo = false
   }
 }
+
+/**
+ * A resposta da pessoa ao pedido de tradução.
+ *
+ *   'agora'  — traduz esta rodada e continua perguntando nas próximas
+ *   'sempre' — grava `traduzirAuto: 'sim'`; não pergunta mais
+ *   'nunca'  — grava `traduzirAuto: 'nao'`; o painel segue na heurística
+ */
+ipcMain.handle('wtf:responder-traducao', async (_e, resposta) => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  const r = typeof resposta === 'string' ? resposta : ''
+  if (!['agora', 'sempre', 'nunca'].includes(r)) return { erro: 'Resposta inválida.' }
+  try {
+    let config = await lerConfig(projetoAtual)
+    if (r === 'sempre') config = await salvarConfig(projetoAtual, { traduzirAuto: 'sim' })
+    if (r === 'nunca') config = await salvarConfig(projetoAtual, { traduzirAuto: 'nao' })
+
+    // 'agora' e 'sempre' liberam esta rodada; 'nunca' não chama nada.
+    if (r !== 'nunca') void traduzirAoFundo(projetoAtual, ultimosEventos, true)
+    return { config }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/** O contador de consumo do projeto. Leitura pura, tolerante a ausência. */
+ipcMain.handle('wtf:uso', async () => {
+  try {
+    return { uso: await lerUso(projetoAtual) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
 
 /** Watcher ativo. Trocar de projeto derruba o anterior — sem vazamento. */
 let pararObservacao = null
@@ -223,6 +340,18 @@ ipcMain.handle('wtf:mapear-pastas', async () =>
       'Percorra as pastas que importam (ignorando o que é gerado), descubra para que ' +
       'cada uma serve e escreva a árvore com uma frase curta e sem jargão por pasta. ' +
       'Se o MAPA.md já existir, preserve as frases das pastas que não mudaram de propósito.',
+  ),
+)
+
+/** Pede o mapa dos DOCUMENTOS: quais importam, e qual é o vigente de cada assunto. */
+ipcMain.handle('wtf:mapear-documentos', async () =>
+  abrirTerminal(
+    projetoAtual,
+    'Use a skill wtf-documentos para criar ou atualizar o .wtf/docs.json deste projeto. ' +
+      'Comece pela raiz e por docs/, ignore o que é de ferramenta instalada, e diga por ' +
+      'assunto qual documento é o vigente e por quê. Não apague, não mova e não junte ' +
+      'arquivo nenhum: consolidar é decisão do dono do projeto. ' +
+      'Onde a evidência for fraca, diga que está em dúvida em vez de chutar.',
   ),
 )
 
@@ -389,6 +518,8 @@ ipcMain.handle('wtf:perguntar', async (_e, pedido) => {
     contexto: p.contexto,
     pergunta: p.pergunta,
     idioma: config.nomeIdiomaConteudo,
+    // O contador de perguntas pagas vive dentro do projeto observado.
+    dir: projetoAtual,
     sinal: controle.signal,
     aoPedaco: (pedaco) => enviar('wtf:resposta', { id, pedaco }),
   })

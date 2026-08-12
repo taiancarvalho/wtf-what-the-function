@@ -1,6 +1,23 @@
-import { useEffect, useState } from 'react'
-import { FileText, FolderSearch, Globe, KeyRound, PackageOpen, Settings2 } from 'lucide-react'
-import { lerPacoteInstalacao, podeEscolherProjeto, type Carga } from '@/lib/source'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  FileText,
+  FolderSearch,
+  Gauge,
+  Globe,
+  KeyRound,
+  PackageOpen,
+  Settings2,
+} from 'lucide-react'
+import {
+  USO_VAZIO,
+  aoPedirTraducao,
+  lerPacoteInstalacao,
+  lerUso,
+  podeEscolherProjeto,
+  podeResponderTraducao,
+  responderTraducao,
+  type Carga,
+} from '@/lib/source'
 import { EscolherIdioma } from '@/components/EscolherIdioma'
 import { ConfigChaves } from '@/components/ConfigChaves'
 import { InstalarSkill } from '@/components/InstalarSkill'
@@ -10,6 +27,8 @@ import type {
   ItemInstalacao,
   PacoteInstalacao,
   ProjectSnapshot,
+  TraduzirAuto,
+  UsoProjeto,
 } from '@/types/protocol'
 
 
@@ -74,6 +93,15 @@ export function Configuracoes({
           <EscolherIdioma config={snapshot.config} onSalvar={onSalvarIdioma} />
         </Secao>
 
+        <Secao
+          icone={Gauge}
+          titulo={t('consumo.titulo')}
+          nota={t('consumo.nota')}
+          atraso="0.13s"
+        >
+          <Consumo snapshot={snapshot} onSalvar={onSalvarIdioma} />
+        </Secao>
+
         <Secao icone={KeyRound} titulo={t('config.ia')} nota={t('config.iaNota')} atraso="0.15s">
           <ConfigChaves />
         </Secao>
@@ -115,6 +143,238 @@ function Secao({
       </p>
       <div className="mt-3">{children}</div>
     </section>
+  )
+}
+
+/*
+ * ===================================================================
+ * CONSUMO
+ * ===================================================================
+ * A regra do produto é "alternativa custo zero, sempre". Esta seção existe
+ * para que ela seja verificável: mostra o que o WTF pode gastar do que é da
+ * pessoa, deixa ela decidir antes de gastar, e conta o que já foi gasto.
+ *
+ * O número de reaproveitamentos do cache aparece com o mesmo peso dos outros:
+ * é a prova de que o app economiza em vez de gastar de novo.
+ *
+ * Escolher "nunca traduzir" não deixa o produto capenga. Sem tradução e sem
+ * chave nenhuma, o WTF continua lendo o repositório e mostrando estados,
+ * avisos, mapa e progresso — só com um texto mais simples.
+ * ===================================================================
+ */
+function Consumo({
+  snapshot,
+  onSalvar,
+}: {
+  snapshot: ProjectSnapshot
+  onSalvar: (parcial: Partial<ConfigProjeto>) => Promise<void>
+}) {
+  const t = useT()
+  const modo: TraduzirAuto = snapshot.config?.traduzirAuto ?? 'perguntar'
+  const teto = snapshot.config?.maxTraducoesPorRodada ?? 8
+  const [uso, setUso] = useState<UsoProjeto>(snapshot.uso ?? USO_VAZIO)
+  const [pendentes, setPendentes] = useState(0)
+  const [ocupado, setOcupado] = useState(false)
+
+  const recarregarUso = useCallback(() => {
+    lerUso()
+      .then(setUso)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    recarregarUso()
+    // O main avisa quando há mudanças esperando autorização para serem
+    // traduzidas. Enquanto ninguém responde, nada é consumido.
+    return aoPedirTraducao((dados) => setPendentes(dados?.pendentes ?? 0))
+  }, [recarregarUso])
+
+  useEffect(() => {
+    if (snapshot.uso) setUso(snapshot.uso)
+  }, [snapshot.uso])
+
+  const escolher = async (novo: TraduzirAuto) => {
+    setOcupado(true)
+    try {
+      await onSalvar({ traduzirAuto: novo })
+      if (novo !== 'perguntar') setPendentes(0)
+      if (podeResponderTraducao() && novo === 'sim') {
+        await responderTraducao('sempre')
+        recarregarUso()
+      }
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  const traduzirUmaVez = async () => {
+    setOcupado(true)
+    try {
+      await responderTraducao('agora')
+      setPendentes(0)
+      recarregarUso()
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  const opcoes: { id: TraduzirAuto; rotulo: string }[] = [
+    { id: 'perguntar', rotulo: t('consumo.btn.perguntar') },
+    { id: 'sim', rotulo: t('consumo.btn.sim') },
+    { id: 'nao', rotulo: t('consumo.btn.nao') },
+  ]
+
+  const nada =
+    uso.traducoes.chamadas === 0 && uso.traducoes.cache === 0 && uso.perguntas.chamadas === 0
+
+  return (
+    <div>
+      <p className="text-[13px] font-medium text-[var(--color-ink)]">{t('consumo.traducao')}</p>
+      <p className="mt-1 max-w-[62ch] text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+        {t('consumo.traducaoNota')}
+      </p>
+
+      <p className="mt-2.5 text-[12px] text-[var(--color-ink-3)]">{t(`consumo.estado.${modo}`)}</p>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {opcoes.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            disabled={ocupado}
+            aria-pressed={modo === o.id}
+            onClick={() => void escolher(o.id)}
+            className="rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+            style={
+              modo === o.id
+                ? {
+                    borderColor: 'var(--color-accent)',
+                    color: 'var(--color-accent)',
+                    background: 'color-mix(in oklab, var(--color-accent) 10%, transparent)',
+                  }
+                : { borderColor: 'var(--color-rule)', color: 'var(--color-ink-2)' }
+            }
+          >
+            {o.rotulo}
+          </button>
+        ))}
+      </div>
+
+      {modo === 'perguntar' && pendentes > 0 && (
+        <div
+          className="mt-3 rounded-lg border px-3 py-2.5"
+          style={{
+            borderColor: 'color-mix(in oklab, var(--color-accent) 34%, transparent)',
+            background: 'color-mix(in oklab, var(--color-accent) 6%, transparent)',
+          }}
+        >
+          <p className="text-[12.5px] text-[var(--color-ink)]">
+            {pendentes === 1 ? t('consumo.pendentes1') : t('consumo.pendentes', { n: pendentes })}
+          </p>
+          {podeResponderTraducao() && (
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => void traduzirUmaVez()}
+              className="mt-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }}
+            >
+              {t('consumo.traduzirAgora')}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="mt-5 border-t pt-3">
+        <label
+          htmlFor="wtf-teto"
+          className="text-[12.5px] font-medium text-[var(--color-ink)]"
+        >
+          {t('consumo.teto')}
+        </label>
+        <p className="mt-1 max-w-[62ch] text-[12px] leading-relaxed text-[var(--color-ink-2)]">
+          {t('consumo.tetoNota')}
+        </p>
+        <input
+          id="wtf-teto"
+          type="number"
+          min={0}
+          max={200}
+          value={teto}
+          disabled={ocupado}
+          onChange={(e) => {
+            const n = Number(e.target.value)
+            if (Number.isFinite(n)) void onSalvar({ maxTraducoesPorRodada: n })
+          }}
+          className="mt-2 w-24 rounded-lg border px-2.5 py-1.5 text-[13px] outline-none"
+          style={{
+            borderColor: 'var(--color-rule)',
+            background: 'var(--color-paper)',
+            color: 'var(--color-ink)',
+          }}
+        />
+      </div>
+
+      <div className="mt-5 border-t pt-3">
+        <p className="text-[10px] tracking-[0.16em] text-[var(--color-ink-3)] uppercase">
+          {t('consumo.contador')}
+        </p>
+
+        {nada ? (
+          <p className="mt-2 text-[12.5px] text-[var(--color-ink-3)]">{t('consumo.nada')}</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1.5">
+            <Linha rotulo={t('consumo.traducoesChamadas')} valor={uso.traducoes.chamadas} />
+            <Linha rotulo={t('consumo.traducoesEventos')} valor={uso.traducoes.eventos} />
+            <Linha
+              rotulo={t('consumo.cache')}
+              valor={uso.traducoes.cache}
+              destaque
+              nota={t('consumo.cacheNota')}
+            />
+            <Linha rotulo={t('consumo.perguntas')} valor={uso.perguntas.chamadas} />
+          </ul>
+        )}
+
+        {uso.desde && (
+          <p className="mt-2 text-[11.5px] text-[var(--color-ink-3)]">
+            {t('consumo.desde', { quando: new Date(uso.desde).toLocaleDateString() })}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Uma linha do contador: rótulo à esquerda, número à direita. */
+function Linha({
+  rotulo,
+  valor,
+  destaque,
+  nota,
+}: {
+  rotulo: string
+  valor: number
+  destaque?: boolean
+  nota?: string
+}) {
+  return (
+    <li className="text-[12.5px]">
+      <span className="flex items-baseline gap-2">
+        <span className="text-[var(--color-ink-2)]">{rotulo}</span>
+        <span
+          className="ml-auto font-mono text-[13px]"
+          style={{ color: destaque ? 'var(--color-tested)' : 'var(--color-ink)' }}
+        >
+          {valor}
+        </span>
+      </span>
+      {nota && (
+        <span className="mt-0.5 block max-w-[58ch] text-[11.5px] leading-snug text-[var(--color-ink-3)]">
+          {nota}
+        </span>
+      )}
+    </li>
   )
 }
 

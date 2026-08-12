@@ -5,6 +5,7 @@
  *   .git (HEAD, ORIG_HEAD, refs/heads, logs/HEAD) → motivo 'git'
  *   .wtf/events.jsonl                            → motivo 'claim'
  *   .wtf/map.json                                → motivo 'mapa'
+ *   .wtf/docs.json                               → motivo 'docs'
  *   MAPA.md (na raiz)                            → motivo 'pastas'
  *
  * Nada de recursivo: num projeto grande, observar a árvore inteira come CPU
@@ -18,7 +19,7 @@ const DEBOUNCE_MS = 400
 
 /**
  * @param {string | null | undefined} dir  pasta do projeto observado
- * @param {(motivo: 'git' | 'claim' | 'mapa' | 'pastas') => void} aoMudar
+ * @param {(motivo: 'git' | 'claim' | 'mapa' | 'docs' | 'pastas') => void} aoMudar
  * @returns {() => void} parar() — idempotente, fecha tudo e limpa os timers
  */
 export function observarProjeto(dir, aoMudar) {
@@ -99,6 +100,7 @@ export function observarProjeto(dir, aoMudar) {
   const alvos = [
     { nome: 'events.jsonl', motivo: 'claim' },
     { nome: 'map.json', motivo: 'mapa' },
+    { nome: 'docs.json', motivo: 'docs' },
   ]
 
   /** @type {Map<string, fs.FSWatcher>} motivo → watcher do arquivo já promovido */

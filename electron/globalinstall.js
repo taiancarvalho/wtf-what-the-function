@@ -62,6 +62,11 @@ export const ALVOS_GLOBAIS = {
     origem: 'pastas/SKILL.md',
     comoProjeto: ALVOS.pastas[0],
   },
+  documentos: {
+    destino: 'skills/wtf-documentos/SKILL.md',
+    origem: 'documentos/SKILL.md',
+    comoProjeto: ALVOS.documentos[0],
+  },
   hook: { destino: 'hooks/wtf-observer.cjs', origem: 'hooks/wtf-observer.cjs', comoProjeto: null },
 }
 

@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CornerDownLeft, Lightbulb, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useT } from '@/lib/i18n'
-import { aoReceberResposta, lerChaves, perguntar, podePerguntar } from '@/lib/source'
+import {
+  aoPedirTraducao,
+  aoReceberResposta,
+  lerChaves,
+  lerConfig,
+  perguntar,
+  podePerguntar,
+  salvarConfig,
+} from '@/lib/source'
 import { ConfigChaves } from '@/components/ConfigChaves'
 import type { ContextoPergunta, WtfEvent } from '@/types/protocol'
 
@@ -29,6 +37,17 @@ export function PainelPergunta({
   const [incompleta, setIncompleta] = useState(false)
   const [esperando, setEsperando] = useState(false)
   const [temChave, setTemChave] = useState<boolean | null>(null)
+  /*
+   * O aviso de custo. Perguntar consome créditos da chave DA PESSOA, e ela
+   * precisa saber disso antes da primeira vez — nunca depois da fatura. Uma
+   * vez aceito, fica gravado no projeto e não aparece mais: repetir o aviso a
+   * cada pergunta viraria mais um "OK, OK, OK" sem informação nenhuma.
+   */
+  const [avisoAceito, setAvisoAceito] = useState<boolean | null>(null)
+  /** Pergunta que ficou esperando a pessoa aceitar o aviso. */
+  const [aguardandoAviso, setAguardandoAviso] = useState<string | null>(null)
+  /** Aviso discreto: há mudanças sem tradução porque ninguém autorizou o gasto. */
+  const [traducaoPendente, setTraducaoPendente] = useState(false)
   const eventoIdRef = useRef<string | null>(null)
 
   eventoIdRef.current = evento?.id ?? null
@@ -57,6 +76,25 @@ export function PainelPergunta({
     }
   }, [evento])
 
+  useEffect(() => {
+    if (!evento) return
+    let vivo = true
+    lerConfig()
+      .then((c) => {
+        // Fora do app não há config; aí não há custo nenhum a avisar, porque
+        // também não há como perguntar.
+        if (vivo) setAvisoAceito(c ? c.avisoCustoAceito === true : true)
+      })
+      .catch(() => {
+        if (vivo) setAvisoAceito(false)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [evento])
+
+  useEffect(() => aoPedirTraducao((d) => setTraducaoPendente((d?.pendentes ?? 0) > 0)), [])
+
   // Os pedaços chegam pelo main; só interessam os do cartão aberto agora.
   useEffect(() => {
     return aoReceberResposta((dados) => {
@@ -82,7 +120,7 @@ export function PainelPergunta({
     return () => window.removeEventListener('keydown', aoTeclar)
   }, [evento, onFechar])
 
-  const enviar = useCallback(
+  const enviarDeVerdade = useCallback(
     async (texto: string) => {
       const e = evento
       if (!e || !texto.trim() || esperando) return
@@ -113,6 +151,36 @@ export function PainelPergunta({
     },
     [evento, featureNome, esperando],
   )
+
+  /**
+   * A porta de entrada. A primeira pergunta não sai sem a pessoa confirmar que
+   * entendeu que aquilo gasta os créditos dela. Depois de aceito, passa direto.
+   */
+  const enviar = useCallback(
+    async (texto: string) => {
+      if (!texto.trim() || esperando) return
+      if (avisoAceito === false) {
+        setAguardandoAviso(texto)
+        setPergunta(texto)
+        return
+      }
+      await enviarDeVerdade(texto)
+    },
+    [avisoAceito, esperando, enviarDeVerdade],
+  )
+
+  /** A pessoa aceitou o aviso: grava e manda a pergunta que ficou esperando. */
+  const aceitarAviso = useCallback(async () => {
+    const texto = aguardandoAviso
+    setAvisoAceito(true)
+    setAguardandoAviso(null)
+    try {
+      await salvarConfig({ avisoCustoAceito: true })
+    } catch {
+      /* não conseguir gravar não pode impedir a pergunta já autorizada */
+    }
+    if (texto) await enviarDeVerdade(texto)
+  }, [aguardandoAviso, enviarDeVerdade])
 
   const sugestoes = [
     t('pergunta.sugestao.perigoso'),
@@ -184,6 +252,52 @@ export function PainelPergunta({
 
             {!podePerguntar() && (
               <p className="mt-4 text-[13px] text-[var(--color-ink-3)]">{t('pergunta.soNoApp')}</p>
+            )}
+
+            {/*
+              O aviso de custo, uma única vez. Aparece ANTES de a pergunta sair,
+              nunca depois — é a diferença entre avisar e prestar contas.
+            */}
+            {aguardandoAviso !== null && (
+              <div
+                className="mt-4 rounded-lg border p-3.5"
+                style={{
+                  borderColor: 'color-mix(in oklab, var(--color-warn) 38%, transparent)',
+                  background: 'color-mix(in oklab, var(--color-warn) 8%, transparent)',
+                }}
+              >
+                <p className="text-[13.5px] font-medium text-[var(--color-ink)]">
+                  {t('pergunta.aviso.titulo')}
+                </p>
+                <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+                  {t('pergunta.aviso.texto')}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void aceitarAviso()}
+                    className="rounded-full border px-3 py-1.5 text-[12.5px]"
+                    style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}
+                  >
+                    {t('pergunta.aviso.aceitar')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAguardandoAviso(null)}
+                    className="rounded-full border px-3 py-1.5 text-[12.5px]"
+                    style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink-2)' }}
+                  >
+                    {t('pergunta.aviso.cancelar')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Discreto de propósito: informa sem interromper o que a pessoa veio fazer. */}
+            {traducaoPendente && (
+              <p className="mt-3 text-[11.5px] text-[var(--color-ink-3)]">
+                {t('pergunta.aviso.pendente')}
+              </p>
             )}
 
             <div className="mt-5">

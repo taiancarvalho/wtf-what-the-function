@@ -31,11 +31,39 @@ export const NOMES_CONHECIDOS = {
   es: 'espanhol',
 }
 
+/** As três respostas possíveis para "posso traduzir usando o seu agente?". */
+export const TRADUZIR_AUTO = ['perguntar', 'sim', 'nao']
+
+/**
+ * Teto de traduções por rodada.
+ *
+ * Antes eram 4 chamadas × 8 eventos = 32 traduções cada vez que o painel
+ * recarregava. Ninguém autorizou isso. O padrão agora é conservador: 8 por
+ * rodada. O resto entra nas rodadas seguintes e, uma vez traduzido, fica no
+ * cache para sempre — a conta não se repete.
+ */
+export const MAX_TRADUCOES_PADRAO = 8
+
 export const CONFIG_PADRAO = {
   v: 1,
   idiomaInterface: 'pt-BR',
   idiomaConteudo: 'pt-BR',
   nomeIdiomaConteudo: NOMES_CONHECIDOS['pt-BR'],
+  /*
+   * 'perguntar' é o padrão porque consumir recurso de alguém sem perguntar é
+   * exatamente o comportamento que este produto existe para combater. Com
+   * 'nao', o painel continua INTEIRO: ele segue lendo o repositório, mostrando
+   * estados, avisos, mapa e progresso, com o texto heurístico de translate.js.
+   * O caminho gratuito é um caminho completo, não uma versão capenga.
+   */
+  traduzirAuto: 'perguntar',
+  maxTraducoesPorRodada: MAX_TRADUCOES_PADRAO,
+  /*
+   * O aviso de custo do "Explique isso" só aparece uma vez. Depois de aceito,
+   * a pessoa já sabe que aquilo consome créditos da chave dela — repetir o
+   * aviso a cada pergunta viraria mais um "OK, OK, OK".
+   */
+  avisoCustoAceito: false,
 }
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '')
@@ -68,11 +96,26 @@ function normalizar(dados) {
   // app velho antes do próximo lançamento.
   const modelo = str(bruto.modeloPergunta)
 
+  // Valor estranho vale 'perguntar': na dúvida, não gaste o recurso de ninguém.
+  const auto = TRADUZIR_AUTO.includes(str(bruto.traduzirAuto))
+    ? str(bruto.traduzirAuto)
+    : CONFIG_PADRAO.traduzirAuto
+
+  // Teto: inteiro entre 0 e 200. 0 é legítimo — significa "nunca traduza
+  // sozinho", e o painel segue funcionando com o texto heurístico.
+  const tetoBruto = Number(bruto.maxTraducoesPorRodada)
+  const teto = Number.isFinite(tetoBruto)
+    ? Math.min(200, Math.max(0, Math.floor(tetoBruto)))
+    : MAX_TRADUCOES_PADRAO
+
   return {
     v: 1,
     idiomaInterface: iface,
     idiomaConteudo: conteudo,
     nomeIdiomaConteudo: nomeDoIdioma(conteudo, bruto.nomeIdiomaConteudo),
+    traduzirAuto: auto,
+    maxTraducoesPorRodada: teto,
+    avisoCustoAceito: bruto.avisoCustoAceito === true,
     ...(modelo ? { modeloPergunta: modelo } : {}),
   }
 }

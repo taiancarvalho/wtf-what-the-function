@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld('wtf', {
   mapear: () => ipcRenderer.invoke('wtf:mapear'),
   /** Abre o agente pedindo o MAPA.md das pastas (para que serve cada uma). */
   mapearPastas: () => ipcRenderer.invoke('wtf:mapear-pastas'),
+  /** Abre o agente pedindo o mapa dos documentos (qual é o vigente de cada assunto). */
+  mapearDocumentos: () => ipcRenderer.invoke('wtf:mapear-documentos'),
   /** Marca/desmarca um aviso como resolvido pela pessoa (persiste em disco). */
   resolver: (eventId) => ipcRenderer.invoke('wtf:resolver', eventId),
   /** Aprova/desfaz a aprovação de uma parte do projeto (persiste em disco). */
@@ -43,6 +45,25 @@ contextBridge.exposeInMainWorld('wtf', {
   lerConfig: () => ipcRenderer.invoke('wtf:config'),
   /** Salva as preferências (merge) e reaplica o idioma nas skills instaladas. */
   salvarConfig: (parcial) => ipcRenderer.invoke('wtf:salvar-config', parcial),
+  /**
+   * Consumo do projeto: quantas traduções e perguntas o app já gastou, e
+   * quantas vezes reaproveitou o cache em vez de gastar de novo.
+   */
+  lerUso: () => ipcRenderer.invoke('wtf:uso'),
+  /**
+   * Responde ao pedido de tradução automática: 'agora' (uma vez), 'sempre'
+   * (grava a autorização) ou 'nunca' (o painel segue no texto heurístico).
+   */
+  responderTraducao: (resposta) => ipcRenderer.invoke('wtf:responder-traducao', resposta),
+  /**
+   * Avisa que há eventos sem tradução e ninguém autorizou gastar para
+   * traduzi-los. `{ pendentes, maxPorRodada }`. Devolve como cancelar.
+   */
+  aoPedirTraducao: (cb) => {
+    const ouvinte = (_evento, dados) => cb(dados)
+    ipcRenderer.on('wtf:traducao-pendente', ouvinte)
+    return () => ipcRenderer.off('wtf:traducao-pendente', ouvinte)
+  },
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
   /**

@@ -36,6 +36,7 @@ export const ALVOS = {
   skill: ['.claude/skills/wtf/SKILL.md', 'SKILL.md'],
   mapear: ['.claude/skills/wtf-mapear/SKILL.md', 'mapear/SKILL.md'],
   pastas: ['.claude/skills/wtf-pastas/SKILL.md', 'pastas/SKILL.md'],
+  documentos: ['.claude/skills/wtf-documentos/SKILL.md', 'documentos/SKILL.md'],
   formato: ['.wtf/MAP-FORMAT.md', 'MAP-FORMAT.md'],
   hook: ['.claude/hooks/wtf-observer.cjs', 'hooks/wtf-observer.cjs'],
   cli: ['.wtf/bin/wtf-claim.cjs', 'bin/wtf-claim.cjs'],
@@ -95,6 +96,7 @@ export async function estadoInstalacao(dir) {
     skill: local.skill || global.skills.skill,
     mapear: local.mapear || global.skills.mapear,
     pastas: local.pastas || global.skills.pastas,
+    documentos: local.documentos || global.skills.documentos,
     hook: local.hook || global.hook,
     cli: local.cli,
     formato: local.formato,
@@ -267,6 +269,11 @@ const SKILLS_COM_IDIOMA = [
     'seção e o propósito de cada pasta — e para qualquer explicação destinada ao ' +
     'dono do projeto, mesmo que a conversa esteja em outra língua. Os nomes das ' +
     'pastas em si ficam como estão no disco.'],
+  ['.claude/skills/wtf-documentos/SKILL.md', (nome) =>
+    `Escreva SEMPRE em ${nome}. Isto vale para o \`assunto\`, o \`resumo\` e o ` +
+    '`porque` de cada entrada de `.wtf/docs.json`, e para o resumo final que você ' +
+    'dá em conversa, mesmo que ela esteja em outra língua. Os nomes dos arquivos e ' +
+    'os caminhos ficam como estão no disco.'],
 ]
 
 /**

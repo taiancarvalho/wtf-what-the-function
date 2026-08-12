@@ -15,6 +15,8 @@
  * outros dois existem para o dia em que forem ligados, e falham dizendo isso.
  */
 
+import { registrarPergunta } from './usage.js'
+
 /** Modelo padrão: barato, rápido e bom o suficiente para explicar um diff. */
 export const MODELO_PADRAO = 'google/gemini-2.0-flash-001'
 
@@ -210,6 +212,7 @@ export async function perguntar({
   idioma,
   aoPedaco,
   sinal,
+  dir,
 }) {
   const fn = PROVEDORES[texto(provedor) || 'openrouter']
   if (!fn) return { erro: 'Provedor desconhecido.' }
@@ -218,6 +221,22 @@ export async function perguntar({
   }
 
   const { sistema, usuario } = montarPrompt({ contexto, pergunta, idioma })
+
+  /*
+   * Cada pergunta consome créditos da chave DA PESSOA. Contar não é
+   * telemetria: o número fica no projeto dela, é ela quem lê, e é a única
+   * forma de ninguém ser pego desprevenido pela fatura. Contamos antes de
+   * enviar, porque a chamada que falha no meio também pode ter sido cobrada.
+   * `dir` ausente (uso fora do app, testes) simplesmente não conta nada.
+   */
+  if (texto(dir)) {
+    try {
+      await registrarPergunta(dir, texto(provedor) || 'openrouter')
+    } catch {
+      /* contar nunca pode impedir a pessoa de perguntar */
+    }
+  }
+
   try {
     return await fn({
       chave: texto(chave),

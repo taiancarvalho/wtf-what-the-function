@@ -4,6 +4,7 @@ import {
   FlaskConical,
   FolderTree,
   House,
+  Library,
   ListChecks,
   Newspaper,
   Settings2,
@@ -23,10 +24,11 @@ import { ProductMap } from '@/views/ProductMap'
 import { Timeline } from '@/views/Timeline'
 import { Home } from '@/views/Home'
 import { Pastas } from '@/views/Pastas'
+import { Documentos } from '@/views/Documentos'
 import { Configuracoes } from '@/views/Configuracoes'
 import { AGENT_LABEL } from '@/lib/state'
 
-type Aba = 'home' | 'timeline' | 'build' | 'mapa' | 'pastas' | 'config'
+type Aba = 'home' | 'timeline' | 'build' | 'mapa' | 'pastas' | 'docs' | 'config'
 
 const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] = [
   { id: 'home', label: 'nav.home', icone: House, nota: 'nav.home.nota' },
@@ -34,6 +36,7 @@ const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] 
   { id: 'build', label: 'nav.progresso', icone: ListChecks, nota: 'nav.progresso.nota' },
   { id: 'mapa', label: 'nav.mapa', icone: Blocks, nota: 'nav.mapa.nota' },
   { id: 'pastas', label: 'nav.pastas', icone: FolderTree, nota: 'nav.pastas.nota' },
+  { id: 'docs', label: 'nav.docs', icone: Library, nota: 'nav.docs.nota' },
   { id: 'config', label: 'nav.config', icone: Settings2, nota: 'nav.config.nota' },
 ]
 
@@ -329,6 +332,7 @@ function Painel({
           )}
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
           {aba === 'pastas' && <Pastas snapshot={snapshot} />}
+          {aba === 'docs' && <Documentos snapshot={snapshot} />}
           {aba === 'config' && (
             <Configuracoes
               snapshot={snapshot}

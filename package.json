@@ -16,7 +16,8 @@
     "start": "node bin/wtf.mjs",
     "dev:app": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:5273 && electron .\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "proteger": "node scripts/instalar-hook-local.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.11",
