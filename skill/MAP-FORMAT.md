@@ -53,10 +53,25 @@ próprio trabalho — que é exatamente o que este produto existe para evitar.
 | `name` | sim | nome da parte como o dono do projeto falaria. |
 | `summary` | sim | uma frase explicando o que essa parte faz, sem jargão. |
 | `paths` | sim | globs dos arquivos que compõem a parte. Podem se sobrepor entre features. |
-| `tests` | não | globs dos testes que verificam esta parte. É o que permite o estado ✓ Testado. |
+| `tests` | **sim, se o projeto tiver testes** | globs dos testes que verificam esta parte. É o que permite o estado ✓ Testado. |
 | `planRef` | não | caminho do documento que descreve esta parte (story, PRD, épico). |
 | `planStatus` | não | o que **o documento** diz: `todo`, `doing`, `done`. É leitura do plano, não julgamento da IA. |
 | `related` | não | ids de outras features ligadas a esta. |
+
+### `tests` é o campo que faz o painel valer
+
+Deixar `tests` vazio num projeto que TEM testes é o erro mais caro deste
+formato. A distância entre **● Pronto** e **✓ Testado** é a razão de o WTF
+existir: sem ela, o painel repete o que a IA disse em vez de provar.
+
+O WTF tem uma rede de segurança — sem `tests`, ele tenta ligar teste e código
+pela convenção de nomes (`tests/x.test.ts` ↔ `src/x.ts`). Mas ela só acerta o
+óbvio. Um arquivo como `tests/fluxo-de-compra.test.ts`, que cobre carrinho,
+frete e pagamento de uma vez, **só é encontrado se você o declarar** — e é
+justamente o teste mais valioso do projeto.
+
+Se o projeto realmente não tem teste nenhum, deixe vazio: aí o **● Pronto** é a
+verdade, e é ela que o dono precisa ver.
 
 ### `planStatus` não é estado
 

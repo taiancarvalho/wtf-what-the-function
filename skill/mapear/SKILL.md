@@ -88,9 +88,18 @@ Para cada feature, procure os testes que a verificam e liste em `tests`.
 src/lib/meta/**   →   tests/lib/meta/**
 ```
 
-Isso importa mais do que parece: é o único jeito de uma parte chegar ao estado
-**✓ Testado**. Feature sem `tests` preenchido nunca passa de **● Pronto**, por
-mais bem feita que esteja.
+Isso importa mais do que parece, e é a etapa que se esquece com mais
+facilidade. Já aconteceu: um mapa de 22 partes foi escrito sem uma única linha
+de `tests`, num repositório com 389 testes passando — e o painel mostrou
+**"0 testado"** para o dono do projeto.
+
+**Antes de terminar, conte.** Se o projeto tem testes e o seu mapa tem zero
+`tests` preenchidos, você pulou esta etapa. Volte.
+
+O WTF tenta adivinhar pela convenção de nomes quando o campo está vazio, mas
+ele só acerta o caso óbvio (`tests/x.test.ts` ↔ `src/x.ts`). O teste que cobre
+três partes de uma vez — geralmente o mais valioso do projeto — só é encontrado
+se você o declarar.
 
 ### 5. Escreva os nomes e resumos em português de gente
 
@@ -119,8 +128,13 @@ Escreva `.wtf/map.json` seguindo o formato. Depois:
 - nenhum campo declara que algo funciona?
 
 Ao terminar, diga ao usuário, em português simples, quantas partes você
-encontrou, quantas ainda não têm código, e quais você teve dificuldade de
-nomear — essas são as que ele vai querer corrigir.
+encontrou, quantas ainda não têm código, **quantas você ligou a testes**, e
+quais você teve dificuldade de nomear — essas são as que ele vai querer
+corrigir.
+
+Se o projeto tem testes e você ligou zero partes a eles, diga isso em voz alta
+em vez de entregar em silêncio: é o dono do projeto quem vai olhar a coluna
+"✓ Testado" vazia e concluir, errado, que nada foi verificado.
 
 ## Remapear
 

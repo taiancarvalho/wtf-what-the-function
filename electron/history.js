@@ -42,7 +42,7 @@ import {
   readProjectMeta,
   readTreeFiles,
 } from './git.js'
-import { classificarPorMapa, readProjectMap } from './map.js'
+import { classificarPorMapa, completarTestes, readProjectMap } from './map.js'
 import { estadoPorEvidencia, partesDeArquivos } from './translate.js'
 
 // ------------------------------------------------------------------ régua
@@ -144,7 +144,7 @@ export function contarPartes(arquivos, mapa) {
   const lista = Array.isArray(arquivos) ? arquivos : []
 
   if (mapa && Array.isArray(mapa.features) && mapa.features.length > 0) {
-    const acc = classificarPorMapa(mapa.features, lista)
+    const acc = completarTestes(classificarPorMapa(mapa.features, lista), lista)
     let comCodigo = 0
     let testadas = 0
     for (const a of acc.values()) {
@@ -487,7 +487,7 @@ async function estadosEm(dir, commit, mapa) {
   const out = new Map()
 
   if (mapa && Array.isArray(mapa.features) && mapa.features.length > 0) {
-    for (const a of classificarPorMapa(mapa.features, arquivos).values()) {
+    for (const a of completarTestes(classificarPorMapa(mapa.features, arquivos), arquivos).values()) {
       out.set(a.def.id, {
         nome: a.def.name,
         state: estadoPorEvidencia({

@@ -567,6 +567,17 @@ ipcMain.handle('wtf:mapear-documentos', async () =>
  *     lista existem apenas como resumo barato, sem watcher e sem modelo.
  */
 async function abrirProjeto(dir) {
+  /*
+   * 4. os terminais do projeto ANTERIOR morrem aqui.
+   *
+   * Uma sessão nasce com `cwd` no projeto aberto, e esse `cwd` não muda nunca
+   * mais. Trocar de projeto sem encerrá-las deixava a IA trabalhando numa
+   * pasta enquanto o painel mostrava outra — e nada na tela dizia isso. Pior:
+   * as sessões continuavam vivas e invisíveis, gastando o teto de três, até o
+   * app ser fechado. Foi assim que um `zsh` de meia hora sobrou no ar.
+   */
+  if (dir !== projetoAtual) encerrarTerminais()
+
   projetoAtual = dir
   ultimoSnapshot = null
   ultimosEventos = []

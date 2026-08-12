@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 // A regra de estado mora em UM lugar só (ver o aviso sobre ela em translate.js).
-import { estadoPorEvidencia } from './translate.js'
+import { ehTeste, estadoPorEvidencia, testeCobre } from './translate.js'
 
 // ------------------------------------------------------------------ leitura
 
@@ -138,6 +138,45 @@ const casaAlgum = (globs, caminho) => globs.some((g) => casa(g, caminho))
  * arquivos de hoje pela árvore de um commit antigo, e a mesma regra responde.
  * Um arquivo pode pertencer a várias partes: não há exclusividade.
  */
+/**
+ * A rede de segurança do "✓ Testado".
+ *
+ * `tests` é opcional no formato do mapa, e o efeito disso era perverso:
+ * MAPEAR O PROJETO DESLIGAVA A DETECÇÃO DE TESTES. Sem mapa, o WTF liga teste e
+ * código pela convenção de nomes e promove a parte; com mapa, passava a confiar
+ * só na lista declarada — e um agente que pulou a etapa "Ligue os testes"
+ * zerava a coluna inteira. Foi o que aconteceu com o próprio WTF: 389 testes
+ * passando no repositório, e o painel dizendo "0 testado" ao dono do projeto.
+ *
+ * A distância entre "pronto" e "testado" é a razão de este produto existir. Uma
+ * coluna zerada por omissão de campo não é conservadorismo — é o painel
+ * prometendo menos do que ele consegue provar.
+ *
+ * Só entra onde o mapa NÃO declarou testes: quem escreveu a lista sabe mais que
+ * a convenção (um teste de ponta a ponta cobre três partes e não se parece com
+ * nenhuma), e a declaração continua mandando.
+ *
+ * Usada pelo painel de hoje E pelo histórico — os dois liam `def.tests` direto,
+ * e uma rede só num deles faria a curva do passado contradizer o presente.
+ */
+export function completarTestes(acc, arquivos) {
+  const testes = (Array.isArray(arquivos) ? arquivos : []).filter(ehTeste)
+  if (testes.length === 0) return acc
+
+  for (const a of acc.values()) {
+    if (a.testes.size > 0 || (a.def?.tests ?? []).length > 0) continue
+    for (const teste of testes) {
+      for (const arquivo of a.arquivos) {
+        if (testeCobre(teste, arquivo)) {
+          a.testes.add(teste)
+          break
+        }
+      }
+    }
+  }
+  return acc
+}
+
 export function classificarPorMapa(features, caminhos) {
   const acc = new Map()
   for (const f of features ?? []) {
@@ -214,6 +253,8 @@ export function aplicarMapa(snapshot, mapa, commits, arquivosRastreados, arquivo
     a.ultimo = null
     a.naoSalvos = new Set()
   }
+
+  completarTestes(acc, [...rastreados, ...naoSalvos])
 
   // Arquivos do disco valem EXISTÊNCIA igual aos rastreados — só ficam
   // marcados como ainda não salvos no histórico.

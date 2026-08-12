@@ -125,6 +125,50 @@ const mapaCom = (...features: Record<string, unknown>[]) => ({
   })),
 })
 
+/**
+ * O bug: mapear o projeto DESLIGAVA a detecção de testes.
+ *
+ * `tests` é opcional no formato, e sem mapa o WTF liga teste e código pela
+ * convenção de nomes. Com mapa, passava a confiar só na lista declarada — então
+ * um agente que pulou a etapa "Ligue os testes" zerava a coluna inteira. Foi o
+ * que aconteceu com o próprio WTF: 389 testes no repositório, e o painel
+ * dizendo "0 testado" para o dono do projeto.
+ */
+describe('a rede de segurança do "✓ Testado"', () => {
+  const rastreados = ['electron/git.js', 'tests/git.test.ts']
+
+  it('sem `tests` declarado, liga teste e código pela convenção de nomes', () => {
+    const mapa = mapaCom({ id: 'git', name: 'Leitura do histórico', paths: ['electron/git.js'] })
+    const out = aplicarMapa(snapshotBase(), mapa, [], rastreados, null)
+    expect(out.features[0].state).toBe('tested')
+  })
+
+  it('a declaração do mapa continua mandando quando existe', () => {
+    // Lista declarada e vazia de casamento: o autor disse que o teste desta
+    // parte é outro, e a convenção não passa por cima disso.
+    const mapa = mapaCom({
+      id: 'git',
+      name: 'Leitura do histórico',
+      paths: ['electron/git.js'],
+      tests: ['tests/nao-existe/**'],
+    })
+    const out = aplicarMapa(snapshotBase(), mapa, [], rastreados, null)
+    expect(out.features[0].state).toBe('implemented')
+  })
+
+  it('NÃO promove parte que não tem teste nenhum — a rede não inventa prova', () => {
+    const mapa = mapaCom({ id: 'map', name: 'Vocabulário', paths: ['electron/map.js'] })
+    const out = aplicarMapa(snapshotBase(), mapa, [], ['electron/map.js', 'tests/git.test.ts'], null)
+    expect(out.features[0].state).toBe('implemented')
+  })
+
+  it('projeto sem teste algum continua em "pronto"', () => {
+    const mapa = mapaCom({ id: 'git', name: 'Leitura', paths: ['electron/git.js'] })
+    const out = aplicarMapa(snapshotBase(), mapa, [], ['electron/git.js'], null)
+    expect(out.features[0].state).toBe('implemented')
+  })
+})
+
 describe('aplicarMapa — o estado vem da evidência', () => {
   it('devolve o snapshot intacto quando não há mapa', () => {
     const snap = snapshotBase()

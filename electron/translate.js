@@ -63,7 +63,7 @@ function classificar(caminho) {
 const RE_TESTE = /^(tests?|spec|__tests__)\//
 const SUFIXO_TESTE = /\.(test|spec)\.[jt]sx?$/
 
-function ehTeste(caminho) {
+export function ehTeste(caminho) {
   return RE_TESTE.test(caminho) || SUFIXO_TESTE.test(caminho)
 }
 
@@ -93,6 +93,34 @@ function classificarTeste(caminho) {
     if (re.test(semPrefixo) || re.test(`src/${semPrefixo}`)) return { area, nome }
   }
   return null
+}
+
+/**
+ * O teste `caminho` verifica o arquivo de código `alvo`?
+ *
+ * Existe para quando o MAPA não diz. Um mapa que declara `tests` é sempre mais
+ * confiável — só o autor sabe que `tests/fluxo-compra.test.ts` cobre o carrinho
+ * inteiro. Mas mapa sem `tests` não pode significar "este projeto não tem
+ * testes": significa apenas que ninguém escreveu a lista.
+ *
+ * Duas convenções, e nada além delas: mesmo nome de arquivo, ou mesmo caminho
+ * a menos do prefixo de teste. Chutar mais que isso produziria "✓ Testado" sem
+ * teste, que é a única coisa pior que "● Pronto" com teste.
+ */
+export function testeCobre(caminho, alvo) {
+  if (!ehTeste(caminho) || typeof alvo !== 'string') return false
+
+  const semExt = (p) => p.replace(/\.(test|spec)\.[jt]sx?$/, '').replace(/\.[jt]sx?$/, '')
+  const base = (p) => semExt(p).split('/').pop()
+
+  const baseTeste = base(caminho)
+  if (!baseTeste) return false
+  if (baseTeste === base(alvo)) return true
+
+  // `tests/lib/x.test.ts` ↔ `src/lib/x.ts`
+  const semPrefixo = semExt(caminho.replace(RE_TESTE, ''))
+  const alvoSem = semExt(alvo).replace(/^src\//, '')
+  return semPrefixo === alvoSem || semPrefixo === semExt(alvo)
 }
 
 const idDe = (area, nome) =>

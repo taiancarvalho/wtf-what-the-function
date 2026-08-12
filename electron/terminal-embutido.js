@@ -152,6 +152,28 @@ export async function abrirSessao({ win, dir, mensagem, cols, rows }) {
    */
   let acumulado = ''
   let agendado = null
+
+  /*
+   * O FREIO.
+   *
+   * O lote de 16 ms resolve a quantidade de mensagens, não o volume. Um
+   * programa em laço — um `yes`, um teste em modo watch, uma TUI redesenhando
+   * sem parar — produz saída mais rápido do que qualquer interface consegue
+   * pintar, e o processo principal queima 100% de CPU repassando bytes que
+   * ninguém vai ler. O app inteiro para: o painel, o watcher, TODOS os
+   * terminais. Um terminal desgovernado não pode derrubar o aplicativo.
+   *
+   * Passando de `LIMITE_POR_SEGUNDO`, paramos de repassar por um instante e
+   * dizemos isso na tela. Nada é escondido em silêncio: quem está olhando
+   * precisa saber que está vendo menos do que saiu, senão o freio vira mentira.
+   * O processo continua vivo — quem decide encerrá-lo é a pessoa.
+   */
+  const LIMITE_POR_SEGUNDO = 2 * 1024 * 1024
+  const PAUSA_MS = 1000
+  let bytesNaJanela = 0
+  let janelaComecou = Date.now()
+  let freado = false
+
   const despejar = () => {
     agendado = null
     if (!acumulado) return
@@ -163,6 +185,39 @@ export async function abrirSessao({ win, dir, mensagem, cols, rows }) {
   }
 
   processo.onData((dados) => {
+    const agora = Date.now()
+    if (agora - janelaComecou >= PAUSA_MS) {
+      janelaComecou = agora
+      bytesNaJanela = 0
+      if (freado) {
+        freado = false
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('wtf:terminal-saida', {
+            id,
+            dados: '\r\n\x1b[2m[o WTF voltou a mostrar a saída]\x1b[0m\r\n',
+          })
+        }
+      }
+    }
+
+    bytesNaJanela += dados.length
+    if (bytesNaJanela > LIMITE_POR_SEGUNDO) {
+      if (!freado) {
+        freado = true
+        acumulado = ''
+        if (process.env.WTF_DEBUG_PTY) console.log('FREIO', bytesNaJanela)
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('wtf:terminal-saida', {
+            id,
+            dados:
+              '\r\n\x1b[33m[o programa está escrevendo rápido demais para caber na tela — ' +
+              'o WTF parou de mostrar por um instante para não travar]\x1b[0m\r\n',
+          })
+        }
+      }
+      return
+    }
+
     acumulado += dados
     // Teto de segurança: se o programa despejar megabytes de uma vez, ficamos
     // com o fim (é o que está na tela) em vez de engasgar com o começo.
@@ -249,16 +304,42 @@ export function redimensionar(id, cols, rows) {
   return { ok: true }
 }
 
-/** Fecha uma sessão pelo botão de fechar do painel. */
+/**
+ * Fecha uma sessão — e garante que a árvore inteira vá junto.
+ *
+ * `pty.kill()` fecha o shell, e o normal é que o programa que ele lançou receba
+ * o desligamento e saia. "O normal" não basta aqui: quem fica para trás é um
+ * agente de IA com permissão de escrever arquivos, rodando numa pasta que
+ * ninguém está mais olhando. Por isso o segundo tempo — se o grupo ainda
+ * responde depois de dois segundos, ele é encerrado à força.
+ *
+ * O sinal vai para o GRUPO (`-pid`), que é o que node-pty cria ao abrir a
+ * sessão: matar só o shell deixaria exatamente o filho que nos preocupa.
+ */
 export function encerrar(id) {
   const s = sessoes.get(id)
   if (!s) return { ok: false }
   sessoes.delete(id)
+
+  const pid = s.pty?.pid
   try {
     s.pty.kill()
   } catch {
     /* já tinha morrido */
   }
+
+  if (typeof pid === 'number' && pid > 0) {
+    const golpeDeMisericordia = setTimeout(() => {
+      try {
+        process.kill(-pid, 'SIGKILL')
+      } catch {
+        /* o grupo já não existe: era o desfecho desejado */
+      }
+    }, 2000)
+    // Não segura o encerramento do app esperando esse prazo.
+    golpeDeMisericordia.unref?.()
+  }
+
   return { ok: true }
 }
 
