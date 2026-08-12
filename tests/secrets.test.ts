@@ -16,7 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { procurarSegredos } from '../electron/secrets.js'
+import { deveIgnorarCaminho, procurarNoTexto, procurarSegredos } from '../electron/secrets.js'
 
 const execFile = promisify(_execFile)
 
@@ -238,6 +238,53 @@ describe('procurarSegredos — o que NÃO é varrido', () => {
       ignorados: 0,
       truncado: false,
     })
+  })
+})
+
+/**
+ * Falsos positivos que o WTF fabricava sozinho.
+ *
+ * Num projeto real, 6 dos 9 achados não eram problema nenhum: 4 eram cópias que
+ * o PRÓPRIO instalador do WTF tinha deixado no disco, e 2 eram a linha de
+ * exemplo do cabeçalho de um script — apontada logo depois de a IA ter tirado
+ * dali a chave de verdade. Um painel que fabrica os próprios alertas é um
+ * painel em que não se pode confiar.
+ */
+describe('o que o WTF não pode acusar', () => {
+  it('não abre os backups que o próprio instalador deixou', () => {
+    // O original continua sendo varrido: nada foi escondido, só a duplicata.
+    expect(deveIgnorarCaminho('.claude/settings.local.json')).toBe(false)
+    expect(
+      deveIgnorarCaminho('.claude/settings.local.json.wtf-backup-2026-08-12T15-40-42-702Z'),
+    ).toBe(true)
+  })
+
+  it('e o conteúdo do original continua sendo acusado', () => {
+    // A forma real: um comando com a senha embutida, dentro do settings.
+    const linha = '"Bash(PGPASSWORD=S3nh4Sup3rSecret4Longa psql -h db)"'
+    expect(procurarNoTexto('.claude/settings.local.json', linha).length).toBeGreaterThan(0)
+  })
+
+  it('não acusa placeholder com "xxx" — a linha de exemplo de um script', () => {
+    const linha = ' *   SUPABASE_SECRET=sb_secret_xxx node scripts/importar.mjs'
+    expect(procurarNoTexto('scripts/importar.mjs', linha)).toHaveLength(0)
+  })
+
+  it('não acusa placeholder que começa com "sua_" / "your_"', () => {
+    expect(
+      procurarNoTexto('scripts/x.mjs', 'console.error("defina SUPABASE_SECRET=sua_service_key")'),
+    ).toHaveLength(0)
+    expect(procurarNoTexto('scripts/x.mjs', 'const apiKey = "your_api_key_here"')).toHaveLength(0)
+  })
+
+  it('mas continua acusando o valor de verdade no mesmo formato', () => {
+    const real = 'const SUPABASE_SECRET = "sb_secret_LqxAZduTqckijskxzS2lNQ_7w5vz"'
+    expect(procurarNoTexto('scripts/importar.mjs', real).length).toBeGreaterThan(0)
+  })
+
+  it('um "x" solto no meio de uma chave real não a transforma em exemplo', () => {
+    const real = 'PGPASSWORD=Axx9Kd82LmQ7ZrT4Wbn1'
+    expect(procurarNoTexto('.env.local', real).length).toBeGreaterThan(0)
   })
 })
 

@@ -115,6 +115,9 @@ function ehArquivoDeFrente(rel) {
 function deveIgnorarCaminho(rel) {
   const partes = rel.split('/')
   if (partes.some((p) => PASTAS_IGNORADAS.includes(p))) return true
+  // O instalador do WTF deixa backups datados; acusar a própria cópia
+  // duplicaria o aviso do arquivo original, que continua sendo varrido.
+  if (/\.wtf-backup-/.test(path.basename(rel))) return true
   if (ehTeste(rel)) return true
   if (ehDadoDeMentira(rel)) return true
   if (!ehArquivoDeFrente(rel)) return true

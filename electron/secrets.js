@@ -163,6 +163,21 @@ const PLACEHOLDER_FROUXO = [
   /example/i, /exemplo/i, /dummy/i, /placeholder/i, /sample/i, /fake/i,
   /test(e)?[-_]?(key|token|value)/i,
   /here$/i, /aqui$/i, /todo/i, /xxxx/i, /abc123/i, /1234567/,
+  /*
+   * Três ou mais `x` como pedaço do valor: `sb_secret_xxx`, `wvspd_xxx`.
+   *
+   * É a forma que quase toda documentação usa para dizer "ponha a sua chave
+   * aqui, com este prefixo". Sem isto, o WTF apontava a LINHA DE EXEMPLO do
+   * cabeçalho de um script — logo depois de a IA ter tirado a chave de verdade
+   * dali. Acusar o exemplo de uso é o tipo de aviso que ensina a ignorar avisos.
+   */
+  /(^|[^a-z0-9])x{3,}([^a-z0-9]|$)/i,
+  /*
+   * Valor que COMEÇA com "sua_", "seu_", "your_", "my_": `sua_service_key`.
+   * A regra vizinha já pegava "sua_chave" e "your_key", mas exigia a palavra
+   * exata em seguida — e ninguém escreve o placeholder pensando nessa lista.
+   */
+  /^(sua|seu|your|my|minha|meu|nossa|nosso)[-_]/i,
   /process\.env/i, /os\.getenv/i, /import\.meta\.env/i, /\{\{/, /%[A-Z_]+%/,
   /redacted/i, /hidden/i, /masked/i, /\.\.\./, /^[a-z]+$/,
 ]
@@ -178,6 +193,24 @@ function ehPlaceholderGenerico(valor) {
   const v = String(valor).trim()
   if (ehPlaceholder(v)) return true
   return PLACEHOLDER_FROUXO.some((re) => re.test(v))
+}
+
+/**
+ * Cópias que o PRÓPRIO WTF deixou para trás.
+ *
+ * O instalador faz backup datado de todo arquivo que sobrescreve — e um deles
+ * é `.claude/settings.local.json`, que costuma ter senha de banco dentro. O
+ * resultado era o painel acusando o lixo dele mesmo: quatro dos nove achados
+ * num projeto real eram backups nossos, e cada clique em "aplicar a novidade"
+ * criava mais um arquivo e mais dois avisos. Um painel que fabrica os próprios
+ * alertas é um painel em que não se pode confiar.
+ *
+ * Isto NÃO esconde nada: o backup é cópia de um arquivo que continua sendo
+ * varrido. Se há uma senha no `settings.local.json`, ela aparece pelo original.
+ * O que sai da lista é a duplicata — e só ela.
+ */
+function ehBackupDoWtf(rel) {
+  return /\.wtf-backup-/.test(path.basename(rel))
 }
 
 /** `.env.example`, `.env.sample`, `config.template.json`: arquivos de molde. */
@@ -215,11 +248,13 @@ function mascarar(valor) {
   return `${inicio}${meio}${fim}`
 }
 
-function deveIgnorarCaminho(rel) {
+/** Exportada para teste: é ela que decide o que a varredura nem abre. */
+export function deveIgnorarCaminho(rel) {
   const partes = rel.split('/')
   if (partes.some((p) => PASTAS_IGNORADAS.includes(p))) return true
   if (ARQUIVOS_IGNORADOS.has(path.basename(rel))) return true
   if (BINARIOS.has(path.extname(rel).toLowerCase())) return true
+  if (ehBackupDoWtf(rel)) return true
   return false
 }
 
