@@ -195,6 +195,13 @@ function detectarAtencao(commit) {
   const avisos = []
   const caminhos = commit.files.map((f) => f.path)
 
+  /*
+   * Esta regra fala do PASSADO: um `.env` que já entrou num commit. O aviso
+   * útil — a chave que ainda dá para tirar antes de virar histórico — mora
+   * agora em `secrets.js`, que procura o segredo em si (formato, valor,
+   * placeholder) nos arquivos ainda não commitados, em vez de adivinhar pelo
+   * nome do arquivo. Aqui ficou só o registro do fato consumado.
+   */
   if (caminhos.some((p) => /^\.env($|\.)/.test(p) && !/\.example$/.test(p))) {
     avisos.push('Um arquivo de senhas/chaves (.env) entrou no repositório. Isso normalmente não deveria acontecer.')
   }

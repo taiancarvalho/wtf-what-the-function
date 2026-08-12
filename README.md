@@ -142,6 +142,17 @@ custa uma conta paga de desenvolvedor — e a decisão foi não fazer por ora.
 
 Para mexer no código do próprio WTF: `npm run dev` (recarrega ao salvar).
 
+## O que este produto NÃO promete
+
+**Não dizemos que seu software está seguro, nem que está em conformidade com a
+LGPD.** Isso não é modéstia: é que ninguém consegue afirmar isso olhando um
+repositório, e um "está tudo certo" falso é pior que silêncio — ele produz
+exatamente a confiança cega que este produto existe para desfazer.
+
+O que existe é específico e verificável: um aviso quando uma chave ou senha
+está prestes a entrar no histórico do projeto. Ele evita um desastre concreto,
+e não promete nenhum outro.
+
 ## Estado atual
 
 Funciona de ponta a ponta contra repositórios reais. Ainda não existe:
@@ -150,8 +161,6 @@ Funciona de ponta a ponta contra repositórios reais. Ainda não existe:
   que cobra prova não tem prova nenhuma de si mesmo. É o próximo da fila.
 - **Knowledge Map** — o `MAPA.md` resolve "onde as coisas moram"; falta
   resolver "qual destes sete documentos é o atual"
-- **Guard** — a camada de segurança/LGPD como recurso próprio (hoje o modelo
-  sinaliza risco junto com a tradução, e funciona melhor que o previsto)
 - **Notificações do sistema** — com o app fechado, você não sabe que algo pede
   decisão
 - **Vários projetos ao mesmo tempo** — hoje é um por vez

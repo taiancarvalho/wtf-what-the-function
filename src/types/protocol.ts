@@ -539,6 +539,42 @@ export interface DesdeUltimaVisita {
   pedemDecisao: number
 }
 
+/**
+ * Uma chave ou senha encontrada em arquivo que AINDA NÃO está no histórico.
+ *
+ * `trecho` nunca contém o segredo inteiro: no máximo 4 caracteres do começo e
+ * 2 do fim, o resto mascarado. Mostrar a chave na tela seria um segundo
+ * vazamento — screenshot, gravação, print de suporte.
+ */
+export interface AchadoSegredo {
+  /** Caminho relativo à raiz do projeto. */
+  arquivo: string
+  /** Linha (base 1). */
+  linha: number
+  /** Família do padrão: 'aws', 'anthropic', 'generico', 'url-com-senha'… */
+  tipo: string
+  /** Rótulo humano, sem jargão. */
+  rotulo: string
+  /** O valor MASCARADO. Nunca o segredo. */
+  trecho: string
+  /**
+   * 'alta' = formato conhecido de provedor (AKIA…, sk-ant-…, chave privada).
+   * 'media' = padrão genérico (`senha=algo`), que erra mais.
+   */
+  confianca: 'alta' | 'media'
+}
+
+/** Resultado da varredura do caça-segredos. */
+export interface Segredos {
+  achados: AchadoSegredo[]
+  /** Arquivos efetivamente lidos. */
+  varridos: number
+  /** Pulados: binários, grandes demais, gerados, ilegíveis. */
+  ignorados: number
+  /** Bateu no teto de arquivos ou de bytes; a varredura parou antes do fim. */
+  truncado: boolean
+}
+
 export interface ProjectSnapshot {
   project: Project
   features: Feature[]
@@ -555,6 +591,11 @@ export interface ProjectSnapshot {
   historico?: Historico
   /** O que aconteceu desde a última vez que a pessoa olhou. */
   desdeUltimaVisita?: DesdeUltimaVisita
+  /**
+   * Chaves e senhas prestes a entrar no histórico. Só arquivos não commitados:
+   * é a única janela em que o aviso ainda muda o desfecho.
+   */
+  segredos?: Segredos
 }
 
 // ------------------------------------------- o que a instalação vai escrever

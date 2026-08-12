@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { RefreshCw, SquareTerminal } from 'lucide-react'
+import { RefreshCw, Share2, SquareTerminal } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { abrirTerminal, podeAbrirTerminal } from '@/lib/source'
+import { Compartilhar } from '@/components/Compartilhar'
 
 /**
  * Ações da janela, no canto superior direito.
@@ -22,6 +23,7 @@ export function BarraTopo({
   const t = useT()
   const [aviso, setAviso] = useState<string | null>(null)
   const [agora, setAgora] = useState(Date.now())
+  const [compartilhando, setCompartilhando] = useState(false)
 
   // relógio só para o "há X" não congelar
   useEffect(() => {
@@ -77,6 +79,14 @@ export function BarraTopo({
         />
       </Botao>
 
+      <Botao
+        titulo={t('compartilhar.titulo')}
+        onClick={() => setCompartilhando((v) => !v)}
+        aria-label={t('compartilhar.abrir')}
+      >
+        <Share2 size={14.5} strokeWidth={2} />
+      </Botao>
+
       {podeAbrirTerminal() && (
         <Botao
           titulo={t('topo.trabalharDica')}
@@ -87,6 +97,8 @@ export function BarraTopo({
           <span className="text-[12.5px] font-medium">{t('topo.trabalhar')}</span>
         </Botao>
       )}
+
+      {compartilhando && <Compartilhar onFechar={() => setCompartilhando(false)} />}
     </div>
   )
 }

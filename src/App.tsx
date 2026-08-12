@@ -7,6 +7,7 @@ import {
   Library,
   ListChecks,
   Newspaper,
+  Search,
   Settings2,
   TrendingUp,
 } from 'lucide-react'
@@ -20,6 +21,7 @@ import {
 } from '@/lib/source'
 import { InstalarSkill } from '@/components/InstalarSkill'
 import { SeletorProjeto } from '@/components/SeletorProjeto'
+import { Busca } from '@/components/Busca'
 import { IdiomaContext, useT, type Idioma } from '@/lib/i18n'
 import { BarraTopo } from '@/components/BarraTopo'
 import { BuildMap } from '@/views/BuildMap'
@@ -92,6 +94,7 @@ function AvisoErro({ erro }: { erro: string }) {
 export function App() {
   const [carga, setCarga] = useState<Carga | null>(null)
   const [aba, setAba] = useState<Aba>('home')
+  const [buscando, setBuscando] = useState(false)
   const [atualizando, setAtualizando] = useState(false)
   const [atualizadoEm, setAtualizadoEm] = useState(() => Date.now())
 
@@ -170,6 +173,18 @@ export function App() {
     [],
   )
 
+  // ⌘K / Ctrl+K: o atalho que todo mundo tenta antes de procurar um botão.
+  useEffect(() => {
+    function tecla(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setBuscando((v) => !v)
+      }
+    }
+    document.addEventListener('keydown', tecla)
+    return () => document.removeEventListener('keydown', tecla)
+  }, [])
+
   if (!carga) return <div className="drag h-full" />
 
   const { snapshot } = carga
@@ -202,6 +217,8 @@ export function App() {
         atualizar={atualizar}
         trocarProjeto={trocarProjeto}
         trocarIdioma={trocarIdioma}
+        buscando={buscando}
+        setBuscando={setBuscando}
       />
     </IdiomaContext.Provider>
   )
@@ -218,6 +235,8 @@ function Painel({
   atualizar,
   trocarProjeto,
   trocarIdioma,
+  buscando,
+  setBuscando,
 }: {
   aba: Aba
   setAba: (a: Aba) => void
@@ -228,6 +247,8 @@ function Painel({
   atualizar: (forcado?: boolean) => void
   trocarProjeto: () => void
   trocarIdioma: (parcial: Parameters<typeof salvarConfig>[0]) => Promise<void>
+  buscando: boolean
+  setBuscando: (v: boolean) => void
 }) {
   const t = useT()
   const { snapshot, fonte, erro } = carga
@@ -286,6 +307,19 @@ function Painel({
         </div>
 
         <nav className="no-drag flex flex-col gap-0.5 px-3">
+          {/* Discreto: quem já sabe usa ⌘K; quem não sabe descobre por aqui. */}
+          <button
+            onClick={() => setBuscando(true)}
+            className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-left text-[var(--color-ink-2)] transition-colors"
+          >
+            <Search size={15} className="shrink-0" strokeWidth={1.9} />
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span className="text-[13.5px] leading-tight">{t('busca.abrir')}</span>
+              <span className="shrink-0 font-mono text-[10.5px] text-[var(--color-ink-3)]">
+                {t('busca.atalho')}
+              </span>
+            </span>
+          </button>
           {ABAS.map(({ id, label, icone: Icone, nota }) => {
             const ativa = aba === id
             return (
@@ -370,6 +404,13 @@ function Painel({
           )}
         </div>
       </main>
+
+      <Busca
+        snapshot={snapshot}
+        aberta={buscando}
+        onFechar={() => setBuscando(false)}
+        onIr={setAba}
+      />
     </div>
   )
 }

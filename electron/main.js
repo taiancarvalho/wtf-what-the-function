@@ -37,6 +37,7 @@ import { MODELO_PADRAO, perguntar } from './ask.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import { lerArquivo } from './reader.js'
+import { procurarSegredos } from './secrets.js'
 import { contarPendentes, traducaoAutorizada, traduzirEventos } from './translator.js'
 import { lerUso } from './usage.js'
 import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
@@ -214,6 +215,13 @@ async function lerProjeto(dir) {
   // O consumo viaja junto: a pessoa precisa poder ver, a qualquer momento,
   // quanto do recurso dela o app usou — e quanto ele economizou com o cache.
   snapshot.uso = await lerUso(dir)
+
+  /*
+   * O caça-segredos. Barato: só lê o que ainda NÃO está no histórico —
+   * tipicamente meia dúzia de arquivos não salvos. E é o único momento em que
+   * o aviso serve para alguma coisa: depois do commit, a chave já vazou.
+   */
+  snapshot.segredos = await procurarSegredos(dir)
 
   /*
    * O passado do projeto — SEMPRE do cache, nunca calculado aqui.
