@@ -7,9 +7,12 @@ import {
   Files,
   FolderTree,
   LayoutList,
+  History,
   RotateCcw,
   Sparkles,
 } from 'lucide-react'
+import { RevalidarChip } from '@/components/StateMark'
+import { alternarValidado, podeValidar } from '@/lib/source'
 import { STATE, STATE_ORDER, stateProgress } from '@/lib/state'
 import { diaRelativo, plural } from '@/lib/format'
 import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
@@ -122,10 +125,12 @@ function Linha({
   feature,
   aberta,
   onToggle,
+  onAprovar,
 }: {
   feature: Feature
   aberta: boolean
   onToggle: () => void
+  onAprovar: () => void
 }) {
   const meta = STATE[feature.state]
   const atencao =
@@ -134,8 +139,12 @@ function Linha({
       : null
   const corAtencao =
     atencao === 'critical' ? 'var(--color-danger)' : 'var(--color-warn)'
+  const validada = feature.state === 'validated'
   const conferivel =
-    feature.state === 'implemented' || feature.state === 'tested'
+    podeValidar() &&
+    (validada ||
+      feature.state === 'implemented' ||
+      feature.state === 'tested')
 
   return (
     <li
@@ -203,6 +212,20 @@ function Linha({
               : null}
           </span>
         )}
+        {feature.revalidar && (
+          <span
+            className="shrink-0"
+            style={{ color: 'var(--color-warn)' }}
+            aria-label="Mudou depois que você aprovou"
+            title={
+              feature.validadoEm
+                ? `Você tinha aprovado em ${new Date(feature.validadoEm).toLocaleString('pt-BR')}. Depois disso esta parte mudou.`
+                : 'Esta parte mudou depois que você aprovou.'
+            }
+          >
+            <History size={11} strokeWidth={2} aria-hidden />
+          </span>
+        )}
         {atencao && (
           <AlertTriangle
             size={11}
@@ -233,11 +256,16 @@ function Linha({
               onClick={(e) => {
                 // Aprovar não pode abrir/fechar a linha.
                 e.stopPropagation()
-                console.log('conferir e aprovar', feature.id)
+                onAprovar()
               }}
-              title="Conferir e aprovar"
-              aria-label="Conferir e aprovar"
-              className="no-drag rounded-full border border-[var(--color-rule)] px-1.5 py-[1px] text-[10.5px] text-[var(--color-ink-2)] opacity-60 transition group-hover:opacity-100 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              title={validada ? 'Desfazer aprovação' : 'Conferir e aprovar'}
+              aria-label={validada ? 'Desfazer aprovação' : 'Conferir e aprovar'}
+              className="no-drag rounded-full border px-1.5 py-[1px] text-[10.5px] transition group-hover:opacity-100 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              style={
+                validada
+                  ? { borderColor: 'var(--color-validated)', color: 'var(--color-validated)' }
+                  : { borderColor: 'var(--color-rule)', color: 'var(--color-ink-2)', opacity: 0.6 }
+              }
             >
               ✓✓
             </button>
@@ -257,6 +285,12 @@ function Linha({
             {' — '}
             {meta.meaning}
           </p>
+
+          {feature.revalidar && (
+            <p className="mt-2">
+              <RevalidarChip desde={feature.validadoEm} />
+            </p>
+          )}
 
           {feature.working && feature.workingClaim && (
             <p
@@ -323,7 +357,13 @@ function Linha({
 
 // -------------------------------------------------------------- componente
 
-export function BuildMap({ snapshot }: { snapshot: ProjectSnapshot }) {
+export function BuildMap({
+  snapshot,
+  onMudou,
+}: {
+  snapshot: ProjectSnapshot
+  onMudou?: () => void
+}) {
   const { features } = snapshot
   const [abertas, setAbertas] = useState<Set<string>>(new Set())
   const [estadosOcultos, setEstadosOcultos] = useState<Set<FeatureState>>(
@@ -581,6 +621,9 @@ export function BuildMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                     feature={f}
                     aberta={abertas.has(f.id)}
                     onToggle={() => alternarAberta(f.id)}
+                    onAprovar={() => {
+                      void alternarValidado(f.id).then(() => onMudou?.())
+                    }}
                   />
                 ))}
               </ul>

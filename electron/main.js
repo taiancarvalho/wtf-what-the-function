@@ -18,6 +18,12 @@ import { abrirTerminal } from './terminal.js'
 import { lerArquivo } from './reader.js'
 import { traduzirEventos } from './translator.js'
 import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
+import {
+  alternarValidado,
+  aplicarValidados,
+  assinaturaDe,
+  lerValidados,
+} from './validated.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_URL = 'http://localhost:5273'
@@ -115,6 +121,7 @@ async function lerProjeto(dir) {
   // Por último: o que a PESSOA marcou como resolvido à mão. Vem depois de tudo
   // porque é a palavra final — nem o Git nem a IA desfazem essa decisão.
   aplicarResolvidos(snapshot, await lerResolvidos(dir))
+  aplicarValidados(snapshot, await lerValidados(dir))
 
   snapshot.instalacao = await estadoInstalacao(dir)
   return snapshot
@@ -208,6 +215,45 @@ ipcMain.handle('wtf:resolver', async (_e, eventId) => {
   try {
     const { resolvido } = await alternarResolvido(projetoAtual, eventId)
     return { resolvido, snapshot: await lerProjeto(projetoAtual) }
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/**
+ * Aprova (ou desfaz a aprovação de) uma parte do projeto. A assinatura é
+ * calculada AQUI, a partir do snapshot atual: é o retrato do que a pessoa está
+ * vendo na hora em que ela clica. Escreve só em `.wtf/validated.json`.
+ */
+ipcMain.handle('wtf:validar', async (_e, featureId) => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  if (typeof featureId !== 'string' || !featureId) return { erro: 'Parte inválida.' }
+  try {
+    const atual = await lerProjeto(projetoAtual)
+    const feature = atual?.features?.find((f) => f.id === featureId)
+    if (!feature) return { erro: 'Essa parte não existe mais no projeto.' }
+
+    /*
+     * Só se aprova o que já existe.
+     *
+     * Aprovar algo ainda não construído transformaria o ✓✓ numa lista de
+     * desejos — e ele é o oposto disso: é o único estado do painel que nasce
+     * de alguém ter olhado com os próprios olhos. Barrado aqui, e não só na
+     * hora de exibir, para não deixar registro de aprovação que nunca houve.
+     */
+    // `validated` e `revalidar` entram na lista porque desfazer uma aprovação
+    // (ou reaprovar algo que mudou) precisa continuar funcionando.
+    const podeAprovar =
+      feature.state === 'implemented' ||
+      feature.state === 'tested' ||
+      feature.state === 'validated' ||
+      feature.revalidar
+    if (!podeAprovar) {
+      return { erro: 'Só dá para aprovar uma parte depois que ela existe.' }
+    }
+
+    const { validado } = await alternarValidado(projetoAtual, featureId, assinaturaDe(feature))
+    return { validado, snapshot: await lerProjeto(projetoAtual) }
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }
   }

@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('wtf', {
   mapear: () => ipcRenderer.invoke('wtf:mapear'),
   /** Marca/desmarca um aviso como resolvido pela pessoa (persiste em disco). */
   resolver: (eventId) => ipcRenderer.invoke('wtf:resolver', eventId),
+  /** Aprova/desfaz a aprovação de uma parte do projeto (persiste em disco). */
+  validar: (featureId) => ipcRenderer.invoke('wtf:validar', featureId),
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
   /**

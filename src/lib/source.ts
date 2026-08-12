@@ -19,6 +19,7 @@ interface PonteWtf {
   mapear?: () => Promise<unknown>
   lerArquivo?: (relativo: string) => Promise<unknown>
   resolver?: (eventId: string) => Promise<unknown>
+  validar?: (featureId: string) => Promise<unknown>
   aoMudarProjeto?: (cb: (motivo: string) => void) => () => void
 }
 
@@ -101,6 +102,20 @@ export async function alternarResolvido(eventId: string): Promise<Carga | null> 
   const p = ponte()
   if (!p?.resolver) return null
   const r = (await p.resolver(eventId)) as { snapshot?: unknown; erro?: string }
+  if (ehSnapshot(r?.snapshot)) return { snapshot: r.snapshot, fonte: 'real' }
+  return null
+}
+
+export const podeValidar = () => typeof ponte()?.validar === 'function'
+
+/**
+ * A pessoa aprova (ou desfaz a aprovação de) uma parte do projeto. Devolve a
+ * carga já atualizada, para o painel refletir a mudança na hora.
+ */
+export async function alternarValidado(featureId: string): Promise<Carga | null> {
+  const p = ponte()
+  if (!p?.validar) return null
+  const r = (await p.validar(featureId)) as { snapshot?: unknown; erro?: string }
   if (ehSnapshot(r?.snapshot)) return { snapshot: r.snapshot, fonte: 'real' }
   return null
 }

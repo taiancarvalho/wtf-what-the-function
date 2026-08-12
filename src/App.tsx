@@ -256,7 +256,9 @@ export function App() {
           {aba === 'timeline' && (
             <Timeline snapshot={snapshot} onMudou={() => atualizar(true)} />
           )}
-          {aba === 'build' && <BuildMap snapshot={snapshot} />}
+          {aba === 'build' && (
+            <BuildMap snapshot={snapshot} onMudou={() => atualizar(true)} />
+          )}
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
         </div>
       </main>

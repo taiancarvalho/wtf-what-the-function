@@ -5,13 +5,14 @@ import {
   ArrowUpRight,
   Clock3,
   CloudOff,
+  History,
   Files,
   RotateCcw,
   Sparkles,
   X,
 } from 'lucide-react'
 import { STATE, STATE_ORDER } from '@/lib/state'
-import { UnsavedChip } from '@/components/StateMark'
+import { RevalidarChip, UnsavedChip } from '@/components/StateMark'
 import { diaRelativo, horaDe, plural } from '@/lib/format'
 import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
 
@@ -331,6 +332,19 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                               aria-label="ainda não salvo"
                             />
                           )}
+                          {f.revalidar && (
+                            <span
+                              className="shrink-0 text-[var(--color-warn)]"
+                              aria-label="Mudou depois que você aprovou"
+                              title={
+                                f.validadoEm
+                                  ? `Você tinha aprovado em ${new Date(f.validadoEm).toLocaleString('pt-BR')}. Depois disso esta parte mudou.`
+                                  : 'Esta parte mudou depois que você aprovou.'
+                              }
+                            >
+                              <History size={10} aria-hidden />
+                            </span>
+                          )}
                           {alerta(f) && (
                             <AlertTriangle
                               size={10}
@@ -407,6 +421,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                   {STATE[aberta.state].label}
                 </span>
                 {aberta.unsaved && <UnsavedChip quantos={aberta.unsavedCount} />}
+                {aberta.revalidar && <RevalidarChip desde={aberta.validadoEm} />}
                 {alerta(aberta) && (
                   <span
                     className="inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-[11px] font-medium"

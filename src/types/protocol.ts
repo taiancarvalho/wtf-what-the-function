@@ -61,6 +61,10 @@ export interface Feature {
   unsaved?: boolean
   /** Quantos arquivos dela estão sem commit (novos ou modificados). */
   unsavedCount?: number
+  /** Esta parte mudou depois que você aprovou — a aprovação anterior caducou. */
+  revalidar?: boolean
+  /** Quando você tinha aprovado esta parte, antes de ela mudar. */
+  validadoEm?: string
 }
 
 // ----------------------------------------------------------------- atenção

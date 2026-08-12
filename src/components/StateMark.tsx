@@ -1,4 +1,4 @@
-import { CloudOff } from 'lucide-react'
+import { CloudOff, History } from 'lucide-react'
 import { STATE } from '@/lib/state'
 import type { FeatureState } from '@/types/protocol'
 
@@ -67,6 +67,31 @@ export function UnsavedChip({ quantos }: { quantos?: number }) {
     >
       <CloudOff size={11} />
       {quantos && quantos > 1 ? `${quantos} ainda não salvos` : 'ainda não salvo'}
+    </span>
+  )
+}
+
+/**
+ * A aprovação da pessoa vale para o que ela VIU. Se a IA mexeu nesta parte
+ * depois, dizer "você aprovou" seria mentira — então o selo vira um convite a
+ * olhar de novo. É o alerta mais valioso do painel.
+ */
+export function RevalidarChip({ desde }: { desde?: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
+      style={{
+        color: 'var(--color-warn)',
+        background: 'color-mix(in oklab, var(--color-warn) 12%, transparent)',
+      }}
+      title={
+        desde
+          ? `Você tinha aprovado em ${new Date(desde).toLocaleString('pt-BR')}. Depois disso esta parte mudou.`
+          : 'Esta parte mudou depois que você aprovou.'
+      }
+    >
+      <History size={11} />
+      Mudou depois que você aprovou
     </span>
   )
 }
