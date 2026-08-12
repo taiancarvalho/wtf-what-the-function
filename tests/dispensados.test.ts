@@ -42,6 +42,40 @@ describe('marcar um achado como falso alarme', () => {
     expect(out.dispensados).toHaveLength(1)
   })
 
+  /**
+   * O bug que devolvia avisos já resolvidos para a tela.
+   *
+   * Quando a impressão digital passou a ser TIPO + VALOR, os quatro
+   * `dpo@empresa.com` das quatro páginas passaram a compartilhar a mesma
+   * chave. O botão "concordo com todos" é um laço — e alternar quatro vezes é
+   * marcar, desmarcar, marcar, desmarcar. A pessoa aceitava sete avisos e seis
+   * voltavam, como se o painel tivesse ignorado a decisão dela.
+   */
+  it('aceitar vários que compartilham o mesmo valor NÃO os liga e desliga', async () => {
+    const dir = projeto()
+    const quatroPaginas = [
+      achado({ arquivo: 'src/components/legal/Rodape.tsx', linha: 18 }),
+      achado({ arquivo: 'src/pages/legal/Cookies.tsx', linha: 105 }),
+      achado({ arquivo: 'src/pages/legal/Privacidade.tsx', linha: 136 }),
+      achado({ arquivo: 'src/pages/legal/Termos.tsx', linha: 133 }),
+    ]
+
+    // Exatamente o que o botão "concordo com todos" faz.
+    for (const a of quatroPaginas) await alternarDispensado(dir, a, 'exigido por lei', 'marcar')
+
+    const out = separarDispensados({ achados: quatroPaginas }, await lerDispensados(dir))
+    expect(out.achados, 'nenhum pode voltar').toHaveLength(0)
+  })
+
+  it('marcar duas vezes o mesmo achado dá no mesmo', async () => {
+    const dir = projeto()
+    await alternarDispensado(dir, achado(), '', 'marcar')
+    const segunda = await alternarDispensado(dir, achado(), '', 'marcar')
+    expect(segunda.dispensado).toBe(true)
+    expect(segunda.jaEstava, 'a segunda vez precisa saber que não mudou nada').toBe(true)
+    expect(separarDispensados({ achados: [achado()] }, await lerDispensados(dir)).achados).toHaveLength(0)
+  })
+
   it('clicar de novo desfaz', async () => {
     const dir = projeto()
     await alternarDispensado(dir, achado())

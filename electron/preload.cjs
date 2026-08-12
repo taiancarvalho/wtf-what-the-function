@@ -65,7 +65,8 @@ contextBridge.exposeInMainWorld('wtf', {
   gerados: () => ipcRenderer.invoke('wtf:gerados'),
   apagarGerado: (chave) => ipcRenderer.invoke('wtf:apagar-gerado', chave),
   /** Marca/desmarca um achado de segurança como falso alarme. */
-  dispensarAchado: (achado, nota) => ipcRenderer.invoke('wtf:dispensar-achado', achado, nota),
+  dispensarAchado: (achado, nota, acao) =>
+    ipcRenderer.invoke('wtf:dispensar-achado', achado, nota, acao),
   recusarProposta: (arquivo, linha) => ipcRenderer.invoke('wtf:recusar-proposta', arquivo, linha),
   terminalEncerrar: (id) => ipcRenderer.invoke('wtf:terminal-encerrar', id),
   /** A saída do terminal, conforme chega. Devolve como cancelar. */

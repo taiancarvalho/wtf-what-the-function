@@ -52,7 +52,7 @@ interface PonteWtf {
   textoPedido?: (tipo: string) => Promise<string | null>
   gerados?: () => Promise<unknown>
   apagarGerado?: (chave: string) => Promise<unknown>
-  dispensarAchado?: (achado: unknown, nota?: string) => Promise<unknown>
+  dispensarAchado?: (achado: unknown, nota?: string, acao?: string) => Promise<unknown>
   recusarProposta?: (arquivo: string, linha: number) => Promise<unknown>
   aoSairDoTerminal?: (cb: (dados: SaidaTerminal) => void) => () => void
   aoTerminarTerminal?: (cb: (dados: FimTerminal) => void) => () => void
@@ -232,8 +232,13 @@ export const podeDispensar = () => typeof ponte()?.dispensarAchado === 'function
 export async function dispensarAchado(
   achado: { tipo?: string; arquivo: string; linha: number; trecho: string },
   nota?: string,
+  /**
+   * `'marcar'` para aceitar (idempotente). Sem isto, aceitar vários achados que
+   * compartilham o mesmo valor os ligava e desligava dentro do laço.
+   */
+  acao?: 'marcar' | 'alternar',
 ): Promise<{ dispensado?: boolean }> {
-  const r = await ponte()?.dispensarAchado?.(achado, nota)
+  const r = await ponte()?.dispensarAchado?.(achado, nota, acao)
   return (r as { dispensado?: boolean }) ?? {}
 }
 

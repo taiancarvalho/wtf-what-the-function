@@ -552,12 +552,14 @@ ipcMain.handle('wtf:texto-pedido', async (_e, tipo) => PEDIDOS[tipo] ?? null)
 ipcMain.handle('wtf:gerados', async () => listarGerados(projetoAtual))
 
 /** "Isso não é problema": marca (ou desmarca) um achado como falso alarme. */
-ipcMain.handle('wtf:dispensar-achado', async (_e, achado, nota) => {
-  const r = await alternarDispensado(projetoAtual, achado, nota)
+ipcMain.handle('wtf:dispensar-achado', async (_e, achado, nota, acao) => {
+  const r = await alternarDispensado(projetoAtual, achado, nota, acao)
   // Aceitar a proposta consome a proposta: ela já cumpriu o papel dela.
   if (achado?.arquivo) await removerProposta(projetoAtual, achado.arquivo, achado.linha)
   // Só o "marcar" vira história; desmarcar é correção de rota, não decisão.
-  if (r?.dispensado) {
+  // Só o "marcar" vira história — e só quando ele mudou alguma coisa: aceitar
+  // sete avisos que compartilham o mesmo valor é UMA decisão, não sete cartões.
+  if (r?.dispensado && !r.jaEstava) {
     await registrarDecisao(projetoAtual, [{ ...achado, nota: nota ?? achado?.rotulo }])
   }
   if (win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'seguranca')

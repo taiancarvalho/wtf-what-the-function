@@ -90,19 +90,39 @@ export async function lerDispensados(dir) {
   return out
 }
 
-/** Marca ou desmarca um achado como falso alarme. Só por clique explícito. */
-export async function alternarDispensado(dir, achado, nota) {
+/**
+ * Marca um achado como falso alarme, ou alterna o estado dele.
+ *
+ * ⚠️ `acao: 'marcar'` NÃO É DETALHE — é o conserto de um bug que devolvia
+ * avisos já resolvidos para a tela.
+ *
+ * Quando a impressão digital passou a ser TIPO + VALOR (para o mesmo e-mail
+ * institucional em quatro páginas ser julgado de uma vez), vários achados
+ * passaram a compartilhar a mesma chave. E o botão "concordo com todos" é um
+ * laço: para os quatro e-mails, alternar quatro vezes é marcar, desmarcar,
+ * marcar, desmarcar — a pessoa clicava em aceitar sete e seis voltavam. Pior
+ * que não funcionar: parecia que o painel tinha ignorado a decisão dela.
+ *
+ * Alternar dentro de um laço é sempre errado. Quem aceita PEDE O ESTADO FINAL,
+ * e pedir duas vezes o mesmo estado tem que dar no mesmo. A alternância
+ * continua existindo para o clique único que também serve para desfazer.
+ */
+export async function alternarDispensado(dir, achado, nota, acao = 'alternar') {
   const chave = digitalDoAchado(achado)
   if (!dir || !chave) return { dispensado: false, itens: {} }
 
   const itens = await lerDispensados(dir)
   const jaTinha = Boolean(itens[chave])
-  if (jaTinha) delete itens[chave]
-  else itens[chave] = { at: new Date().toISOString(), por: 'usuario', nota: String(nota ?? '') }
+  const tirar = jaTinha && acao !== 'marcar'
+
+  if (tirar) delete itens[chave]
+  else if (!jaTinha) {
+    itens[chave] = { at: new Date().toISOString(), por: 'usuario', nota: String(nota ?? '') }
+  }
 
   await mkdir(path.dirname(arquivoDe(dir)), { recursive: true })
   await writeFile(arquivoDe(dir), JSON.stringify({ v: 1, itens }, null, 2) + '\n', 'utf8')
-  return { dispensado: !jaTinha, itens }
+  return { dispensado: !tirar, itens, jaEstava: jaTinha }
 }
 
 const arquivoPropostas = (dir) => path.join(dir, '.wtf', 'seguranca-propostas.json')

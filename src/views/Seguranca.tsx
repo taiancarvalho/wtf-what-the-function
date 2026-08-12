@@ -78,7 +78,7 @@ export function Seguranca({
   async function aceitarTodas() {
     setAceitando(true)
     try {
-      for (const a of comProposta) await dispensarAchado(a, a.proposta?.motivo)
+      for (const a of comProposta) await dispensarAchado(a, a.proposta?.motivo, 'marcar')
       onVarrer?.()
     } finally {
       setAceitando(false)

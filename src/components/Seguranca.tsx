@@ -287,7 +287,7 @@ function PropostaDaIA({
         <button
           onClick={() => {
             setIndo(true)
-            void dispensarAchado(item.achado, item.proposta?.motivo).then(onResolveu)
+            void dispensarAchado(item.achado, item.proposta?.motivo, 'marcar').then(onResolveu)
           }}
           disabled={indo}
           className="no-drag inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium disabled:opacity-60"
@@ -335,7 +335,7 @@ function BotaoNaoEProblema({ item, onPronto }: { item: Item; onPronto: () => voi
     <button
       onClick={() => {
         setIndo(true)
-        void dispensarAchado(item.achado).then(onPronto)
+        void dispensarAchado(item.achado, item.porque, 'marcar').then(onPronto)
       }}
       disabled={indo}
       title={t('seg.naoEProblemaDica')}
