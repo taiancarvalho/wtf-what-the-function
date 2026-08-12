@@ -68,6 +68,24 @@ import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/prot
  * 16px — o mesmo valor do respiro interno dos cartões. Se o espaço DENTRO de um
  * grupo é igual ao espaço ENTRE grupos, nada agrupa. Aqui: `item` (8) entre
  * cartões irmãos, `card` (16) dentro do cartão, `group` (32) entre os dias.
+ *
+ * POR QUÊ o cartão escolhido não é mais um cartão tingido: escolha e alerta
+ * estavam disputando o mesmo canal. O cartão escolhido ganhava um campo de cor
+ * no fundo; o selo de atenção também é cor. Como o cartão que a pessoa abre é,
+ * quase sempre, justamente o que pede atenção, os dois efeitos caíam juntos e
+ * não dava para saber qual deles pintou aquele cartão.
+ *
+ * E não bastaria trocar o fundo por uma tinta neutra: um campo claro cercado
+ * por um contorno saturado é lido com a cor do contorno (é o efeito aquarela —
+ * a matiz da borda "vaza" para dentro do campo que ela fecha). Como a borda
+ * carmim do alerta continua ali — ela é o sinal mais importante da tela, e não
+ * se apaga —, qualquer preenchimento dentro dela voltaria a parecer rosado.
+ *
+ * Então a escolha saiu da cor e virou GEOMETRIA: um filete de tinta neutra na
+ * beirada DIREITA do cartão, virado para o trilho, com o filete gêmeo no topo
+ * do detalhe. Os dois se encaram através da calha e formam a ponte "este
+ * cartão alimenta aquele painel". A cor voltou a significar uma coisa só:
+ * carmim é atenção, e nada mais.
  */
 
 const ICONE: Record<EventType, typeof Hammer> = {
@@ -290,7 +308,19 @@ export function Timeline({
             <div id="trilho-detalhe" className="min-h-0 flex-1 overflow-y-auto">
               {escolhido?.aviso.human && (
                 <>
-                  <div className="p-card">
+                  {/* O cabeçalho do detalhe não tingia nada — aqui a cor já
+                      significava uma coisa só (o selo de atenção é atenção).
+                      O que faltava era o outro lado da ponte: sem marca de
+                      ancoragem, quem ligava este painel ao cartão de origem era
+                      o fundo tingido lá do feed. Este filete gêmeo encara o do
+                      cartão escolhido através da calha e faz esse trabalho sem
+                      pedir cor emprestada ao alerta. */}
+                  <div className="p-card relative">
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-0 left-0 w-[3px]"
+                      style={{ background: 'var(--color-accent)' }}
+                    />
                     <LinhaMeta
                       evento={escolhido.aviso}
                       feature={featurePorId.get(escolhido.aviso.featureId)}
@@ -655,21 +685,37 @@ function Cartao({
       </span>
 
       <article
-        className="card overflow-hidden transition-[border-color,box-shadow,background-color] duration-200"
+        className="card relative overflow-hidden transition-[border-color,box-shadow] duration-200"
         style={{
+          /* A borda e a sombra respondem SÓ ao significado. Antes elas também
+             mudavam quando o cartão era escolhido — e no cartão que pede
+             atenção a borda de escolha era sobrescrita pela de alerta, de modo
+             que sobrava o fundo tingido como única marca de escolha. Justamente
+             a marca que ninguém conseguia atribuir a uma causa. */
           borderColor: atencao
             ? 'color-mix(in oklab, var(--color-danger) 42%, transparent)'
-            : escolhido
-              ? 'color-mix(in oklab, var(--color-accent) 45%, transparent)'
-              : undefined,
-          background: escolhido
-            ? 'color-mix(in oklab, var(--color-accent) 7%, transparent)'
             : undefined,
           boxShadow: atencao
             ? '0 1px 0 0 color-mix(in oklab, var(--color-danger) 14%, transparent)'
             : undefined,
         }}
       >
+        {/* O filete de ancoragem. Fica à DIREITA, e não à esquerda, por dois
+            motivos: à esquerda ele encostaria no fio e no marcador da linha do
+            tempo e seria lido como enfeite da linha, não como escolha; à
+            direita ele aponta para o trilho, que é para onde o detalhe foi.
+            Tinta neutra (`accent` é o marrom-tinta de interação deste sistema,
+            não uma matiz de sinal) e canal próprio: forma e posição. Um
+            daltônico não precisa enxergar cor nenhuma para ver que esta barra
+            existe e as outras não. */}
+        {escolhido && (
+          <span
+            aria-hidden
+            className="absolute inset-y-0 right-0 w-[3px]"
+            style={{ background: 'var(--color-accent)' }}
+          />
+        )}
+
         <button
           onClick={onToggle}
           className="no-drag p-card block w-full text-left"
