@@ -321,12 +321,7 @@ function Cartao({
           aria-expanded={aberto}
         >
           <div className="flex items-baseline gap-2.5 text-[12px] text-[var(--color-ink-3)]">
-            <span
-              className="rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider"
-              title={t('feed.codigoDica')}
-            >
-              {codigoCurto(evento.id)}
-            </span>
+            <CodigoCopiavel codigo={codigoCurto(evento.id)} />
             <span className="font-mono tabular-nums">{horaDe(evento.at)}</span>
             {feature && (
               <>
@@ -369,7 +364,13 @@ function Cartao({
                 }}
               >
                 <AlertTriangle size={11} />
-                {/* Já houve resposta: o que falta agora é você, não a IA. */}
+                {/*
+                  A diferença que o rótulo precisa carregar: "precisa da sua
+                  atenção" é o aviso ainda aberto; "respondido — falta você
+                  decidir" é a IA tendo respondido E levantado um ponto novo.
+                  Enquanto os dois diziam a mesma coisa, trabalho feito parecia
+                  trabalho ignorado, e a pessoa concluía que o painel não viu.
+                */}
                 {assunto.aguardando ? t('feed.aguardando') : t('feed.precisaAtencao')}
               </span>
             )}
@@ -404,6 +405,42 @@ function Cartao({
  * O selo que ocupa o lugar do "Precisa da sua atenção" quando o ciclo fechou.
  * Discreto de propósito: não é uma comemoração, é só o alerta parando de cobrar.
  */
+/**
+ * O código do aviso — e o clique que faltava.
+ *
+ * Ele existe para ser CITADO: é dizendo "confere o XVFT" que a pessoa amarra o
+ * pedido a este cartão, e é citando o mesmo código que a IA fecha o ciclo. Só
+ * que o código ficava ali como enfeite, e copiá-lo exigia selecionar quatro
+ * caracteres de 10px com o mouse. Agora um clique copia.
+ *
+ * `stopPropagation` porque ele mora dentro do botão que abre o cartão: sem
+ * isso, copiar abriria e fecharia o cartão junto — dois efeitos para um clique
+ * é a definição de interface que age sozinha.
+ */
+function CodigoCopiavel({ codigo }: { codigo: string }) {
+  const t = useT()
+  const [copiado, setCopiado] = useState(false)
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        void navigator.clipboard.writeText(codigo).then(() => {
+          setCopiado(true)
+          setTimeout(() => setCopiado(false), 2000)
+        })
+      }}
+      title={t('feed.codigoDica')}
+      className="no-drag cursor-pointer rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+    >
+      {copiado ? t('feed.copiado') : codigo}
+    </span>
+  )
+}
+
 function SeloFechado({ evento }: { evento: WtfEvent }) {
   const t = useT()
   const pelaIA = !!evento.respondidoPor

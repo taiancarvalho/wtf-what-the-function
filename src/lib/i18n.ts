@@ -93,6 +93,8 @@ const pt: Dic = {
   'nav.seguranca': 'Segurança',
   'nav.seguranca.nota': 'o que ficou exposto, e as regras do que não se faz aqui',
   'seguranca.titulo': 'Segurança',
+  'seguranca.varrer': 'Varrer de novo',
+  'seguranca.varrendo': 'Varrendo…',
   'seguranca.paraQue':
     'Duas perguntas específicas, respondidas com evidência: alguma chave está prestes a entrar no histórico, e algum dado de pessoa está escrito no código que vai para o navegador. Mais as regras do que não se faz neste projeto.',
   'seguranca.nadaTitulo': 'Nada encontrado nesta varredura',
@@ -233,7 +235,9 @@ const pt: Dic = {
   'feed.pedeAtencao': '1 coisa pede sua atenção',
   'feed.filtrando': 'Mostrando só o que pede atenção',
   'feed.precisaAtencao': 'Precisa da sua atenção',
-  'feed.aguardando': 'Aguardando sua decisão',
+  'feed.aguardando': 'Respondido — falta você decidir',
+  'feed.aguardandoDica': 'A IA respondeu e deixou um ponto novo para você decidir.',
+  'feed.copiado': 'código copiado',
   'feed.respondidoIA': 'Respondido pela IA',
   'feed.resolvidoVoce': 'Você marcou como resolvido',
   'feed.respostas': '{n} respostas',
@@ -251,7 +255,7 @@ const pt: Dic = {
   'feed.vazioTitulo': 'Ainda não há nada para contar.',
   'feed.vazioTexto':
     'Este projeto ainda não tem nenhuma versão guardada. Assim que a primeira for salva — ou assim que a IA começar a trabalhar — o que acontecer aparece aqui.',
-  'feed.codigoDica': 'Código deste aviso. Use para se referir a ele quando falar com a IA.',
+  'feed.codigoDica': 'Código deste aviso. Clique para copiar e cite quando falar com a IA.',
 
   // estados
   'estado.planned': 'Planejado',
@@ -673,6 +677,8 @@ const en: Dic = {
   'nav.seguranca': 'Security',
   'nav.seguranca.nota': 'what got exposed, and the rules of what is not done here',
   'seguranca.titulo': 'Security',
+  'seguranca.varrer': 'Scan again',
+  'seguranca.varrendo': 'Scanning…',
   'seguranca.paraQue':
     'Two specific questions, answered with evidence: is a key about to enter the history, and is personal data written into code that reaches the browser. Plus the rules of what is not done in this project.',
   'seguranca.nadaTitulo': 'Nothing found in this scan',
@@ -808,7 +814,9 @@ const en: Dic = {
   'feed.pedeAtencao': '1 thing needs your attention',
   'feed.filtrando': 'Showing only what needs attention',
   'feed.precisaAtencao': 'Needs your attention',
-  'feed.aguardando': 'Waiting on your decision',
+  'feed.aguardando': 'Answered — your call now',
+  'feed.aguardandoDica': 'The AI answered and left a new point for you to decide.',
+  'feed.copiado': 'code copied',
   'feed.respondidoIA': 'Answered by the AI',
   'feed.resolvidoVoce': 'You marked it as resolved',
   'feed.respostas': '{n} replies',
@@ -826,7 +834,7 @@ const en: Dic = {
   'feed.vazioTitulo': 'Nothing to tell yet.',
   'feed.vazioTexto':
     'This project has no saved version yet. As soon as the first one is saved — or as soon as the AI starts working — whatever happens shows up here.',
-  'feed.codigoDica': 'Code for this notice. Use it to refer to it when talking to the AI.',
+  'feed.codigoDica': 'Code for this notice. Click to copy and cite it when talking to the AI.',
 
   'estado.planned': 'Planned',
   'estado.building': 'Building',
@@ -1227,6 +1235,8 @@ const es: Dic = {
   'nav.seguranca': 'Seguridad',
   'nav.seguranca.nota': 'lo que quedó expuesto, y las reglas de lo que no se hace aquí',
   'seguranca.titulo': 'Seguridad',
+  'seguranca.varrer': 'Barrer de nuevo',
+  'seguranca.varrendo': 'Barriendo…',
   'seguranca.paraQue':
     'Dos preguntas específicas, respondidas con evidencia: si alguna clave está por entrar en el historial, y si algún dato de persona está escrito en el código que llega al navegador. Más las reglas de lo que no se hace en este proyecto.',
   'seguranca.nadaTitulo': 'Nada encontrado en este barrido',
@@ -1362,7 +1372,9 @@ const es: Dic = {
   'feed.pedeAtencao': '1 cosa necesita tu atención',
   'feed.filtrando': 'Mostrando solo lo que necesita atención',
   'feed.precisaAtencao': 'Necesita tu atención',
-  'feed.aguardando': 'Esperando tu decisión',
+  'feed.aguardando': 'Respondido — falta que decidas',
+  'feed.aguardandoDica': 'La IA respondió y dejó un punto nuevo para que decidas.',
+  'feed.copiado': 'código copiado',
   'feed.respondidoIA': 'Respondido por la IA',
   'feed.resolvidoVoce': 'Lo marcaste como resuelto',
   'feed.respostas': '{n} respuestas',
@@ -1380,7 +1392,7 @@ const es: Dic = {
   'feed.vazioTitulo': 'Todavía no hay nada que contar.',
   'feed.vazioTexto':
     'Este proyecto aún no tiene ninguna versión guardada. En cuanto se guarde la primera — o en cuanto la IA empiece a trabajar — lo que ocurra aparecerá aquí.',
-  'feed.codigoDica': 'Código de este aviso. Úsalo para referirte a él cuando hables con la IA.',
+  'feed.codigoDica': 'Código de este aviso. Haz clic para copiarlo y cítalo cuando hables con la IA.',
 
   'estado.planned': 'Planificado',
   'estado.building': 'En construcción',

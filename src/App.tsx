@@ -454,7 +454,7 @@ function Painel({
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
           {aba === 'pastas' && <Pastas snapshot={snapshot} />}
           {aba === 'docs' && <Documentos snapshot={snapshot} />}
-          {aba === 'seguranca' && <Seguranca snapshot={snapshot} />}
+          {aba === 'seguranca' && <Seguranca snapshot={snapshot} onVarrer={() => atualizar(true)} />}
           {aba === 'config' && (
             <Configuracoes
               snapshot={snapshot}

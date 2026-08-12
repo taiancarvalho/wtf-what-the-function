@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Eye, KeyRound, Loader2, ScrollText, ShieldCheck } from 'lucide-react'
+import { Check, Eye, KeyRound, Loader2, RefreshCw, ScrollText, ShieldCheck } from 'lucide-react'
 import { Seguranca as Achados } from '@/components/Seguranca'
 import { lerArquivo, pedirGuardrails, podeTerminalEmbutido } from '@/lib/source'
 import { ApagarGerado } from '@/components/ApagarGerado'
@@ -19,8 +19,28 @@ import type { ProjectSnapshot } from '@/types/protocol'
  * procurado, o que foi encontrado e o que ficou de fora. A frase "está tudo
  * seguro" é exatamente a confiança cega que este produto existe para desfazer.
  */
-export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
+export function Seguranca({
+  snapshot,
+  onVarrer,
+}: {
+  snapshot: ProjectSnapshot
+  /** Relê o projeto — é a releitura que roda a varredura de novo. */
+  onVarrer?: () => void
+}) {
   const t = useT()
+  const [varrendo, setVarrendo] = useState(false)
+
+  /*
+   * A varredura roda a cada leitura do projeto, não guarda resultado em cache.
+   * Então "varrer de novo" é simplesmente reler — e a espera curta existe para
+   * o clique ter resposta visível: sem ela, um resultado idêntico ao anterior
+   * parece um botão que não fez nada.
+   */
+  function varrer() {
+    setVarrendo(true)
+    onVarrer?.()
+    setTimeout(() => setVarrendo(false), 900)
+  }
 
   const segredos = snapshot.segredos
   const expostos = snapshot.expostos
@@ -38,6 +58,18 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
           <p className="mt-2 max-w-[62ch] text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
             {t('seguranca.paraQue')}
           </p>
+
+          {onVarrer && (
+            <button
+              onClick={varrer}
+              disabled={varrendo}
+              className="no-drag mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-60"
+              style={{ borderColor: 'var(--color-rule)' }}
+            >
+              <RefreshCw size={13} className={varrendo ? 'animate-spin' : undefined} />
+              {varrendo ? t('seguranca.varrendo') : t('seguranca.varrer')}
+            </button>
+          )}
         </header>
 
         {/*
