@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('wtf', {
   abrirTerminal: (mensagem) => ipcRenderer.invoke('wtf:abrir-terminal', mensagem),
   /** Abre o agente já pedindo o mapeamento do projeto (onboarding). */
   mapear: () => ipcRenderer.invoke('wtf:mapear'),
+  /** Abre o agente pedindo o MAPA.md das pastas (para que serve cada uma). */
+  mapearPastas: () => ipcRenderer.invoke('wtf:mapear-pastas'),
   /** Marca/desmarca um aviso como resolvido pela pessoa (persiste em disco). */
   resolver: (eventId) => ipcRenderer.invoke('wtf:resolver', eventId),
   /** Aprova/desfaz a aprovação de uma parte do projeto (persiste em disco). */

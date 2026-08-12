@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Blocks, FlaskConical, FolderSearch, House, ListChecks, Newspaper } from 'lucide-react'
+import {
+  Blocks,
+  FlaskConical,
+  FolderSearch,
+  FolderTree,
+  House,
+  ListChecks,
+  Newspaper,
+} from 'lucide-react'
 import {
   aoMudarProjeto,
   carregar,
@@ -17,15 +25,17 @@ import { BuildMap } from '@/views/BuildMap'
 import { ProductMap } from '@/views/ProductMap'
 import { Timeline } from '@/views/Timeline'
 import { Home } from '@/views/Home'
+import { Pastas } from '@/views/Pastas'
 import { AGENT_LABEL } from '@/lib/state'
 
-type Aba = 'home' | 'timeline' | 'build' | 'mapa'
+type Aba = 'home' | 'timeline' | 'build' | 'mapa' | 'pastas'
 
 const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] = [
   { id: 'home', label: 'nav.home', icone: House, nota: 'nav.home.nota' },
   { id: 'timeline', label: 'nav.acontecendo', icone: Newspaper, nota: 'nav.acontecendo.nota' },
   { id: 'build', label: 'nav.progresso', icone: ListChecks, nota: 'nav.progresso.nota' },
   { id: 'mapa', label: 'nav.mapa', icone: Blocks, nota: 'nav.mapa.nota' },
+  { id: 'pastas', label: 'nav.pastas', icone: FolderTree, nota: 'nav.pastas.nota' },
 ]
 
 /**
@@ -325,6 +335,7 @@ function Painel({
             <BuildMap snapshot={snapshot} onMudou={() => atualizar(true)} />
           )}
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
+          {aba === 'pastas' && <Pastas snapshot={snapshot} />}
         </div>
       </main>
     </div>

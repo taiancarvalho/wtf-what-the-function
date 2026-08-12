@@ -45,23 +45,55 @@ que é exatamente aquilo de que o dono do projeto precisa ser protegido.
 
 A distância entre **Pronto** e **Você aprovou** é o produto.
 
-## As três telas
+## As telas
 
+- **Início** — a fila de urgência: o que depende de você, o que pode ser
+  perdido, o que mudou depois que você aprovou, o que está acontecendo agora.
+  Bloco sem conteúdo some; quando não há nada pendente, ela diz isso.
 - **Acontecendo** — o feed do seu software, em quatro níveis de profundidade:
   manchete → detalhes → técnico → código. O técnico está sempre um clique
-  abaixo, nunca na superfície.
-- **Progresso** — onde estamos na construção, por área, com filtros.
+  abaixo, nunca na superfície. Um aviso e suas respostas são **um assunto só**.
+- **Progresso** — um quadro de cinco colunas, uma por estado. Ninguém arrasta
+  card, e isso é a decisão: num quadro comum a posição é opinião de quem moveu
+  e vira mentira quando alguém esquece. Aqui a coluna é derivada de evidência,
+  e o card desliza sozinho quando o código prova que andou.
 - **Mapa** — do que o software é feito, em blocos por área. Não é um grafo:
   grafo vira espaguete e é ilegível para quem o produto atende.
+- **Pastas** — para que serve cada pasta do repositório, em árvore. Serve para
+  a IA saber onde guardar cada coisa, e para você entender a organização.
+
+### Perguntar sobre uma mudança
+
+Cada mudança tem um código curto (`W34K`) e um botão de lâmpada: você pergunta
+em linguagem natural e a resposta chega numa barra lateral, sem sair do painel.
+A chave de acesso fica cifrada no cofre do sistema operacional, **nunca** dentro
+da pasta do projeto — `.wtf/` vai para backup e aparece em compartilhamento de
+tela. Sem cofre disponível, o app se recusa a gravar e mantém só em memória.
+
+### Idiomas
+
+Interface em português, inglês e espanhol. O idioma em que a **IA escreve** é
+uma configuração separada e aceita qualquer língua — dá para ter o app em
+inglês e as explicações em chinês. Trocar reescreve a instrução dentro da skill
+instalada, então o agente obedece sem que ninguém peça.
 
 ## Como funciona por dentro
 
 ```
 git log + git ls-files      →  o que existe e o que está provado
+git status                  →  o que existe mas ainda não foi salvo
 .wtf/map.json               →  o vocabulário (escrito pela IA no onboarding)
 .wtf/events.jsonl           →  o que a IA declarou (skill + hook)
-.wtf/translations.json      →  cache das traduções
+.wtf/translations.json      →  cache das traduções, por idioma
+.wtf/validated.json         →  o que você aprovou, e com qual conteúdo
+.wtf/resolved.json          →  os avisos que você encerrou
+.wtf/config.json            →  idioma e preferências
+MAPA.md                     →  para que serve cada pasta
 ```
+
+O painel enxerga o **disco**, não só o histórico: quem faz vibe coding passa
+horas sem salvar, e é justamente aí que abre o painel. Trabalho não salvo
+aparece marcado como tal, porque pode ser perdido.
 
 O WTF só **lê** o repositório observado. A única escrita é a instalação, feita
 por clique explícito, com backup de tudo que já existia e desinstalação que
@@ -78,6 +110,7 @@ app local, gratuito e sem servidor.
 ```
 .claude/skills/wtf/SKILL.md          o agente declara o que vai fazer
 .claude/skills/wtf-mapear/SKILL.md   o agente mapeia projetos já em andamento
+.claude/skills/wtf-pastas/SKILL.md   o agente descobre onde cada coisa mora
 .claude/hooks/wtf-observer.cjs       registro determinístico do que foi tocado
 .wtf/bin/wtf-claim.cjs               CLI que o agente chama para declarar
 ```
@@ -99,11 +132,17 @@ Ou abra o app e use "Abrir um projeto de verdade".
 
 Funciona de ponta a ponta contra repositórios reais. Ainda não existe:
 
+- **Testes automatizados do próprio WTF** — a incoerência do projeto: um app
+  que cobra prova não tem prova nenhuma de si mesmo. É o próximo da fila.
+- **Knowledge Map** — o `MAPA.md` resolve "onde as coisas moram"; falta
+  resolver "qual destes sete documentos é o atual"
 - **Guard** — a camada de segurança/LGPD como recurso próprio (hoje o modelo
-  sinaliza risco junto com a tradução)
-- **Knowledge Map** — organização da bagunça documental dos agentes
-- **Validação persistente** — o botão "Conferir e aprovar" ainda não grava, então
-  o estado ✓✓ não é alcançável na prática
+  sinaliza risco junto com a tradução, e funciona melhor que o previsto)
+- **Notificações do sistema** — com o app fechado, você não sabe que algo pede
+  decisão
+- **Vários projetos ao mesmo tempo** — hoje é um por vez
+- **Anthropic e OpenAI** — estruturados no código, só OpenRouter ligado
+- **Instalador** — roda com `npm run dev`; não há `.dmg` ainda
 
 ## Stack
 

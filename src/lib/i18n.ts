@@ -71,6 +71,19 @@ const pt: Dic = {
   'nav.progresso.nota': 'Onde estamos',
   'nav.mapa': 'Mapa',
   'nav.mapa.nota': 'Do que é feito',
+  'nav.pastas': 'Pastas',
+  'nav.pastas.nota': 'Onde cada coisa mora',
+
+  // pastas (MAPA.md)
+  'pastas.titulo': 'Mapa de pastas',
+  'pastas.paraQue': 'A resposta para "onde cada coisa mora": cada pasta do projeto com uma frase dizendo para que ela serve. Serve para você entender a organização do seu software — e para a IA não inventar uma pasta nova toda vez.',
+  'pastas.atualizado': 'Atualizado {quando}',
+  'pastas.temMapaProprioDica': 'Essa pasta é grande e tem um mapa só dela.',
+  'pastas.vazioTitulo': 'Este projeto ainda não tem mapa de pastas',
+  'pastas.vazioTexto': 'É um documento curto, escrito em português simples, que lista as pastas do projeto e explica para que cada uma serve. A IA percorre o projeto e escreve para você — depois é só corrigir o que estiver errado.',
+  'pastas.criar': 'Criar o mapa de pastas',
+  'pastas.criando': 'Lendo o projeto…',
+  'pastas.rodape': 'é um arquivo comum, na raiz do projeto. Pode editar à mão: a sua opinião sobre o seu projeto vale mais que a da IA.',
 
   // barra lateral
   'lateral.exemplo': 'Projeto de exemplo',
@@ -346,6 +359,19 @@ const en: Dic = {
   'nav.progresso.nota': 'Where we are',
   'nav.mapa': 'Map',
   'nav.mapa.nota': 'What it is made of',
+  'nav.pastas': 'Folders',
+  'nav.pastas.nota': 'Where everything lives',
+
+  // pastas (MAPA.md)
+  'pastas.titulo': 'Folder map',
+  'pastas.paraQue': 'The answer to "where does everything live": every folder in the project with one sentence saying what it is for. It helps you understand how your software is organised — and stops the AI from inventing a new folder every time.',
+  'pastas.atualizado': 'Updated {quando}',
+  'pastas.temMapaProprioDica': 'This folder is big enough to have a map of its own.',
+  'pastas.vazioTitulo': 'This project does not have a folder map yet',
+  'pastas.vazioTexto': 'It is a short document, written in plain language, listing the project folders and explaining what each one is for. The AI walks through the project and writes it for you — then you just fix whatever it got wrong.',
+  'pastas.criar': 'Create the folder map',
+  'pastas.criando': 'Reading the project…',
+  'pastas.rodape': 'is a plain file in the project root. Feel free to edit it by hand: what you think about your own project counts for more than what the AI thinks.',
 
   'lateral.exemplo': 'Sample project',
   'lateral.abrirProjeto': 'Open a real project',
@@ -597,6 +623,19 @@ const es: Dic = {
   'nav.progresso.nota': 'Dónde estamos',
   'nav.mapa': 'Mapa',
   'nav.mapa.nota': 'De qué está hecho',
+  'nav.pastas': 'Carpetas',
+  'nav.pastas.nota': 'Dónde vive cada cosa',
+
+  // pastas (MAPA.md)
+  'pastas.titulo': 'Mapa de carpetas',
+  'pastas.paraQue': 'La respuesta a "dónde vive cada cosa": cada carpeta del proyecto con una frase que dice para qué sirve. Te ayuda a entender cómo está organizado tu software — y evita que la IA invente una carpeta nueva cada vez.',
+  'pastas.atualizado': 'Actualizado {quando}',
+  'pastas.temMapaProprioDica': 'Esta carpeta es grande y tiene un mapa propio.',
+  'pastas.vazioTitulo': 'Este proyecto todavía no tiene mapa de carpetas',
+  'pastas.vazioTexto': 'Es un documento corto, escrito en lenguaje sencillo, que lista las carpetas del proyecto y explica para qué sirve cada una. La IA recorre el proyecto y lo escribe por ti — después solo corriges lo que esté mal.',
+  'pastas.criar': 'Crear el mapa de carpetas',
+  'pastas.criando': 'Leyendo el proyecto…',
+  'pastas.rodape': 'es un archivo común, en la raíz del proyecto. Puedes editarlo a mano: lo que tú opinas de tu propio proyecto vale más que lo que opina la IA.',
 
   'lateral.exemplo': 'Proyecto de ejemplo',
   'lateral.abrirProjeto': 'Abrir un proyecto real',

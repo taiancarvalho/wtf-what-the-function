@@ -5,6 +5,7 @@
  *   .git (HEAD, ORIG_HEAD, refs/heads, logs/HEAD) → motivo 'git'
  *   .wtf/events.jsonl                            → motivo 'claim'
  *   .wtf/map.json                                → motivo 'mapa'
+ *   MAPA.md (na raiz)                            → motivo 'pastas'
  *
  * Nada de recursivo: num projeto grande, observar a árvore inteira come CPU
  * e ainda pega node_modules. Só os caminhos acima.
@@ -17,7 +18,7 @@ const DEBOUNCE_MS = 400
 
 /**
  * @param {string | null | undefined} dir  pasta do projeto observado
- * @param {(motivo: 'git' | 'claim' | 'mapa') => void} aoMudar
+ * @param {(motivo: 'git' | 'claim' | 'mapa' | 'pastas') => void} aoMudar
  * @returns {() => void} parar() — idempotente, fecha tudo e limpa os timers
  */
 export function observarProjeto(dir, aoMudar) {
@@ -190,9 +191,65 @@ export function observarProjeto(dir, aoMudar) {
 
   armarDiretorio()
 
+  // ------------------------------------------------------ MAPA.md das pastas
+
+  /** O mesmo arquivo, escrito com maiúsculas diferentes conforme o sistema. */
+  const NOMES_MAPA = ['MAPA.md', 'Mapa.md', 'mapa.md']
+
+  /** @type {fs.FSWatcher | null} watcher do próprio arquivo, quando ele existe */
+  let watcherMapa = null
+
+  function caminhoDoMapa() {
+    for (const nome of NOMES_MAPA) {
+      const p = path.join(dir, nome)
+      if (existe(p)) return p
+    }
+    return null
+  }
+
+  /**
+   * Promove para watcher do arquivo quando ele aparece. Enquanto não existe, o
+   * watcher da raiz (logo abaixo) é quem percebe a criação — o MAPA.md nasce
+   * depois, escrito pelo agente.
+   */
+  function armarMapa() {
+    if (!vivo) return
+    const alvo = caminhoDoMapa()
+    if (!alvo) {
+      fechar(watcherMapa)
+      watcherMapa = null
+      return
+    }
+    if (watcherMapa) return
+    watcherMapa = observar(alvo, {}, () => {
+      // Reescrito por rename (o agente sobrescreve o arquivo inteiro): o
+      // watcher antigo aponta para um inode que não existe mais.
+      if (!existe(alvo)) {
+        fechar(watcherMapa)
+        watcherMapa = null
+        avisar('pastas')
+        return
+      }
+      avisar('pastas')
+    })
+  }
+
+  // A raiz sempre é observada, e raso: é onde o MAPA.md aparece e some.
+  observar(dir, {}, (_tipo, nome) => {
+    if (nome && !NOMES_MAPA.includes(nome)) return
+    // Sem nome de arquivo (acontece em alguns sistemas), só avisamos se o
+    // mapa existe — do contrário qualquer mexida na raiz recarregaria o painel.
+    if (!nome && !caminhoDoMapa()) return
+    armarMapa()
+    avisar('pastas')
+  })
+
+  armarMapa()
+
   return function parar() {
     if (!vivo) return
     vivo = false
+    watcherMapa = null
     for (const t of timers.values()) clearTimeout(t)
     timers.clear()
     watchersArquivo.clear()

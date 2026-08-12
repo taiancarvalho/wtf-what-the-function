@@ -24,6 +24,7 @@ interface PonteWtf {
   desinstalar?: () => Promise<unknown>
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
+  mapearPastas?: () => Promise<unknown>
   lerArquivo?: (relativo: string) => Promise<unknown>
   lerConfig?: () => Promise<unknown>
   salvarConfig?: (parcial: Partial<ConfigProjeto>) => Promise<unknown>
@@ -233,6 +234,18 @@ export async function mapearProjeto(): Promise<{ agente?: string; erro?: string 
   const p = ponte()
   if (!p?.mapear) return null
   return (await p.mapear()) as { agente?: string; erro?: string }
+}
+
+export const podeMapearPastas = () => typeof ponte()?.mapearPastas === 'function'
+
+/**
+ * Abre o agente pedindo o `MAPA.md` das pastas. O arquivo aparece no disco
+ * depois, e o watcher avisa o painel — aqui só disparamos o pedido.
+ */
+export async function mapearPastas(): Promise<{ agente?: string; erro?: string } | null> {
+  const p = ponte()
+  if (!p?.mapearPastas) return null
+  return (await p.mapearPastas()) as { agente?: string; erro?: string }
 }
 
 /** Inscreve no aviso de "o projeto mudou". Devolve a função de cancelar. */

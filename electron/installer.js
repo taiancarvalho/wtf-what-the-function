@@ -27,6 +27,7 @@ const ORIGEM = path.join(__dirname, '..', 'skill')
 const ALVOS = {
   skill: ['.claude/skills/wtf/SKILL.md', 'SKILL.md'],
   mapear: ['.claude/skills/wtf-mapear/SKILL.md', 'mapear/SKILL.md'],
+  pastas: ['.claude/skills/wtf-pastas/SKILL.md', 'pastas/SKILL.md'],
   formato: ['.wtf/MAP-FORMAT.md', 'MAP-FORMAT.md'],
   hook: ['.claude/hooks/wtf-observer.cjs', 'hooks/wtf-observer.cjs'],
   cli: ['.wtf/bin/wtf-claim.cjs', 'bin/wtf-claim.cjs'],
@@ -206,6 +207,11 @@ const SKILLS_COM_IDIOMA = [
     `Escreva SEMPRE em ${nome}. Isto vale para os nomes e descrições que você grava ` +
     'em `.wtf/map.json` e para qualquer explicação destinada ao dono do projeto, ' +
     'mesmo que a conversa esteja em outra língua.'],
+  ['.claude/skills/wtf-pastas/SKILL.md', (nome) =>
+    `Escreva SEMPRE em ${nome}. Isto vale para o \`MAPA.md\` inteiro — nomes de ` +
+    'seção e o propósito de cada pasta — e para qualquer explicação destinada ao ' +
+    'dono do projeto, mesmo que a conversa esteja em outra língua. Os nomes das ' +
+    'pastas em si ficam como estão no disco.'],
 ]
 
 /**

@@ -217,6 +217,8 @@ export interface EstadoInstalacao {
   hook: boolean
   cli: boolean
   mapear: boolean
+  /** A skill que escreve e mantém o `MAPA.md` das pastas. */
+  pastas: boolean
   formato: boolean
   hooksRegistrados: boolean
   instalado: boolean
@@ -296,10 +298,38 @@ export interface PedacoResposta {
   erro?: string
 }
 
+/**
+ * Uma linha da árvore do `MAPA.md`, já separada em partes para a interface
+ * poder desenhar a árvore de verdade em vez de despejar um `<pre>`.
+ *
+ * `prefixo` guarda os caracteres do desenho (`├──`, `│`, `└──`) exatamente
+ * como estavam no arquivo — é o que mantém o alinhamento visual.
+ */
+export interface LinhaMapaPastas {
+  tipo: 'raiz' | 'secao' | 'pasta' | 'vazia'
+  prefixo: string
+  nome: string
+  proposito: string
+  /** Caminho citado por “detalhe em …”: a interface vira isso em link. */
+  detalheEm?: string
+}
+
+/** O `MAPA.md` da raiz: para que serve cada pasta do projeto. */
+export interface MapaPastas {
+  /** O texto cru da árvore, preservado — a arte ASCII é o valor. */
+  arvore: string
+  linhas: LinhaMapaPastas[]
+  /** Data da última modificação do arquivo, em ISO. */
+  atualizadoEm?: string
+  existe: true
+}
+
 export interface ProjectSnapshot {
   project: Project
   features: Feature[]
   events: WtfEvent[]
   instalacao?: EstadoInstalacao
   config?: ConfigProjeto
+  /** Ausente quando o projeto ainda não tem `MAPA.md`. */
+  pastas?: MapaPastas
 }

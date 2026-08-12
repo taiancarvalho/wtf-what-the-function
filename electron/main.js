@@ -13,6 +13,7 @@ import {
 import { commitsParaSnapshot } from './translate.js'
 import { mesclarClaims, readAgentEvents } from './events.js'
 import { aplicarMapa, readProjectMap } from './map.js'
+import { lerMapaPastas } from './folders.js'
 import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
 import { lerConfig, salvarConfig } from './config.js'
 import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
@@ -127,6 +128,11 @@ async function lerProjeto(dir) {
   aplicarResolvidos(snapshot, await lerResolvidos(dir))
   aplicarValidados(snapshot, await lerValidados(dir))
 
+  // O mapa de pastas é leitura à parte: ele fala do REPOSITÓRIO (onde as
+  // coisas moram), não das partes do produto. Ausente é o caso normal.
+  const pastas = await lerMapaPastas(dir)
+  if (pastas) snapshot.pastas = pastas
+
   snapshot.instalacao = await estadoInstalacao(dir)
   // As preferências viajam junto com o snapshot: o painel precisa saber em que
   // idioma se desenhar já na primeira pintura, sem uma segunda ida ao main.
@@ -197,6 +203,17 @@ ipcMain.handle('wtf:mapear', async () =>
     'Use a skill wtf-mapear para mapear este projeto para o WTF. ' +
       'Leia .wtf/MAP-FORMAT.md e o plano do projeto, e escreva .wtf/map.json. ' +
       'Lembre: você descreve as partes e como se chamam — você não decide o que está pronto.',
+  ),
+)
+
+/** Pede o mapa das PASTAS: para que serve cada diretório do repositório. */
+ipcMain.handle('wtf:mapear-pastas', async () =>
+  abrirTerminal(
+    projetoAtual,
+    'Use a skill wtf-pastas para criar ou atualizar o MAPA.md na raiz deste projeto. ' +
+      'Percorra as pastas que importam (ignorando o que é gerado), descubra para que ' +
+      'cada uma serve e escreva a árvore com uma frase curta e sem jargão por pasta. ' +
+      'Se o MAPA.md já existir, preserve as frases das pastas que não mudaram de propósito.',
   ),
 )
 
@@ -411,7 +428,7 @@ ipcMain.handle('wtf:instalar', async () => {
     cancelId: 1,
     message: 'Instalar o WTF neste projeto?',
     detail:
-      `Serão criados 3 arquivos em ${path.basename(projetoAtual)} e os hooks serão ` +
+      `Serão criados os arquivos do WTF em ${path.basename(projetoAtual)} e os hooks serão ` +
       'registrados em .claude/settings.local.json.\n\n' +
       'Nada existente é apagado — o que já estiver lá é preservado e recebe backup. ' +
       'Dá para desfazer a qualquer momento.',
