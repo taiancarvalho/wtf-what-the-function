@@ -10,6 +10,12 @@
   painel de dev. Serifa com voz (Fraunces) para o que é humano, sans neutra
   (Instrument) para interface, mono (JetBrains) só quando o técnico aparece.
   Regra: o técnico está sempre um clique ABAIXO, nunca na superfície.
+
+  Esta base foi refeita depois do diagnóstico em .gauntlet/diagnostico/RESUMO.md,
+  onde três críticos independentes compararam o app com o Linear. Os três
+  acharam a mesma coisa: a tela tem muitos tamanhos de letra, uma cor só
+  significando cinco coisas diferentes, e um espaçamento único que impede
+  qualquer agrupamento. As três seções abaixo respondem a isso, nessa ordem.
 */
 
 @theme {
@@ -17,57 +23,245 @@
   --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
+  /* ------------------------------------------------------ tipografia ---
+     POR QUÊ: o app usava 20 tamanhos, 12 deles espremidos entre 10 e 16px.
+     Quando a diferença entre dois níveis é de 0,5px, ela não comunica
+     hierarquia nenhuma — só ruído. São cinco degraus, com salto suficiente
+     para o olho perceber cada um sem medir: 28 → 19 → 15 → 13 → 11.
+
+     E um piso: 11px. Havia 38 usos de 10 e 10,5px carregando informação de
+     verdade, num app cujo público é justamente quem NÃO lê código. Abaixo de
+     11px a pessoa não lê, ela adivinha.
+
+     Cada degrau já traz entrelinha e peso embutidos, porque a maior parte dos
+     erros de tipografia aqui foi combinar tamanho novo com entrelinha herdada.
+     (Cuidado com os nomes: `font-display` escolhe a FAMÍLIA serifada,
+     `text-display` escolhe o TAMANHO. São coisas diferentes.) */
+
+  /* Manchete de tela. Um por tela, e só um — se aparecem dois, um deles é
+     title. A entrelinha 1,15 e o -0,02em existem porque a Fraunces abre
+     demais em corpo grande e a manchete precisa parecer um bloco, não uma
+     lista de palavras. */
+  --text-display: 28px;
+  --text-display--line-height: 1.15;
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.02em;
+
+  /* Manchete de cartão: o assunto da página. Os cartões do quadro estavam a
+     12,5px enquanto o nome do projeto na lateral estava a 21px — o texto mais
+     forte da tela era a moldura. 19px devolve o peso ao conteúdo. Peso 500 e
+     não 600: dentro de um cartão o título já é o único texto grande, não
+     precisa gritar também. */
+  --text-title: 19px;
+  --text-title--line-height: 1.25;
+  --text-title--font-weight: 500;
+  --text-title--letter-spacing: -0.01em;
+
+  /* Corpo de leitura: frases inteiras, o que a pessoa realmente lê para
+     entender o que a IA fez. Entrelinha 1,5 porque é o único degrau que
+     costuma quebrar em várias linhas. */
+  --text-lead: 15px;
+  --text-lead--line-height: 1.5;
+  --text-lead--font-weight: 400;
+
+  /* Metadado, navegação, selo: data, autor, contagem, nome de aba. Suporte,
+     não conteúdo — mas ainda assim informação que precisa ser lida sem
+     esforço, daí 13px e não 11px. */
+  --text-meta: 13px;
+  --text-meta--line-height: 1.4;
+  --text-meta--font-weight: 400;
+
+  /* Rótulo: "ESTADO", "ÚLTIMA ALTERAÇÃO". É o menor tamanho que existe e por
+     isso compensa em peso (600) e em espacejamento (0,08em) — maiúscula
+     apertada em 11px vira mancha. Use a classe `.label`, que já aplica a
+     caixa alta junto. */
+  --text-micro: 11px;
+  --text-micro--line-height: 1.2;
+  --text-micro--font-weight: 600;
+  --text-micro--letter-spacing: 0.08em;
+
+  /* ------------------------------------------------------ espaçamento ---
+     POR QUÊ: toda separação entre blocos era 16px — exatamente o mesmo valor
+     do respiro interno dos cartões. Quando o espaço DENTRO de um grupo é
+     igual ao espaço ENTRE grupos, nada agrupa: a tela vira uma lista uniforme
+     de coisas soltas e o olho não encontra onde uma ideia termina. O Linear
+     parece mais calmo sendo 2,7x mais denso porque o espaço dele está entre
+     grupos, não em volta de tudo.
+
+     Quatro degraus, cada um o dobro do anterior. A regra que faz o sistema
+     funcionar: o espaço entre dois grupos é sempre o dobro do maior espaço
+     que existe dentro deles. Cartão com respiro `card` (16) se separa do
+     próximo bloco por `group` (32). */
+  --spacing-hair: 4px; /* dentro de uma linha: ícone ↔ rótulo, selo ↔ texto */
+  --spacing-item: 8px; /* entre irmãos da mesma lista */
+  --spacing-card: 16px; /* respiro interno de cartão, painel, caixa */
+  --spacing-group: 32px; /* entre grupos — o dobro do que há dentro deles */
+
+  /* ------------------------------------------------------------ cor ---
+     Papel claro. O tema escuro está mais abaixo, em --noite-*.
+
+     POR QUÊ: --color-accent e --color-validated eram o MESMO hex (#a2522a) e
+     --color-warn estava a ΔE 1,1 dos dois. Um único terracota significava
+     seleção, aprovação e perigo ao mesmo tempo — em 89 + 4 + 49 usos. O
+     estado mais valioso do produto (você aprovou) desaparecia dentro da cor
+     de "item selecionado".
+
+     A separação: o terracota agora é EXCLUSIVO de --color-validated. A
+     interação virou tinta neutra sobre fundo, e o alerta virou carmim. */
+
+  /* Papel. paper-3 clareou de #e6dece para #eae3d4: é a superfície mais
+     escura em que cor de estado pode cair, e no valor antigo "planejado" e
+     "construindo" ficavam abaixo de 4,5:1 mesmo depois de corrigidos. */
   --color-paper: #f6f2e9;
   --color-paper-2: #efe9dc;
-  --color-paper-3: #e6dece;
-  --color-ink: #1c1917;
-  --color-ink-2: #57534e;
-  --color-ink-3: #8a8178;
+  --color-paper-3: #eae3d4;
+
+  /* Tinta. ink-3 escureceu de #8a8178 para #6f675d: 186 usos carregando
+     metadado a 3,16:1 sobre o cartão — reprova qualquer piso de leitura, e
+     este app é para quem não lê código. Agora dá 4,60:1 e continua sendo,
+     visivelmente, o degrau mais quieto (ink-2 dá 6,31:1). */
+  --color-ink: #1c1917; /* 14,46:1 sobre o cartão */
+  --color-ink-2: #57534e; /* 6,31:1 */
+  --color-ink-3: #6f675d; /* 4,60:1 — era 3,16:1 */
   --color-rule: #d9d0be;
 
-  --color-accent: #a2522a;
-  --color-accent-soft: #e8d3c4;
+  /* Interação: item de navegação ativo, botão principal, cursor do terminal.
+     POR QUÊ deixou de ser terracota: era ela que gastava 89 dos 93 usos da
+     cor e afogava o estado "validado". Interação não precisa de matiz
+     própria — precisa de PESO. Este é um marrom-tinta quente (11,87:1 sobre
+     o cartão), não um cinza: continua sendo tinta sobre papel. Nos usos já
+     existentes ele se comporta bem sozinho: `background: accent` + `color:
+     paper` vira botão de alto contraste; `color-mix(accent 12%)` vira o
+     fundo discreto da linha ativa. Está a ΔE 27,5 do terracota de validado —
+     ninguém mais confunde os dois. */
+  --color-accent: #33281e;
+  /* Realce de fundo (seleção de texto, seleção do terminal, grão do papel).
+     Areia quente, não blush terracota: é fundo, nunca sinal. */
+  --color-accent-soft: #ded2bd;
 
-  /* estados — cada um é uma cor, nunca só um ícone */
-  --color-planned: #a8a29e;
-  --color-building: #b8860b;
-  --color-implemented: #2f6f77;
-  --color-tested: #4f7a3a;
-  --color-validated: #a2522a;
+  /* ----------------------------------------------------- os 5 estados ---
+     Cada um é uma cor, nunca só um ícone. Contraste medido sobre os três
+     tons de papel (paper / paper-2 / paper-3); o menor ΔE2000 entre dois
+     estados quaisquer é 20,1 — antes, na prática, dois estados chegavam a
+     ΔE 9,7 e "planejado" tinha 1,88:1.
 
-  --color-warn: #a1502a;
-  --color-danger: #96322a;
+     A ordem de peso de tinta segue a ordem de confiança: planejado é o mais
+     apagado, você-aprovou é o mais cheio. Antes estava invertido — "pronto"
+     era o mais forte, e o próprio código descreve "pronto" como algo que não
+     quer dizer que funciona. */
+
+  /* Nada aconteceu ainda. É cinza quente de propósito, e fica perto de
+     ink-3: "planejado" é literalmente texto sem tinta de estado. Quem separa
+     este estado dos outros é a geometria da marca, não a cor. */
+  --color-planned: #656058; /* 5,58 / 5,16 / 4,88 — era 2,26:1 */
+  /* Está sendo escrito agora. Ocre de obra. */
+  --color-building: #855d04; /* 5,27 / 4,87 / 4,61 — era 2,91:1 */
+  /* O código existe. Azul-petróleo: frio, ou seja, ainda não é confiança. */
+  --color-implemented: #1d6068; /* 6,43 / 5,93 / 5,62 */
+  /* A máquina conferiu. Verde de oliva, contido — a máquina não é a pessoa. */
+  --color-tested: #3d6428; /* 6,16 / 5,69 / 5,39 */
+  /* VOCÊ aprovou. O quinto estado, o sinal mais valioso do produto, e o
+     único dono do terracota. Mais fundo e mais vermelho que o antigo
+     #a2522a justamente para não ser confundido com o ocre de obra
+     (ΔE 22,3) nem com o carmim de alerta (ΔE 19,1). */
+  --color-validated: #a5330d; /* 6,10 / 5,64 / 5,34 */
+
+  /* -------------------------------------------------------- alerta ---
+     POR QUÊ virou um token só: havia dois níveis, warn e danger, a ΔE 16 um
+     do outro — ninguém lê dois níveis de alerta a essa distância, e warn
+     ainda estava a ΔE 1,1 do terracota de aprovação, ou seja, "perigo" e
+     "você aprovou" eram a mesma cor. Um alerta é um alerta.
+     Carmim, não terracota: é a cor de caneta vermelha na margem, e está a
+     ΔE 19,1 de validado. */
+  --color-danger: #9c1a3e; /* 6,25:1 sobre paper-3 */
+  /* APOSENTADO — temporário. 49 usos ainda apontam para --color-warn; ele
+     agora é só um apelido de --color-danger. Ao mexer num componente, troque
+     por --color-danger e, quando o último uso sumir, apague esta linha. */
+  --color-warn: var(--color-danger);
+  /* APOSENTADO — temporário. --color-line nunca existiu, mas Compartilhar.tsx
+     referencia. Apontando para o filete de verdade até o componente ser
+     corrigido. */
+  --color-line: var(--color-rule);
 
   --radius-card: 10px;
 }
 
+/* ----------------------------------------------------------------- noite ---
+   Noite no mesmo papel: a tinta inverte, o calor permanece.
+
+   Os valores da noite moram AQUI, num lugar só. Os dois seletores abaixo
+   apenas apontam para eles — assim não existe risco de alguém ajustar o tema
+   escuro do sistema e esquecer o seletor manual, ou vice-versa. */
 :root {
   color-scheme: light;
+
+  --noite-paper: #15130f;
+  --noite-paper-2: #1c1a15;
+  --noite-paper-3: #24211b;
+  --noite-ink: #f2ece1; /* 14,79:1 sobre o cartão */
+  --noite-ink-2: #b3aa9c; /* 7,57:1 */
+  --noite-ink-3: #8d8375; /* 4,67:1 — era #7d7568, 3,82:1 */
+  --noite-rule: #332f27;
+
+  /* Interação: no escuro a tinta neutra é clara. `background: accent` +
+     `color: paper` continua virando o botão de alto contraste, agora
+     invertido, e o cursor do terminal continua visível. Pergaminho, não
+     branco puro — o calor do papel permanece. */
+  --noite-accent: #ecdfc9;
+  --noite-accent-soft: #3a3229;
+
+  /* Os cinco estados. Contraste sobre paper / paper-2 / paper-3; menor
+     ΔE2000 entre dois estados = 23,7 (era 17,3 no par mais próximo). */
+  --noite-planned: #948c82; /* 5,59 / 5,24 / 4,84 — era 3,22:1 */
+  --noite-building: #e0b247; /* 9,39 / 8,80 / 8,12 */
+  --noite-implemented: #5cb4c2; /* 7,74 / 7,25 / 6,70 */
+  --noite-tested: #8fc57e; /* 9,24 / 8,66 / 7,99 */
+  --noite-validated: #f2825a; /* 7,17 / 6,72 / 6,20 — terracota, exclusivo */
+  --noite-danger: #f4718c; /* 5,80 sobre paper-3, ΔE 19,8 de validado */
 }
 
-/* ---------------------------------------------------------------- dark ---
-   Noite no mesmo papel: a tinta inverte, o calor permanece. */
+/* Seletor manual — para o controle de tema em Configurações. Precisa existir
+   ANTES de alguém construir a tela, senão a tela nasce quebrada. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-paper: var(--noite-paper);
+  --color-paper-2: var(--noite-paper-2);
+  --color-paper-3: var(--noite-paper-3);
+  --color-ink: var(--noite-ink);
+  --color-ink-2: var(--noite-ink-2);
+  --color-ink-3: var(--noite-ink-3);
+  --color-rule: var(--noite-rule);
+  --color-accent: var(--noite-accent);
+  --color-accent-soft: var(--noite-accent-soft);
+  --color-planned: var(--noite-planned);
+  --color-building: var(--noite-building);
+  --color-implemented: var(--noite-implemented);
+  --color-tested: var(--noite-tested);
+  --color-validated: var(--noite-validated);
+  --color-danger: var(--noite-danger);
+}
+
+/* Preferência do sistema — só vale quando a pessoa NÃO escolheu claro à mão.
+   Sem o `:not([data-theme='light'])`, escolher "claro" em Configurações não
+   teria efeito nenhum numa máquina configurada no escuro. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     color-scheme: dark;
-    --color-paper: #15130f;
-    --color-paper-2: #1c1a15;
-    --color-paper-3: #24211b;
-    --color-ink: #f2ece1;
-    --color-ink-2: #b3aa9c;
-    --color-ink-3: #7d7568;
-    --color-rule: #332f27;
-    --color-accent: #d98d5f;
-    --color-accent-soft: #3a2a20;
-
-    --color-planned: #6b655c;
-    --color-building: #d4a336;
-    --color-implemented: #57a3ac;
-    --color-tested: #86b06a;
-    --color-validated: #d98d5f;
-
-    --color-warn: #d9895c;
-    --color-danger: #d97066;
+    --color-paper: var(--noite-paper);
+    --color-paper-2: var(--noite-paper-2);
+    --color-paper-3: var(--noite-paper-3);
+    --color-ink: var(--noite-ink);
+    --color-ink-2: var(--noite-ink-2);
+    --color-ink-3: var(--noite-ink-3);
+    --color-rule: var(--noite-rule);
+    --color-accent: var(--noite-accent);
+    --color-accent-soft: var(--noite-accent-soft);
+    --color-planned: var(--noite-planned);
+    --color-building: var(--noite-building);
+    --color-implemented: var(--noite-implemented);
+    --color-tested: var(--noite-tested);
+    --color-validated: var(--noite-validated);
+    --color-danger: var(--noite-danger);
   }
 }
 
@@ -87,20 +281,28 @@
     background-color: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
+    /* O padrão do app é o degrau de leitura. Sem isto, tudo que não carrega
+       um tamanho explícito cai nos 16px do navegador — um sexto tamanho, fora
+       da escala, e o mais usado de todos por ser o herdado. */
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
 
-    /* grão de papel: ruído sutil, some no dark */
+    /* Grão de papel: dois banhos quase invisíveis nos cantos, para o fundo
+       não ser uma chapa lisa. Saiu daqui a cor de estado que antes tingia o
+       fundo (accent e implemented): decoração não usa token de sinal, senão
+       o sinal deixa de ser sinal. Agora só tons do próprio papel. */
     background-image: radial-gradient(
         circle at 12% 8%,
-        color-mix(in oklab, var(--color-accent) 6%, transparent),
+        color-mix(in oklab, var(--color-accent-soft) 45%, transparent),
         transparent 42%
       ),
       radial-gradient(
         circle at 88% 92%,
-        color-mix(in oklab, var(--color-implemented) 5%, transparent),
+        color-mix(in oklab, var(--color-paper-3) 60%, transparent),
         transparent 46%
       );
   }
@@ -147,6 +349,17 @@
   .font-display {
     font-family: var(--font-display);
     font-variation-settings: 'SOFT' 20, 'WONK' 1, 'opsz' 40;
+  }
+
+  /* Rótulo em caixa alta. Existe como classe porque a caixa alta não cabe
+     dentro do token de tamanho — e rótulo sem caixa alta vira só texto
+     pequeno, que é exatamente o que se quer evitar. */
+  .label {
+    font-size: var(--text-micro);
+    line-height: var(--text-micro--line-height);
+    font-weight: var(--text-micro--font-weight);
+    letter-spacing: var(--text-micro--letter-spacing);
+    text-transform: uppercase;
   }
 
   /* filete duplo de jornal */

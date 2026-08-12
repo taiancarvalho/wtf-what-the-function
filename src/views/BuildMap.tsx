@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react'
-import { RevalidarChip, UnsavedChip, WorkingChip } from '@/components/StateMark'
+import { RevalidarChip, StateMark, UnsavedChip, WorkingChip } from '@/components/StateMark'
 import { alternarValidado, podeValidar } from '@/lib/source'
 import { STATE, STATE_ORDER, stateProgress } from '@/lib/state'
 import { diaRelativo } from '@/lib/format'
@@ -269,8 +269,9 @@ function Card({
             </p>
 
             <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-ink-3)]">
-              <span style={{ color: meta.color }}>
-                {meta.mark} {t(`estado.${feature.state}`)}
+              <span className="inline-flex items-center gap-1" style={{ color: meta.color }}>
+                <StateMark state={feature.state} size="sm" decorativa />
+                {t(`estado.${feature.state}`)}
               </span>
               {' — '}
               {t(`estado.${feature.state}.sentido`)}
@@ -347,7 +348,6 @@ function Coluna({
   onAprovar: (id: string) => void
 }) {
   const t = useT()
-  const meta = STATE[state]
 
   return (
     <section className="flex h-full w-[250px] min-w-0 shrink-0 flex-col">
@@ -358,13 +358,7 @@ function Coluna({
           sentido: t(`estado.${state}.sentido`),
         })}
       >
-        <span
-          aria-hidden
-          className="tracking-[-0.1em]"
-          style={{ color: meta.color }}
-        >
-          {meta.mark}
-        </span>
+        <StateMark state={state} size="lg" decorativa />
         <h2 className="font-display min-w-0 flex-1 truncate text-[13px] text-[var(--color-ink)]">
           {t(`estado.${state}`)}
         </h2>
@@ -592,12 +586,7 @@ export function BuildMap({
                   oculto ? 'opacity-40 line-through' : '',
                 ].join(' ')}
               >
-                <span
-                  className="tracking-[-0.1em]"
-                  style={{ color: STATE[state].color }}
-                >
-                  {STATE[state].mark}
-                </span>
+                <StateMark state={state} size="sm" decorativa />
                 <span className="tabular-nums text-[var(--color-ink)]">{n}</span>
                 <span className="text-[var(--color-ink-3)]">
                   {t(`estado.${state}`).toLowerCase()}

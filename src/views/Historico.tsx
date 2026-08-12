@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { StateMark } from '@/components/StateMark'
 import { Loader2, TrendingUp } from 'lucide-react'
 import { LOCALE, useIdioma, useT } from '@/lib/i18n'
 import { STATE } from '@/lib/state'
@@ -304,23 +305,11 @@ export function Historico({ snapshot }: { snapshot: ProjectSnapshot }) {
                       {diaLongo.format(new Date(m.em))}
                     </span>
                     <span className="flex items-center gap-1.5 text-[var(--color-ink-2)]">
-                      <span
-                        aria-hidden
-                        className="tracking-[-0.1em]"
-                        style={{ color: STATE.planned.color }}
-                      >
-                        {STATE.planned.mark}
-                      </span>
+                      <StateMark state="planned" size="sm" decorativa />
                       {t('hist.marcoPartes', { n: m.partes })}
                     </span>
                     <span className="flex items-center gap-1.5 text-[var(--color-ink-2)]">
-                      <span
-                        aria-hidden
-                        className="tracking-[-0.1em]"
-                        style={{ color: STATE.tested.color }}
-                      >
-                        {STATE.tested.mark}
-                      </span>
+                      <StateMark state="tested" size="sm" decorativa />
                       {t('hist.marcoTestadas', { n: m.testadas })}
                     </span>
                     <span className="ml-auto font-mono text-[11.5px] tabular-nums text-[var(--color-ink-3)]">

@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import { STATE, STATE_ORDER } from '@/lib/state'
-import { RevalidarChip, UnsavedChip } from '@/components/StateMark'
+import { RevalidarChip, StateMark, UnsavedChip } from '@/components/StateMark'
 import { diaRelativo, horaDe } from '@/lib/format'
 import { LOCALE, useIdioma, useT } from '@/lib/i18n'
 import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
@@ -174,12 +174,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                     oculto ? 'opacity-40 line-through' : '',
                   ].join(' ')}
                 >
-                  <span
-                    className="tracking-[-0.1em]"
-                    style={{ color: STATE[state].color }}
-                  >
-                    {STATE[state].mark}
-                  </span>
+                  <StateMark state={state} size="sm" decorativa />
                   <span className="tabular-nums text-[var(--color-ink)]">
                     {n}
                   </span>
@@ -314,13 +309,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                               : undefined,
                           }}
                         >
-                          <span
-                            aria-hidden
-                            className="w-3 shrink-0 text-center text-[11px] leading-none tracking-[-0.1em]"
-                            style={{ color: meta.color }}
-                          >
-                            {meta.mark}
-                          </span>
+                          <StateMark state={f.state} size="sm" decorativa />
                           <span className="min-w-0 flex-1 truncate text-[12px] leading-[18px] text-[var(--color-ink)]">
                             {f.name}
                           </span>
@@ -432,9 +421,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
                   }}
                   title={t(`estado.${aberta.state}.sentido`)}
                 >
-                  <span className="tracking-[-0.1em]">
-                    {STATE[aberta.state].mark}
-                  </span>
+                  <StateMark state={aberta.state} size="sm" decorativa />
                   {t(`estado.${aberta.state}`)}
                 </span>
                 {aberta.unsaved && <UnsavedChip quantos={aberta.unsavedCount} />}

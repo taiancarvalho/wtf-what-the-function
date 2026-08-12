@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { StateMark } from '@/components/StateMark'
 import {
   AlertTriangle,
   ArrowRight,
@@ -201,9 +202,7 @@ export function Home({
                 className="inline-flex items-center gap-1.5 text-[12.5px]"
                 title={t(`estado.${estado}.sentido`)}
               >
-                <span style={{ color: STATE[estado].color }} className="tracking-[-0.1em]">
-                  {STATE[estado].mark}
-                </span>
+                <StateMark state={estado} size="sm" decorativa />
                 <span className="font-mono tabular-nums">{n}</span>
                 <span className="text-[var(--color-ink-2)]">{t(`estado.${estado}`)}</span>
               </span>
@@ -373,11 +372,7 @@ function DesdeQueVoceOlhou({
 function Marca({ estado }: { estado: string }) {
   const meta = STATE[estado as FeatureState]
   if (!meta) return <span className="text-[var(--color-ink-3)]">{estado}</span>
-  return (
-    <span className="tracking-[-0.1em]" style={{ color: meta.color }}>
-      {meta.mark}
-    </span>
-  )
+  return <StateMark state={estado as FeatureState} size="sm" decorativa />
 }
 
 function Bloco({
