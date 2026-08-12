@@ -64,7 +64,19 @@ export const CONFIG_PADRAO = {
    * aviso a cada pergunta viraria mais um "OK, OK, OK".
    */
   avisoCustoAceito: false,
+  /*
+   * Avisos do sistema operacional. Nasce DESLIGADO, pela mesma razão do
+   * consumo: no macOS a primeira notificação dispara o pedido de permissão do
+   * sistema, e isso não pode acontecer de surpresa. Quem quiser ser avisado,
+   * liga — e aí só recebe o que exige decisão (ver electron/notify.js).
+   */
+  notificar: 'nao',
+  /** Nada entre 22h e 7h. O aviso espera e sai em horário decente. */
+  silencioNoturno: true,
 }
+
+/** As duas respostas possíveis para "posso te avisar pelo sistema?". */
+export const NOTIFICAR = ['sim', 'nao']
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '')
 
@@ -116,6 +128,10 @@ function normalizar(dados) {
     traduzirAuto: auto,
     maxTraducoesPorRodada: teto,
     avisoCustoAceito: bruto.avisoCustoAceito === true,
+    // Valor estranho vale 'nao': na dúvida, não interrompa ninguém.
+    notificar: NOTIFICAR.includes(str(bruto.notificar)) ? str(bruto.notificar) : CONFIG_PADRAO.notificar,
+    // Ausente vale true: o silêncio é o padrão gentil.
+    silencioNoturno: bruto.silencioNoturno !== false,
     ...(modelo ? { modeloPergunta: modelo } : {}),
   }
 }

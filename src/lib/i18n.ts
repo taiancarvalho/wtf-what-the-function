@@ -418,6 +418,25 @@ const pt: Dic = {
   'consumo.nada': 'Nada foi consumido ainda.',
   'consumo.soNoApp': 'O consumo só é contado dentro do aplicativo.',
 
+  // avisos do sistema
+  'avisos.titulo': 'Avisos do sistema',
+  'avisos.nota':
+    'Com o painel fechado, você não fica sabendo quando algo depende de você. O WTF avisa pouco, e só o que precisa da sua decisão.',
+  'avisos.oQue':
+    'Você é avisado quando algo passa a depender da sua decisão, e quando uma parte que você aprovou muda depois. Commit, arquivo salvo e tradução pronta não geram aviso nenhum.',
+  'avisos.estado.sim': 'Hoje: o WTF te avisa pelo sistema',
+  'avisos.estado.nao': 'Hoje: nenhum aviso — você só vê quando abre o painel',
+  'avisos.btn.sim': 'Pode me avisar',
+  'avisos.btn.nao': 'Não avisar',
+  'avisos.noite': 'Silêncio das 22h às 7h',
+  'avisos.noiteNota':
+    'À noite nada aparece. O aviso não é perdido: ele fica guardado e sai na próxima verificação em horário decente.',
+  'avisos.testar': 'Testar aviso',
+  'avisos.testeOk': 'Aviso enviado. Se nada apareceu, olhe as permissões de notificação do sistema.',
+  'avisos.testeFalhou':
+    'Não deu para mostrar o aviso. Provavelmente o seu sistema está bloqueando as notificações deste app.',
+  'avisos.soNoApp': 'Os avisos do sistema só funcionam dentro do aplicativo.',
+
   // chaves de API
   'chaves.titulo': 'Chave para as explicações',
   'chaves.nota':
@@ -786,6 +805,25 @@ const en: Dic = {
   'consumo.nada': 'Nothing has been used yet.',
   'consumo.soNoApp': 'Usage is only counted inside the app.',
 
+  // system notifications
+  'avisos.titulo': 'System notifications',
+  'avisos.nota':
+    'With the panel closed, you never find out when something depends on you. WTF notifies rarely, and only about things that need your decision.',
+  'avisos.oQue':
+    'You are notified when something starts depending on your decision, and when a part you approved changes afterwards. Commits, saved files and finished translations never trigger a notification.',
+  'avisos.estado.sim': 'Today: WTF notifies you through the system',
+  'avisos.estado.nao': 'Today: no notifications — you only see it when you open the panel',
+  'avisos.btn.sim': 'Notify me',
+  'avisos.btn.nao': 'Do not notify',
+  'avisos.noite': 'Quiet from 10pm to 7am',
+  'avisos.noiteNota':
+    'Nothing shows up at night. The notice is not lost: it waits and goes out on the next check at a decent hour.',
+  'avisos.testar': 'Send a test notification',
+  'avisos.testeOk': 'Notification sent. If nothing showed up, check your system notification permissions.',
+  'avisos.testeFalhou':
+    'The notification could not be shown. Your system is most likely blocking notifications for this app.',
+  'avisos.soNoApp': 'System notifications only work inside the app.',
+
   'chaves.titulo': 'Key for the explanations',
   'chaves.nota':
     'The key is stored encrypted on your computer, outside the project folder — it never enters your repository.',
@@ -1151,6 +1189,25 @@ const es: Dic = {
   'consumo.desde': 'Contando desde {quando}',
   'consumo.nada': 'Todavía no se ha consumido nada.',
   'consumo.soNoApp': 'El consumo solo se cuenta dentro de la aplicación.',
+
+  // avisos del sistema
+  'avisos.titulo': 'Avisos del sistema',
+  'avisos.nota':
+    'Con el panel cerrado, no te enteras de cuándo algo depende de ti. WTF avisa poco, y solo de lo que necesita tu decisión.',
+  'avisos.oQue':
+    'Te avisamos cuando algo pasa a depender de tu decisión, y cuando una parte que aprobaste cambia después. Los commits, los archivos guardados y las traducciones listas no generan ningún aviso.',
+  'avisos.estado.sim': 'Hoy: WTF te avisa por el sistema',
+  'avisos.estado.nao': 'Hoy: ningún aviso — solo lo ves cuando abres el panel',
+  'avisos.btn.sim': 'Puedes avisarme',
+  'avisos.btn.nao': 'No avisar',
+  'avisos.noite': 'Silencio de 22h a 7h',
+  'avisos.noiteNota':
+    'De noche no aparece nada. El aviso no se pierde: queda guardado y sale en la próxima verificación a una hora decente.',
+  'avisos.testar': 'Probar aviso',
+  'avisos.testeOk': 'Aviso enviado. Si no apareció nada, revisa los permisos de notificación de tu sistema.',
+  'avisos.testeFalhou':
+    'No se pudo mostrar el aviso. Lo más probable es que tu sistema esté bloqueando las notificaciones de esta app.',
+  'avisos.soNoApp': 'Los avisos del sistema solo funcionan dentro de la aplicación.',
 
   'chaves.titulo': 'Clave para las explicaciones',
   'chaves.nota':

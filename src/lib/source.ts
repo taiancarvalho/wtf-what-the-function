@@ -50,6 +50,8 @@ interface PonteWtf {
   lerUso?: () => Promise<unknown>
   responderTraducao?: (resposta: RespostaTraducao) => Promise<unknown>
   aoPedirTraducao?: (cb: (dados: TraducaoPendente) => void) => () => void
+  testarNotificacao?: () => Promise<unknown>
+  aoIrPara?: (cb: (aba: string) => void) => () => void
 }
 
 /** Um arquivo do projeto, aberto dentro do app. */
@@ -202,6 +204,29 @@ export function aoPedirTraducao(cb: (dados: TraducaoPendente) => void): () => vo
   const p = ponte()
   if (!p?.aoPedirTraducao) return () => {}
   return p.aoPedirTraducao(cb)
+}
+
+// --------------------------------------------------------------- avisos do SO
+
+export const podeNotificar = () => typeof ponte()?.testarNotificacao === 'function'
+
+/**
+ * Dispara a notificação de exemplo. Devolve se ela de fato saiu — no macOS,
+ * "não saiu" costuma significar que a permissão do sistema está negada, e a
+ * pessoa precisa saber disso.
+ */
+export async function testarNotificacao(): Promise<{ enviada: boolean; motivo?: string }> {
+  const p = ponte()
+  if (!p?.testarNotificacao) return { enviada: false, motivo: 'sem-app' }
+  const r = (await p.testarNotificacao()) as { enviada?: boolean; motivo?: string } | undefined
+  return { enviada: r?.enviada === true, motivo: r?.motivo }
+}
+
+/** Inscreve na troca de aba pedida por um aviso clicado. Devolve como cancelar. */
+export function aoIrPara(cb: (aba: string) => void): () => void {
+  const p = ponte()
+  if (!p?.aoIrPara) return () => {}
+  return p.aoIrPara(cb)
 }
 
 // ------------------------------------------------------ perguntar sobre algo

@@ -10,6 +10,7 @@ import {
   Settings2,
 } from 'lucide-react'
 import {
+  aoIrPara,
   aoMudarProjeto,
   carregar,
   escolherProjeto,
@@ -146,6 +147,16 @@ export function App() {
 
   // o projeto avisa quando muda — commit novo ou declaração da IA
   useEffect(() => aoMudarProjeto(() => atualizar()), [atualizar])
+
+  // Clicar no aviso do sistema tem que cair na tela certa: o aviso prometeu
+  // algo específico, e abrir na home faria a pessoa procurar de novo.
+  useEffect(
+    () =>
+      aoIrPara((destino) => {
+        if (ABAS.some((a) => a.id === destino)) setAba(destino as Aba)
+      }),
+    [],
+  )
 
   if (!carga) return <div className="drag h-full" />
 

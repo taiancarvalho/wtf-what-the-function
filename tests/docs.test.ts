@@ -121,6 +121,7 @@ describe('varredura de um projeto com muitos documentos', () => {
     // O que não é documento nem deve ser contado
     await escrever(dir, 'src/app.ts', 'export const x = 1\n')
     await escrever(dir, 'node_modules/pacote/README.md')
+    await escrever(dir, 'requirements.txt', 'vitest\n') // .txt de máquina, não documento
 
     await commitar(dir, 'primeiro', '2020-01-02T10:00:00-03:00')
 

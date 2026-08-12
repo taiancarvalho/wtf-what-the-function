@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  Bell,
   FileText,
   FolderSearch,
   Gauge,
@@ -14,8 +15,10 @@ import {
   lerPacoteInstalacao,
   lerUso,
   podeEscolherProjeto,
+  podeNotificar,
   podeResponderTraducao,
   responderTraducao,
+  testarNotificacao,
   type Carga,
 } from '@/lib/source'
 import { EscolherIdioma } from '@/components/EscolherIdioma'
@@ -25,6 +28,7 @@ import { useT } from '@/lib/i18n'
 import type {
   ConfigProjeto,
   ItemInstalacao,
+  Notificar,
   PacoteInstalacao,
   ProjectSnapshot,
   TraduzirAuto,
@@ -100,6 +104,15 @@ export function Configuracoes({
           atraso="0.13s"
         >
           <Consumo snapshot={snapshot} onSalvar={onSalvarIdioma} />
+        </Secao>
+
+        <Secao
+          icone={Bell}
+          titulo={t('avisos.titulo')}
+          nota={t('avisos.nota')}
+          atraso="0.14s"
+        >
+          <Avisos snapshot={snapshot} onSalvar={onSalvarIdioma} />
         </Secao>
 
         <Secao icone={KeyRound} titulo={t('config.ia')} nota={t('config.iaNota')} atraso="0.15s">
@@ -340,6 +353,136 @@ function Consumo({
           <p className="mt-2 text-[11.5px] text-[var(--color-ink-3)]">
             {t('consumo.desde', { quando: new Date(uso.desde).toLocaleDateString() })}
           </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/*
+ * ===================================================================
+ * AVISOS DO SISTEMA
+ * ===================================================================
+ * Mesma filosofia da seção de Consumo: nasce desligado, e quem liga sabe
+ * exatamente o que vai receber. Notificação que aparece demais é desligada
+ * pelo usuário — e aí ela deixa de existir justamente quando importa. Por
+ * isso o texto diz, sem rodeio, o que NÃO gera aviso.
+ *
+ * O botão de teste existe porque uma notificação bloqueada pelo sistema é
+ * invisível: sem ele, a pessoa acharia que ligou e ficaria esperando para
+ * sempre um aviso que nunca sai.
+ * ===================================================================
+ */
+function Avisos({
+  snapshot,
+  onSalvar,
+}: {
+  snapshot: ProjectSnapshot
+  onSalvar: (parcial: Partial<ConfigProjeto>) => Promise<void>
+}) {
+  const t = useT()
+  const modo: Notificar = snapshot.config?.notificar ?? 'nao'
+  const noite = snapshot.config?.silencioNoturno !== false
+  const [ocupado, setOcupado] = useState(false)
+  const [resultado, setResultado] = useState<'ok' | 'falhou' | null>(null)
+
+  const salvar = async (parcial: Partial<ConfigProjeto>) => {
+    setOcupado(true)
+    try {
+      await onSalvar(parcial)
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  const testar = async () => {
+    setOcupado(true)
+    setResultado(null)
+    try {
+      const r = await testarNotificacao()
+      setResultado(r.enviada ? 'ok' : 'falhou')
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  const opcoes: { id: Notificar; rotulo: string }[] = [
+    { id: 'sim', rotulo: t('avisos.btn.sim') },
+    { id: 'nao', rotulo: t('avisos.btn.nao') },
+  ]
+
+  return (
+    <div>
+      <p className="max-w-[62ch] text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+        {t('avisos.oQue')}
+      </p>
+
+      <p className="mt-2.5 text-[12px] text-[var(--color-ink-3)]">{t(`avisos.estado.${modo}`)}</p>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {opcoes.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            disabled={ocupado}
+            aria-pressed={modo === o.id}
+            onClick={() => void salvar({ notificar: o.id })}
+            className="rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+            style={
+              modo === o.id
+                ? {
+                    borderColor: 'var(--color-accent)',
+                    color: 'var(--color-accent)',
+                    background: 'color-mix(in oklab, var(--color-accent) 10%, transparent)',
+                  }
+                : { borderColor: 'var(--color-rule)', color: 'var(--color-ink-2)' }
+            }
+          >
+            {o.rotulo}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 border-t pt-3">
+        <label className="flex items-baseline gap-2 text-[12.5px] font-medium text-[var(--color-ink)]">
+          <input
+            type="checkbox"
+            checked={noite}
+            disabled={ocupado}
+            onChange={(e) => void salvar({ silencioNoturno: e.target.checked })}
+          />
+          {t('avisos.noite')}
+        </label>
+        <p className="mt-1 max-w-[62ch] text-[12px] leading-relaxed text-[var(--color-ink-2)]">
+          {t('avisos.noiteNota')}
+        </p>
+      </div>
+
+      <div className="mt-5 border-t pt-3">
+        {podeNotificar() ? (
+          <>
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => void testar()}
+              className="rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }}
+            >
+              {t('avisos.testar')}
+            </button>
+            {resultado && (
+              <p
+                className="mt-2 max-w-[58ch] text-[12px] leading-relaxed"
+                style={{
+                  color: resultado === 'ok' ? 'var(--color-ink-2)' : 'var(--color-warn)',
+                }}
+              >
+                {t(resultado === 'ok' ? 'avisos.testeOk' : 'avisos.testeFalhou')}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-[12.5px] text-[var(--color-ink-3)]">{t('avisos.soNoApp')}</p>
         )}
       </div>
     </div>

@@ -64,6 +64,19 @@ contextBridge.exposeInMainWorld('wtf', {
     ipcRenderer.on('wtf:traducao-pendente', ouvinte)
     return () => ipcRenderer.off('wtf:traducao-pendente', ouvinte)
   },
+  /**
+   * Dispara uma notificação de exemplo. É como a pessoa descobre se o sistema
+   * dela está bloqueando os avisos do WTF.
+   */
+  testarNotificacao: () => ipcRenderer.invoke('wtf:testar-notificacao'),
+  /**
+   * O aviso do sistema foi clicado: abrir a aba certa. Devolve como cancelar.
+   */
+  aoIrPara: (cb) => {
+    const ouvinte = (_evento, aba) => cb(aba)
+    ipcRenderer.on('wtf:ir-para', ouvinte)
+    return () => ipcRenderer.off('wtf:ir-para', ouvinte)
+  },
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
   /**

@@ -35,6 +35,13 @@ import { contarPendentes, traducaoAutorizada, traduzirEventos } from './translat
 import { lerUso } from './usage.js'
 import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
 import {
+  decidirNotificacoes,
+  lerNotificados,
+  marcarNotificados,
+  notificar,
+  notificarTeste,
+} from './notify.js'
+import {
   alternarValidado,
   aplicarValidados,
   assinaturaDe,
@@ -194,8 +201,58 @@ async function lerProjeto(dir) {
   // O consumo viaja junto: a pessoa precisa poder ver, a qualquer momento,
   // quanto do recurso dela o app usou — e quanto ele economizou com o cache.
   snapshot.uso = await lerUso(dir)
+
+  // Fora do caminho crítico: comparar com a leitura anterior e, se algo passou
+  // a depender de uma decisão da pessoa, avisar pelo sistema operacional.
+  void avaliarAvisos(dir, snapshot)
   return snapshot
 }
+
+/**
+ * O painel fechado é o caso normal: quem não programa não deixa o WTF aberto o
+ * dia inteiro. Sem isto, a pessoa só descobre que algo depende dela quando
+ * resolve abrir o app — que pode ser dias depois.
+ *
+ * A decisão de O QUE notificar é pura e mora em `notify.js` (leia a regra no
+ * topo daquele arquivo antes de acrescentar qualquer gatilho aqui). O que
+ * acontece neste ponto é só a fiação: o snapshot anterior, o disco e a janela.
+ */
+let ultimoSnapshot = null
+let avaliandoAvisos = false
+
+async function avaliarAvisos(dir, snapshot) {
+  if (avaliandoAvisos) return
+  avaliandoAvisos = true
+  try {
+    const antes = ultimoSnapshot
+    ultimoSnapshot = snapshot
+    const config = snapshot?.config ?? (await lerConfig(dir))
+    if (config?.notificar !== 'sim') return
+
+    const jaNotificados = await lerNotificados(dir)
+    const avisos = decidirNotificacoes(antes, snapshot, jaNotificados, new Date(), config)
+    for (const aviso of avisos) {
+      const r = await notificar(aviso, win)
+      // Só marca o que de fato saiu: um aviso engolido (janela em foco, sistema
+      // sem suporte) precisa continuar podendo aparecer depois.
+      if (r?.enviada) await marcarNotificados(dir, aviso.chaves)
+    }
+  } catch {
+    // Avisar é serviço secundário: falhar aqui nunca pode derrubar a leitura.
+  } finally {
+    avaliandoAvisos = false
+  }
+}
+
+/** A notificação de exemplo do botão "Testar aviso", em Configurações. */
+ipcMain.handle('wtf:testar-notificacao', async () => {
+  try {
+    const config = await lerConfig(projetoAtual)
+    return await notificarTeste(win, config)
+  } catch (erro) {
+    return { enviada: false, erro: String(erro?.message ?? erro) }
+  }
+})
 
 /** Substitui o texto heurístico pelo texto traduzido, quando houver. */
 function aplicarTraducoes(snapshot, traducoes) {
@@ -545,6 +602,9 @@ ipcMain.handle('wtf:escolher-projeto', async () => {
     return { erro: 'Essa pasta não é um repositório Git. O WTF ainda precisa de Git para acompanhar as mudanças.' }
   }
   projetoAtual = dir
+  // Projeto novo, linha de base nova: o histórico dele não vira uma rajada
+  // de avisos no primeiro segundo.
+  ultimoSnapshot = null
   try {
     const s = await lerProjeto(dir)
     observar(dir)

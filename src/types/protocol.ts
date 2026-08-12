@@ -293,9 +293,19 @@ export interface ConfigProjeto {
   maxTraducoesPorRodada?: number
   /** A pessoa já leu o aviso de que perguntar consome créditos da chave dela. */
   avisoCustoAceito?: boolean
+  /**
+   * Avisos do sistema operacional quando algo precisa da decisão dela.
+   * Padrão `'nao'`: ninguém recebe notificação sem ligar (ver electron/notify.js).
+   */
+  notificar?: Notificar
+  /** Sem avisos entre 22h e 7h. Padrão: ligado. */
+  silencioNoturno?: boolean
 }
 
 export type TraduzirAuto = 'perguntar' | 'sim' | 'nao'
+
+/** Ligado ou desligado — não existe "perguntar" aqui: a permissão é do sistema. */
+export type Notificar = 'sim' | 'nao'
 
 /** A resposta ao pedido de tradução: uma vez, sempre ou nunca. */
 export type RespostaTraducao = 'agora' | 'sempre' | 'nunca'
