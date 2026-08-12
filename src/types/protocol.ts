@@ -477,6 +477,68 @@ export interface DocumentosProjeto {
   desatualizado: boolean
 }
 
+// -------------------------------------------------------------- histórico
+
+/**
+ * Como o projeto estava num ponto do passado.
+ *
+ * Reconstruído do Git (não de snapshots gravados), então existe desde o
+ * primeiro minuto de uso — inclusive em projeto anterior à instalação do WTF.
+ */
+export interface MarcoHistorico {
+  /** O dia do marco, `YYYY-MM-DD` no fuso local. */
+  em: string
+  /** Commit que era o HEAD naquele instante. É a chave do cache. */
+  commit: string
+  /** Arquivos rastreados naquele momento. */
+  arquivos: number
+  partes: number
+  /** Partes que já tinham código (estado 'implemented' ou 'tested'). */
+  comCodigo: number
+  testadas: number
+  /** Com mapa do projeto, ou pela classificação heurística. */
+  fonte: 'mapa' | 'heuristica'
+}
+
+export interface Historico {
+  /**
+   * ADAPTATIVA: por dia em projeto jovem ou curto, por semana em projeto
+   * longo. Projeto de dois dias com granularidade semanal seria uma barra só.
+   */
+  granularidade: 'dia' | 'semana'
+  /** No máximo 14, sempre os mais recentes. */
+  marcos: MarcoHistorico[]
+  /** Quando o cache foi calculado. `null` enquanto nunca foi. */
+  geradoEm: string | null
+  /** Ainda não há cache: os marcos chegam por `wtf:mudou` em instantes. */
+  frio: boolean
+  /** O cache é de outro dia ou de outro mapa; um recálculo está a caminho. */
+  desatualizado: boolean
+}
+
+/** Uma parte que trocou de estado enquanto a pessoa não estava olhando. */
+export interface ParteQueMudou {
+  id: string
+  nome: string
+  de: FeatureState
+  para: FeatureState
+}
+
+/** O resumo do intervalo entre a visita anterior e esta. */
+export interface DesdeUltimaVisita {
+  /** Primeira visita: não há contra o que comparar, e não se inventa. */
+  primeira: boolean
+  /** Início do intervalo (a visita anterior), em ISO. */
+  desdeEm: string | null
+  commits: number
+  /** Arquivos distintos tocados no intervalo. */
+  arquivos: number
+  partesQueMudaram: ParteQueMudou[]
+  avisosNovos: number
+  /** Dos avisos novos, quantos continuam esperando uma decisão da pessoa. */
+  pedemDecisao: number
+}
+
 export interface ProjectSnapshot {
   project: Project
   features: Feature[]
@@ -489,6 +551,10 @@ export interface ProjectSnapshot {
   pastas?: MapaPastas
   /** Ausente fora do aplicativo. A varredura existe mesmo sem `.wtf/docs.json`. */
   documentos?: DocumentosProjeto
+  /** Como o projeto chegou até aqui. Vem do cache; recalcula em segundo plano. */
+  historico?: Historico
+  /** O que aconteceu desde a última vez que a pessoa olhou. */
+  desdeUltimaVisita?: DesdeUltimaVisita
 }
 
 // ------------------------------------------- o que a instalação vai escrever

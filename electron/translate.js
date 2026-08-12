@@ -218,12 +218,61 @@ function detectarAtencao(commit) {
 /**
  * Estado da feature a partir de evidência real do repositório.
  * Conservador de propósito: sem prova, não promove.
+ *
+ * ⚠️ ESTA É A ÚNICA DEFINIÇÃO DA REGRA. `map.js` (painel de hoje) e
+ * `history.js` (reconstrução do passado) importam daqui. Uma segunda cópia
+ * divergiria em silêncio, e o histórico passaria a contar uma evolução que
+ * nunca aconteceu — este projeto já foi mordido por regra duplicada antes.
  */
-function estadoDe({ temCodigo, temTeste, soDocumento }) {
+export function estadoPorEvidencia({ temCodigo, temTeste, soDocumento }) {
   if (soDocumento) return 'planned'
   if (!temCodigo) return 'planned'
   if (temTeste) return 'tested'
   return 'implemented'
+}
+
+/**
+ * As partes que um CONJUNTO DE ARQUIVOS revela, pela mesma classificação
+ * heurística usada no snapshot (mesmas REGRAS, mesmo tratamento de teste).
+ *
+ * Existe para o histórico: reconstruir uma data significa ter só a lista de
+ * arquivos daquele momento, sem commits e sem mapa. Quem nunca rodou o
+ * onboarding também tem passado, e ele precisa ser contado pela mesma régua do
+ * presente — por isso isto vive aqui, ao lado das regras, e não em history.js.
+ */
+export function partesDeArquivos(caminhos) {
+  const lista = (Array.isArray(caminhos) ? caminhos : []).filter((p) => typeof p === 'string')
+  // Código primeiro: um teste só sabe a que parte pertence depois de saber que
+  // partes existem — a mesma ordem de `commitsParaSnapshot`.
+  const codigo = lista.filter((p) => !ehTeste(p))
+  const partes = new Map()
+
+  for (const caminho of [...codigo, ...lista.filter(ehTeste)]) {
+    const alvo = ehTeste(caminho)
+      ? (classificarTeste(caminho) ?? porNomeDeArquivo(caminho, codigo))
+      : null
+    const { area, nome } = alvo ?? classificar(caminho)
+    const id = idDe(area, nome)
+    const atual = partes.get(id) ?? {
+      id,
+      area,
+      name: nome,
+      arquivos: 0,
+      temCodigo: false,
+      temTeste: false,
+      soDocumento: true,
+    }
+    atual.arquivos += 1
+    if (ehTeste(caminho)) atual.temTeste = true
+    else if (!/^docs?\//.test(caminho)) atual.temCodigo = true
+    if (!/^docs?\//.test(caminho)) atual.soDocumento = false
+    partes.set(id, atual)
+  }
+
+  return [...partes.values()].map((p) => ({
+    ...p,
+    state: estadoPorEvidencia(p),
+  }))
 }
 
 // ---------------------------------------------------------------- snapshot
@@ -322,7 +371,7 @@ export function commitsParaSnapshot(meta, commits) {
       id: f.id,
       area: f.area,
       name: f.name,
-      state: estadoDe({ temCodigo: f.temCodigo, temTeste: f.temTeste, soDocumento }),
+      state: estadoPorEvidencia({ temCodigo: f.temCodigo, temTeste: f.temTeste, soDocumento }),
       origin: 'discovered',
       summary: resumoDe(f),
       relatedIds: f.relatedIds.slice(0, 6),

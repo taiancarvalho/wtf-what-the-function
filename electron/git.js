@@ -217,6 +217,41 @@ export async function readTrackedFiles(dir) {
 }
 
 /**
+ * Quantos commits o HEAD alcança. Barato (o git só conta), e é o número que
+ * decide se um projeto é "longo" o bastante para valer histórico por semana.
+ */
+export async function readCommitCount(dir) {
+  const out = await gitSafe(dir, ['rev-list', '--count', 'HEAD'])
+  const n = Number.parseInt((out ?? '').trim(), 10)
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * O último commit ATÉ um instante — a porta de entrada para o passado.
+ *
+ * É isto que permite ao WTF reconstruir como o projeto estava numa data sem
+ * jamais ter gravado um snapshot naquele dia: o histórico é DERIVADO do Git,
+ * então funciona retroativamente, inclusive em projeto que já existia antes do
+ * WTF ser instalado. `null` quando nada havia ainda naquele instante.
+ */
+export async function readCommitBefore(dir, quando) {
+  if (!quando) return null;
+  const out = await gitSafe(dir, ['rev-list', '-1', `--before=${quando}`, 'HEAD']);
+  const hash = (out ?? '').trim();
+  return hash || null;
+}
+
+/**
+ * A árvore de arquivos EM um commit — o `ls-files` de um momento qualquer.
+ * Somente leitura: nada é retirado do histórico para o disco.
+ */
+export async function readTreeFiles(dir, commit) {
+  if (!commit) return [];
+  const out = await gitSafe(dir, ['ls-tree', '-r', '--name-only', '-z', commit]);
+  return out ? out.split(REC).filter(Boolean) : [];
+}
+
+/**
  * Arquivos que existem no DISCO mas ainda não estão no histórico.
  *
  * Quem faz vibe coding passa horas sem commitar — e é exatamente enquanto

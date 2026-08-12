@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Clock,
   CloudOff,
   History,
   Sparkles,
@@ -11,7 +12,8 @@ import { montarAssuntos } from '@/lib/assuntos'
 import { diaRelativo, horaDe } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import { STATE, STATE_ORDER } from '@/lib/state'
-import type { ProjectSnapshot } from '@/types/protocol'
+import { desdeUltimaVisitaDe } from '@/views/Historico'
+import type { FeatureState, ProjectSnapshot } from '@/types/protocol'
 
 /**
  * A primeira tela.
@@ -33,7 +35,7 @@ export function Home({
   onIr,
 }: {
   snapshot: ProjectSnapshot
-  onIr: (aba: 'timeline' | 'build' | 'mapa') => void
+  onIr: (aba: 'timeline' | 'build' | 'mapa' | 'historico') => void
 }) {
   const t = useT()
 
@@ -142,6 +144,9 @@ export function Home({
           </Bloco>
         )}
 
+        {/* 3.5. o que mudou desde a última vez que você olhou */}
+        <DesdeQueVoceOlhou snapshot={snapshot} onIr={onIr} />
+
         {/* 4. acontecendo agora */}
         {emCurso.length > 0 && (
           <Bloco
@@ -243,6 +248,132 @@ export function Home({
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * "O que mudou desde a última vez que você olhou".
+ *
+ * É o bloco que responde à pergunta de quem some por dois dias e volta. Vem
+ * depois dos três blocos de urgência de propósito: nada aqui é uma emergência,
+ * e ele não pode roubar o olho de algo que depende de uma decisão.
+ *
+ * Se não há nada novo, o bloco NÃO É RENDERIZADO. Uma linha dizendo "nada
+ * mudou" custaria uma leitura por dia para não informar nada — e a Home inteira
+ * é construída em cima de blocos que somem quando não têm o que dizer.
+ */
+function DesdeQueVoceOlhou({
+  snapshot,
+  onIr,
+}: {
+  snapshot: ProjectSnapshot
+  onIr: (aba: 'timeline' | 'build' | 'mapa' | 'historico') => void
+}) {
+  const t = useT()
+  const d = desdeUltimaVisitaDe(snapshot)
+  if (!d) return null
+
+  // Primeira visita: números vazios seriam mentira ("0 mudanças" sugere que o
+  // projeto parou). O que cabe aqui é dizer o que este bloco vai virar.
+  if (d.primeira) {
+    return (
+      <Bloco
+        cor="var(--color-implemented)"
+        icone={Clock}
+        titulo={t('desde.boasVindas')}
+        delay={0.18}
+      >
+        <p className="text-[13px] leading-relaxed text-[var(--color-ink-2)]">
+          {t('desde.boasVindasNota')}
+        </p>
+      </Bloco>
+    )
+  }
+
+  const nada =
+    d.commits === 0 &&
+    d.arquivos === 0 &&
+    d.avisosNovos === 0 &&
+    d.pedemDecisao === 0 &&
+    d.partesQueMudaram.length === 0
+  if (nada) return null
+
+  const numeros: string[] = []
+  if (d.commits > 0) {
+    numeros.push(
+      d.commits === 1 ? t('desde.mudanca1') : t('desde.commits', { n: d.commits }),
+    )
+  }
+  if (d.arquivos > 0) {
+    numeros.push(
+      d.arquivos === 1 ? t('desde.arquivo1') : t('desde.arquivos', { n: d.arquivos }),
+    )
+  }
+  if (d.avisosNovos > 0) {
+    numeros.push(
+      d.avisosNovos === 1 ? t('desde.aviso1') : t('desde.avisos', { n: d.avisosNovos }),
+    )
+  }
+  if (d.pedemDecisao > 0) {
+    numeros.push(
+      d.pedemDecisao === 1
+        ? t('desde.decisao1')
+        : t('desde.decisoes', { n: d.pedemDecisao }),
+    )
+  }
+
+  return (
+    <Bloco
+      cor="var(--color-implemented)"
+      icone={Clock}
+      titulo={t('desde.titulo')}
+      acao={t('desde.verHistorico')}
+      onAcao={() => onIr('historico')}
+      delay={0.18}
+    >
+      {d.desdeEm && (
+        <p className="text-[12px] text-[var(--color-ink-3)]">
+          {t('desde.periodo', {
+            dia: diaRelativo(d.desdeEm).toLowerCase(),
+            hora: horaDe(d.desdeEm),
+          })}
+        </p>
+      )}
+
+      {numeros.length > 0 && (
+        <p className="mt-1 text-[13.5px] leading-relaxed text-[var(--color-ink)]">
+          {numeros.join(' · ')}
+        </p>
+      )}
+
+      {/* As marcas de estado dizem a distância percorrida sem precisar de
+          adjetivo: "● → ✓" é a frase inteira, e é a mesma em qualquer idioma. */}
+      {d.partesQueMudaram.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {d.partesQueMudaram.slice(0, 5).map((p) => (
+            <li key={p.nome} className="flex items-baseline gap-2 text-[13px]">
+              <span className="min-w-0 flex-1 truncate">{p.nome}</span>
+              <span className="shrink-0 font-mono text-[12px] whitespace-nowrap">
+                <Marca estado={p.de} />
+                <span className="mx-1 text-[var(--color-ink-3)]">→</span>
+                <Marca estado={p.para} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Bloco>
+  )
+}
+
+/** Só desenha se o estado for um dos conhecidos — o motor pode mandar outro. */
+function Marca({ estado }: { estado: string }) {
+  const meta = STATE[estado as FeatureState]
+  if (!meta) return <span className="text-[var(--color-ink-3)]">{estado}</span>
+  return (
+    <span className="tracking-[-0.1em]" style={{ color: meta.color }}>
+      {meta.mark}
+    </span>
   )
 }
 

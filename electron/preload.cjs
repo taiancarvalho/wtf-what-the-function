@@ -6,6 +6,12 @@ contextBridge.exposeInMainWorld('wtf', {
   isElectron: true,
   /** Lê o projeto observado. `null` quando nenhum foi apontado. */
   getSnapshot: () => ipcRenderer.invoke('wtf:snapshot'),
+  /**
+   * Reconstrói o histórico do projeto na hora (dezenas de leituras do git) e
+   * devolve os marcos. O snapshot já traz o histórico do cache; isto só é
+   * necessário quando a tela não quer esperar o recálculo de segundo plano.
+   */
+  recalcularHistorico: () => ipcRenderer.invoke('wtf:historico'),
   /** Abre o seletor de pasta e passa a observar o projeto escolhido. */
   escolherProjeto: () => ipcRenderer.invoke('wtf:escolher-projeto'),
   /**

@@ -4,6 +4,7 @@ import type {
   ContextoPergunta,
   EstadoChaves,
   EstadoGlobal,
+  Historico,
   ListaProjetos,
   ProjetoConhecido,
   PacoteInstalacao,
@@ -26,6 +27,7 @@ export interface Carga {
 
 interface PonteWtf {
   getSnapshot?: () => Promise<unknown>
+  recalcularHistorico?: () => Promise<unknown>
   escolherProjeto?: () => Promise<unknown>
   listarProjetos?: () => Promise<unknown>
   abrirProjeto?: (caminho: string) => Promise<unknown>
@@ -104,6 +106,27 @@ export async function carregar(): Promise<Carga> {
     }
   }
   return { snapshot: await loadSnapshot(), fonte: 'exemplo' }
+}
+
+export const podeVerHistorico = () => typeof ponte()?.recalcularHistorico === 'function'
+
+/**
+ * Força a reconstrução do histórico e devolve os marcos.
+ *
+ * Só use quando a tela precisa do passado JÁ: o snapshot normal já traz
+ * `historico` do cache, e o recálculo acontece sozinho em segundo plano,
+ * avisando por `aoMudarProjeto('historico')`.
+ */
+export async function recalcularHistorico(): Promise<Historico | null> {
+  const p = ponte()
+  if (!p?.recalcularHistorico) return null
+  try {
+    const r = await p.recalcularHistorico()
+    if (r && typeof r === 'object' && 'marcos' in r) return r as Historico
+    return null
+  } catch {
+    return null
+  }
 }
 
 export const podeInstalar = () => typeof ponte()?.instalar === 'function'

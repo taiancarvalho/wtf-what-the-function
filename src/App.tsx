@@ -8,6 +8,7 @@ import {
   ListChecks,
   Newspaper,
   Settings2,
+  TrendingUp,
 } from 'lucide-react'
 import {
   aoIrPara,
@@ -25,17 +26,27 @@ import { BuildMap } from '@/views/BuildMap'
 import { ProductMap } from '@/views/ProductMap'
 import { Timeline } from '@/views/Timeline'
 import { Home } from '@/views/Home'
+import { Historico } from '@/views/Historico'
 import { Pastas } from '@/views/Pastas'
 import { Documentos } from '@/views/Documentos'
 import { Configuracoes } from '@/views/Configuracoes'
 import { AGENT_LABEL } from '@/lib/state'
 
-type Aba = 'home' | 'timeline' | 'build' | 'mapa' | 'pastas' | 'docs' | 'config'
+type Aba =
+  | 'home'
+  | 'timeline'
+  | 'build'
+  | 'historico'
+  | 'mapa'
+  | 'pastas'
+  | 'docs'
+  | 'config'
 
 const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] = [
   { id: 'home', label: 'nav.home', icone: House, nota: 'nav.home.nota' },
   { id: 'timeline', label: 'nav.acontecendo', icone: Newspaper, nota: 'nav.acontecendo.nota' },
   { id: 'build', label: 'nav.progresso', icone: ListChecks, nota: 'nav.progresso.nota' },
+  { id: 'historico', label: 'nav.historico', icone: TrendingUp, nota: 'nav.historico.nota' },
   { id: 'mapa', label: 'nav.mapa', icone: Blocks, nota: 'nav.mapa.nota' },
   { id: 'pastas', label: 'nav.pastas', icone: FolderTree, nota: 'nav.pastas.nota' },
   { id: 'docs', label: 'nav.docs', icone: Library, nota: 'nav.docs.nota' },
@@ -344,6 +355,7 @@ function Painel({
           {aba === 'build' && (
             <BuildMap snapshot={snapshot} onMudou={() => atualizar(true)} />
           )}
+          {aba === 'historico' && <Historico snapshot={snapshot} />}
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
           {aba === 'pastas' && <Pastas snapshot={snapshot} />}
           {aba === 'docs' && <Documentos snapshot={snapshot} />}

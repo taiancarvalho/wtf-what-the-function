@@ -13,6 +13,12 @@ import {
 import { commitsParaSnapshot } from './translate.js'
 import { mesclarClaims, readAgentEvents } from './events.js'
 import { aplicarMapa, readProjectMap } from './map.js'
+import {
+  desdeAUltimaVisita,
+  historicoRapido,
+  reconstruirHistorico,
+  registrarVisita,
+} from './history.js'
 import { lerMapaPastas } from './folders.js'
 import { juntarDocs, lerMapaDocs, varrerDocumentos } from './docs.js'
 import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
@@ -209,10 +215,51 @@ async function lerProjeto(dir) {
   // quanto do recurso dela o app usou — e quanto ele economizou com o cache.
   snapshot.uso = await lerUso(dir)
 
+  /*
+   * O passado do projeto — SEMPRE do cache, nunca calculado aqui.
+   *
+   * Reconstruir 14 marcos são dezenas de idas ao git, e esta função roda a cada
+   * pintura do painel. Então aqui só se LÊ `.wtf/history.json`; se estiver frio
+   * ou for de outro dia, o recálculo acontece atrás e a tela é avisada por
+   * `wtf:mudou` — o mesmo desenho da tradução.
+   */
+  snapshot.historico = await historicoRapido(dir)
+  if (snapshot.historico.frio || snapshot.historico.desatualizado) {
+    void reconstruirAoFundo(dir)
+  }
+
+  // Precisa do snapshot pronto: os avisos do intervalo saem dos eventos dele.
+  snapshot.desdeUltimaVisita = await desdeAUltimaVisita(dir, { snapshot })
+
   // Fora do caminho crítico: comparar com a leitura anterior e, se algo passou
   // a depender de uma decisão da pessoa, avisar pelo sistema operacional.
   void avaliarAvisos(dir, snapshot)
   return snapshot
+}
+
+/**
+ * O recálculo do histórico, fora do caminho crítico.
+ *
+ * Uma trava por vez: o watcher pode disparar várias leituras seguidas enquanto
+ * a IA salva arquivos, e cada uma acharia o cache "desatualizado" — sem isto,
+ * dez reconstruções concorreriam pelo mesmo arquivo.
+ */
+let reconstruindo = false
+
+async function reconstruirAoFundo(dir) {
+  if (reconstruindo || !dir) return
+  reconstruindo = true
+  try {
+    const antes = await historicoRapido(dir)
+    const depois = await reconstruirHistorico(dir)
+    // Só acorda a tela se o resultado mudou de fato.
+    const mudou = JSON.stringify(antes.marcos) !== JSON.stringify(depois.marcos)
+    if (mudou && win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'historico')
+  } catch {
+    // O histórico é leitura extra: falhar aqui nunca derruba o painel.
+  } finally {
+    reconstruindo = false
+  }
 }
 
 /**
@@ -441,15 +488,44 @@ async function abrirProjeto(dir) {
   ultimoSnapshot = null
   ultimosEventos = []
   void registrarProjeto(dir).catch(() => {})
+  /*
+   * A marca da visita é gravada ANTES da leitura, e a ordem é a regra inteira.
+   *
+   * `registrarVisita` empurra a visita anterior para `anteriorEm` — e é contra
+   * `anteriorEm` que o resumo compara. Gravando depois de `lerProjeto`, o
+   * resumo desta abertura ainda enxergaria a marca de DUAS sessões atrás.
+   * (Aberturas seguidas dentro de 30 min contam como a mesma visita, então
+   * reabrir o painel não apaga o intervalo — ver history.js.)
+   */
+  await registrarVisita(dir).catch(() => {})
   const s = await lerProjeto(dir)
   observar(dir)
   traduzirAoFundo(dir, s?.events ?? [])
   return s
 }
 
+/**
+ * Recalcula o histórico AGORA e devolve os marcos prontos.
+ *
+ * O caminho normal é o cache + o recálculo em segundo plano; isto existe para
+ * quando a tela quer o passado na mão (a pessoa abriu a aba do histórico e não
+ * quer esperar o próximo `wtf:mudou`). Caro de propósito: só por pedido.
+ */
+ipcMain.handle('wtf:historico', async () => {
+  if (!projetoAtual) return null
+  try {
+    return await reconstruirHistorico(projetoAtual)
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
 ipcMain.handle('wtf:snapshot', async () => {
   if (!projetoAtual) return null
   try {
+    // Abrir pelo `WTF_PROJECT` também é uma visita. A janela de sessão de
+    // 30 min impede que as releituras do watcher apaguem o intervalo.
+    await registrarVisita(projetoAtual).catch(() => {})
     const s = await lerProjeto(projetoAtual)
     observar(projetoAtual)
     traduzirAoFundo(projetoAtual, s?.events ?? [])

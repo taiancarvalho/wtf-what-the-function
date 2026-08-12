@@ -12,6 +12,9 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
+// A regra de estado mora em UM lugar só (ver o aviso sobre ela em translate.js).
+import { estadoPorEvidencia } from './translate.js'
+
 // ------------------------------------------------------------------ leitura
 
 const RE_ACENTO = /[\u0300-\u036f]/g
@@ -125,6 +128,31 @@ function casa(glob, caminho) {
 
 const casaAlgum = (globs, caminho) => globs.some((g) => casa(g, caminho))
 
+// ------------------------------------------------------------- classificação
+
+/**
+ * Distribui uma lista de caminhos entre as features do mapa.
+ *
+ * Função PURA e sem git: recebe caminhos, devolve quem casa com quem. É o que
+ * permite ao histórico perguntar "e naquela terça?" — basta trocar a lista de
+ * arquivos de hoje pela árvore de um commit antigo, e a mesma regra responde.
+ * Um arquivo pode pertencer a várias partes: não há exclusividade.
+ */
+export function classificarPorMapa(features, caminhos) {
+  const acc = new Map()
+  for (const f of features ?? []) {
+    acc.set(f.id, { def: f, arquivos: new Set(), testes: new Set() })
+  }
+  for (const caminho of caminhos ?? []) {
+    if (typeof caminho !== 'string' || !caminho) continue
+    for (const a of acc.values()) {
+      if (casaAlgum(a.def.paths, caminho)) a.arquivos.add(caminho)
+      if (casaAlgum(a.def.tests, caminho)) a.testes.add(caminho)
+    }
+  }
+  return acc
+}
+
 // ----------------------------------------------------------------- aplicação
 
 const ID_SOBRA = 'f-outros'
@@ -172,11 +200,6 @@ export function aplicarMapa(snapshot, mapa, commits, arquivosRastreados, arquivo
     }
   }
 
-  const acc = new Map()
-  for (const f of mapa.features) {
-    acc.set(f.id, { def: f, arquivos: new Set(), testes: new Set(), ultimo: null, naoSalvos: new Set() })
-  }
-
   /*
    * EXISTÊNCIA vem do disco; DATA vem dos commits.
    *
@@ -186,22 +209,24 @@ export function aplicarMapa(snapshot, mapa, commits, arquivosRastreados, arquivo
    * madura a feature, mais provável de sumir. Agora `git ls-files` responde o
    * que existe hoje, e os commits respondem apenas quando mexeram por último.
    */
-  for (const caminho of rastreados) {
-    for (const a of acc.values()) {
-      if (casaAlgum(a.def.paths, caminho)) a.arquivos.add(caminho)
-      if (casaAlgum(a.def.tests, caminho)) a.testes.add(caminho)
-    }
+  const acc = classificarPorMapa(mapa.features, rastreados)
+  for (const a of acc.values()) {
+    a.ultimo = null
+    a.naoSalvos = new Set()
   }
 
   // Arquivos do disco valem EXISTÊNCIA igual aos rastreados — só ficam
   // marcados como ainda não salvos no histórico.
-  for (const caminho of naoSalvos) {
-    for (const a of acc.values()) {
-      const noCodigo = casaAlgum(a.def.paths, caminho)
-      const noTeste = casaAlgum(a.def.tests, caminho)
-      if (!noCodigo && !noTeste) continue
-      if (noCodigo) a.arquivos.add(caminho)
-      if (noTeste) a.testes.add(caminho)
+  const doDisco = classificarPorMapa(mapa.features, naoSalvos)
+  for (const [id, d] of doDisco) {
+    const a = acc.get(id)
+    if (!a) continue
+    for (const caminho of d.arquivos) {
+      a.arquivos.add(caminho)
+      a.naoSalvos.add(caminho)
+    }
+    for (const caminho of d.testes) {
+      a.testes.add(caminho)
       a.naoSalvos.add(caminho)
     }
   }
@@ -243,7 +268,7 @@ export function aplicarMapa(snapshot, mapa, commits, arquivosRastreados, arquivo
      * `origin` e fica guardado em `planStatus` como informação, jamais como
      * promoção de estado.
      */
-    const state = temCodigo ? (temTeste ? 'tested' : 'implemented') : 'planned'
+    const state = estadoPorEvidencia({ temCodigo, temTeste, soDocumento: false })
 
     const claim = claimsPorNome.get(semAcento(def.name))
 
