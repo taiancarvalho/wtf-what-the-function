@@ -104,6 +104,8 @@ contextBridge.exposeInMainWorld('wtf', {
    * Responde ao pedido de tradução automática: 'agora' (uma vez), 'sempre'
    * (grava a autorização) ou 'nunca' (o painel segue no texto heurístico).
    */
+  /** Quantas mudanças ainda estão no texto automático. */
+  traducaoPendentes: () => ipcRenderer.invoke('wtf:traducao-pendentes'),
   responderTraducao: (resposta) => ipcRenderer.invoke('wtf:responder-traducao', resposta),
   /**
    * Avisa que há eventos sem tradução e ninguém autorizou gastar para

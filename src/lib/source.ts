@@ -71,6 +71,7 @@ interface PonteWtf {
   perguntar?: (pedido: unknown) => Promise<unknown>
   aoReceberResposta?: (cb: (dados: PedacoResposta) => void) => () => void
   lerUso?: () => Promise<unknown>
+  traducaoPendentes?: () => Promise<unknown>
   responderTraducao?: (resposta: RespostaTraducao) => Promise<unknown>
   aoPedirTraducao?: (cb: (dados: TraducaoPendente) => void) => () => void
   testarNotificacao?: () => Promise<unknown>
@@ -381,6 +382,23 @@ export async function lerUso(): Promise<UsoProjeto> {
 }
 
 export const podeResponderTraducao = () => typeof ponte()?.responderTraducao === 'function'
+
+/**
+ * Quantas mudanças ainda estão no texto automático — perguntado pela tela.
+ *
+ * O aviso de pendência só era EMPURRADO quando a leitura de fundo topava com
+ * ele. Quem abrisse a aba depois não via nada, e num projeto importado (que
+ * chega com o histórico inteiro por traduzir) isso era um feed em linguagem de
+ * commit sem porta de saída.
+ */
+export async function traducaoPendentes(): Promise<{
+  pendentes: number
+  disponivel: boolean
+  auto?: string
+}> {
+  const r = await ponte()?.traducaoPendentes?.()
+  return (r as { pendentes: number; disponivel: boolean }) ?? { pendentes: 0, disponivel: false }
+}
 
 /**
  * Responde ao pedido de tradução: uma vez, sempre ou nunca. Devolve o config

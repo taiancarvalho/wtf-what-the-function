@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -8,7 +8,9 @@ import {
   FileText,
   FolderTree,
   Hammer,
+  Languages,
   Lightbulb,
+  Loader2,
   PackagePlus,
   PackageMinus,
   RotateCcw,
@@ -24,7 +26,14 @@ import { OQueFazer } from '@/components/OQueFazer'
 import { acoesDeNaoSalvo, acoesDoEvento } from '@/lib/acoes'
 import { codigoCurto, diaRelativo, horaDe } from '@/lib/format'
 import { useT } from '@/lib/i18n'
-import { alternarResolvido, podePerguntar, podeResolver } from '@/lib/source'
+import {
+  alternarResolvido,
+  podePerguntar,
+  podeResolver,
+  podeResponderTraducao,
+  responderTraducao,
+  traducaoPendentes,
+} from '@/lib/source'
 import { AGENT_LABEL } from '@/lib/state'
 import { montarAssuntos, type Assunto } from '@/lib/assuntos'
 import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/protocol'
@@ -101,6 +110,8 @@ export function Timeline({
           </h1>
 
           <AgoraMesmo features={snapshot.features} />
+
+          <FaixaTraducao onTraduziu={onMudou} />
 
           {precisamAtencao > 0 && (
             <button
@@ -194,6 +205,94 @@ export function Timeline({
  * É a resposta para "o que está acontecendo neste exato momento?" — a pergunta
  * de quem fica olhando o painel enquanto o agente trabalha.
  */
+/**
+ * A porta para traduzir o que ainda está em linguagem de commit.
+ *
+ * Um projeto que já existia antes do WTF chega com o histórico inteiro por
+ * traduzir — e o feed, que é a tela principal, aparece escrito para quem
+ * programa. Havia um aviso para isso, mas ele só era EMPURRADO quando a
+ * leitura de fundo topava com pendências: quem abrisse a aba depois não via
+ * nada, e ficava sem saber que existia um jeito de melhorar aquilo.
+ *
+ * Agora a tela pergunta ao abrir. E pergunta o custo junto: traduzir consome a
+ * assinatura de quem tem plano limitado, então a pessoa decide antes, não
+ * depois.
+ */
+function FaixaTraducao({ onTraduziu }: { onTraduziu?: () => void }) {
+  const t = useT()
+  const [pendentes, setPendentes] = useState(0)
+  const [indo, setIndo] = useState(false)
+  const [feito, setFeito] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    void traducaoPendentes().then((r) => {
+      if (vivo && r.disponivel) setPendentes(r.pendentes)
+    })
+    return () => {
+      vivo = false
+    }
+  }, [])
+
+  if (pendentes === 0 || !podeResponderTraducao()) return null
+
+  async function traduzir(resposta: 'agora' | 'sempre') {
+    setIndo(true)
+    try {
+      await responderTraducao(resposta)
+      setFeito(true)
+      // A tradução acontece em segundo plano e avisa o painel quando termina;
+      // aqui só pedimos uma releitura para o que já ficou pronto aparecer.
+      onTraduziu?.()
+    } finally {
+      setIndo(false)
+    }
+  }
+
+  if (feito) {
+    return (
+      <p className="mt-5 text-[12.5px] text-[var(--color-ink-3)]">{t('traduzir.emCurso')}</p>
+    )
+  }
+
+  return (
+    <div
+      className="animate-in-up mt-5 rounded-xl border p-4"
+      style={{
+        borderColor: 'color-mix(in oklab, var(--color-accent) 32%, transparent)',
+        background: 'color-mix(in oklab, var(--color-accent) 6%, transparent)',
+      }}
+    >
+      <p className="flex items-center gap-1.5 text-[13px] font-medium">
+        <Languages size={14} className="shrink-0 text-[var(--color-accent)]" />
+        {t('traduzir.titulo', { n: pendentes })}
+      </p>
+      <p className="mt-1 max-w-[58ch] text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+        {t('traduzir.nota')}
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <button
+          onClick={() => void traduzir('agora')}
+          disabled={indo}
+          className="no-drag inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium disabled:opacity-60"
+          style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
+        >
+          {indo ? <Loader2 size={13} className="animate-spin" /> : <Languages size={13} />}
+          {t('traduzir.agora')}
+        </button>
+        <button
+          onClick={() => void traduzir('sempre')}
+          disabled={indo}
+          className="no-drag rounded-md border px-3 py-1.5 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-60"
+          style={{ borderColor: 'var(--color-rule)' }}
+        >
+          {t('traduzir.sempre')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AgoraMesmo({ features }: { features: Feature[] }) {
   const t = useT()
   // Duas formas de "em curso": a IA declarou, ou há arquivo mexido sem salvar.

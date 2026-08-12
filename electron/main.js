@@ -56,7 +56,12 @@ import {
 import { lerArquivo } from './reader.js'
 import { procurarSegredos } from './secrets.js'
 import { procurarExpostos } from './exposed.js'
-import { contarPendentes, traducaoAutorizada, traduzirEventos } from './translator.js'
+import {
+  contarPendentes,
+  traducaoAutorizada,
+  traduzirDisponivel,
+  traduzirEventos,
+} from './translator.js'
 import { lerUso } from './usage.js'
 import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
 import {
@@ -435,6 +440,33 @@ async function traduzirAoFundo(dir, eventos, autorizadoAgora = false) {
  *   'sempre' — grava `traduzirAuto: 'sim'`; não pergunta mais
  *   'nunca'  — grava `traduzirAuto: 'nao'`; o painel segue na heurística
  */
+/**
+ * Quantas mudanças ainda estão no texto automático.
+ *
+ * O aviso de "há tradução pendente" só era EMPURRADO quando a leitura de fundo
+ * encontrava pendências — e quem abrisse a aba depois disso não via nada. Num
+ * projeto importado, que chega com o histórico inteiro por traduzir, isso
+ * significava um feed em linguagem de commit sem nenhuma porta para sair dele.
+ * Agora a tela pode PERGUNTAR, a qualquer momento.
+ */
+ipcMain.handle('wtf:traducao-pendentes', async () => {
+  if (!projetoAtual) return { pendentes: 0, disponivel: false }
+  try {
+    const config = await lerConfig(projetoAtual)
+    const disponivel = await traduzirDisponivel()
+    if (!disponivel) return { pendentes: 0, disponivel: false, auto: config.traduzirAuto }
+    const pendentes = await contarPendentes(projetoAtual, ultimosEventos, config.idiomaConteudo)
+    return {
+      pendentes,
+      disponivel: true,
+      auto: config.traduzirAuto,
+      maxPorRodada: config.maxTraducoesPorRodada,
+    }
+  } catch {
+    return { pendentes: 0, disponivel: false }
+  }
+})
+
 ipcMain.handle('wtf:responder-traducao', async (_e, resposta) => {
   if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
   const r = typeof resposta === 'string' ? resposta : ''
