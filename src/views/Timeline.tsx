@@ -16,7 +16,7 @@ import { StateChip, UnsavedChip, WorkingChip } from '@/components/StateMark'
 import { VisualizadorArquivo } from '@/components/VisualizadorArquivo'
 import { OQueFazer } from '@/components/OQueFazer'
 import { acoesDeNaoSalvo, acoesDoEvento } from '@/lib/acoes'
-import { diaRelativo, horaDe, plural } from '@/lib/format'
+import { codigoCurto, diaRelativo, horaDe, plural } from '@/lib/format'
 import { AGENT_LABEL } from '@/lib/state'
 import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/protocol'
 
@@ -271,6 +271,12 @@ function Cartao({
           aria-expanded={aberto}
         >
           <div className="flex items-baseline gap-2.5 text-[12px] text-[var(--color-ink-3)]">
+            <span
+              className="rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider"
+              title="Código deste aviso. Use para se referir a ele quando falar com a IA."
+            >
+              {codigoCurto(evento.id)}
+            </span>
             <span className="font-mono tabular-nums">{horaDe(evento.at)}</span>
             {feature && (
               <>

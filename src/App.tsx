@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Blocks, FlaskConical, FolderSearch, ListChecks, Newspaper } from 'lucide-react'
 import {
   aoMudarProjeto,
@@ -64,20 +64,43 @@ export function App() {
   const [atualizando, setAtualizando] = useState(false)
   const [atualizadoEm, setAtualizadoEm] = useState(() => Date.now())
 
-  const atualizar = useCallback(async () => {
-    setAtualizando(true)
+  const assinatura = useRef<string>('')
+  const ultimaLeitura = useRef(0)
+
+  /**
+   * `forcado` = veio de clique. Aí sempre recarrega e sempre pisca.
+   *
+   * Sem isso o painel ficava "doido": enquanto a IA trabalha, o hook grava um
+   * evento a cada arquivo tocado e a cada comando rodado, e cada gravação
+   * disparava uma atualização — várias por segundo, o botão girando sem parar.
+   * Duas travas: nada de recarregar mais de uma vez por segundo, e só mexer na
+   * tela quando o conteúdo realmente mudou.
+   */
+  const atualizar = useCallback(async (forcado = false) => {
+    const agora = Date.now()
+    if (!forcado && agora - ultimaLeitura.current < 1000) return
+    ultimaLeitura.current = agora
+
+    if (forcado) setAtualizando(true)
     try {
       const nova = await carregar()
-      setCarga(nova)
-      setAtualizadoEm(Date.now())
+      const nova_assinatura = JSON.stringify([nova.snapshot.events, nova.snapshot.features])
+      const mudou = nova_assinatura !== assinatura.current
+      assinatura.current = nova_assinatura
+
+      if (mudou || forcado) {
+        setCarga(nova)
+        setAtualizadoEm(Date.now())
+        if (mudou && !forcado) setAtualizando(true)
+      }
     } finally {
       // um piscar curto demais não é percebido como resposta ao clique
-      setTimeout(() => setAtualizando(false), 320)
+      setTimeout(() => setAtualizando(false), 420)
     }
   }, [])
 
   useEffect(() => {
-    atualizar()
+    atualizar(true)
   }, [atualizar])
 
   // o projeto avisa quando muda — commit novo ou declaração da IA
@@ -203,7 +226,7 @@ export function App() {
           <BarraTopo
             atualizando={atualizando}
             atualizadoEm={atualizadoEm}
-            onAtualizar={atualizar}
+            onAtualizar={() => atualizar(true)}
           />
         </div>
         <div className="min-h-0 flex-1">

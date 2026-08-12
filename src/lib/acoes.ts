@@ -1,3 +1,4 @@
+import { codigoCurto } from '@/lib/format'
 import type { Feature, WtfEvent } from '@/types/protocol'
 
 /**
@@ -23,14 +24,30 @@ export interface Acao {
   mensagem: string
 }
 
-/** Contexto técnico, no fim da mensagem, para a IA se localizar. */
-function rodape(arquivos: string[] = [], id?: string): string {
+/**
+ * Fecho da mensagem: contexto técnico e o pedido de retorno ao painel.
+ *
+ * O pedido de retorno é o que faltava. Sem ele, a IA respondia no terminal e o
+ * painel não ficava sabendo de nada — a pessoa pedia, era atendida, voltava ao
+ * painel e via tudo igual, sem saber se algo aconteceu. Pior: quando a IA só
+ * *verifica* e conclui que estava tudo certo, não há mudança nenhuma no
+ * projeto para o painel detectar. O silêncio é indistinguível de falha.
+ */
+function rodape(codigo: string, parte: string, arquivos: string[] = [], id?: string): string {
   const partes: string[] = []
+
+  partes.push(
+    `Ao terminar, avise o painel — inclusive se a conclusão for "não havia problema":\n` +
+      `node .wtf/bin/wtf-claim.cjs done --feature ${JSON.stringify(parte)} ` +
+      `--text "<o que você concluiu, em uma ou duas frases, sem jargão>"\n` +
+      `Comece também com o "start" equivalente se o trabalho for demorado.\n` +
+      `Mencione o código ${codigo} no texto, para eu saber a qual aviso isso responde.`,
+  )
+
   if (arquivos.length) {
     partes.push(`Arquivos envolvidos:\n${arquivos.slice(0, 12).map((f) => `- ${f}`).join('\n')}`)
   }
-  if (id) partes.push(`Referência da mudança: ${id}`)
-  if (!partes.length) return ''
+  if (id) partes.push(`Referência interna: ${id}`)
   return `\n\n---\n${partes.join('\n\n')}`
 }
 
@@ -42,12 +59,13 @@ export function acoesDoEvento(evento: WtfEvent, feature?: Feature): Acao[] {
   const h = evento.human
   if (!h) return []
 
+  const codigo = codigoCurto(evento.id)
   const parte = feature?.name ?? 'esta parte do projeto'
   const arquivos = evento.technical?.files ?? []
   const motivo = h.attentionReason ?? ''
 
   const contexto =
-    `Contexto (isto foi levantado pelo WTF, um painel que acompanha o projeto):\n` +
+    `Contexto (aviso ${codigo}, levantado pelo WTF, um painel que acompanha o projeto):\n` +
     `Parte do produto: ${parte}\n` +
     `Mudança: ${h.headline}\n` +
     (motivo ? `Ponto de atenção: ${motivo}\n` : '')
@@ -64,7 +82,7 @@ export function acoesDoEvento(evento: WtfEvent, feature?: Feature): Acao[] {
         `me explique em português simples o que você encontrou e o que pretende fazer, ` +
         `e só mexa depois que eu confirmar. ` +
         `Se for um alarme falso, diga isso claramente em vez de mexer no código à toa.` +
-        rodape(arquivos, evento.id),
+        rodape(codigo, parte, arquivos, evento.id),
     },
     {
       id: 'explicar',
@@ -76,7 +94,7 @@ export function acoesDoEvento(evento: WtfEvent, feature?: Feature): Acao[] {
         `Quero entender: o que exatamente muda para quem usa o produto, ` +
         `qual é o risco de verdade (e se é grave ou não), e o que costuma ser feito ` +
         `nesses casos. Não altere nenhum arquivo — é só explicação.` +
-        rodape(arquivos, evento.id),
+        rodape(codigo, parte, arquivos, evento.id),
     },
     {
       id: 'verificar',
@@ -88,7 +106,7 @@ export function acoesDoEvento(evento: WtfEvent, feature?: Feature): Acao[] {
         `Rode os testes que cobrem essa parte, ou crie um teste se não existir. ` +
         `Me mostre a saída real do que você rodou. ` +
         `Se não der para provar que funciona, diga isso com clareza em vez de afirmar que está pronto.` +
-        rodape(arquivos, evento.id),
+        rodape(codigo, parte, arquivos, evento.id),
     },
   ]
 

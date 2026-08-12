@@ -30,6 +30,22 @@ function dataPura(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
+/**
+ * Código curto e estável de um evento, para a pessoa conseguir apontar.
+ *
+ * "Corrige o AF3C" é uma frase que alguém consegue dizer — o identificador
+ * interno (hash de commit, uuid) não é. Mesmo evento sempre gera o mesmo
+ * código, então ele serve como referência entre o painel e a conversa com a IA.
+ */
+export function codigoCurto(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0
+  }
+  // 36^4 = 1,6 milhão de combinações — colisão é irrelevante nesta escala
+  return h.toString(36).toUpperCase().slice(-4).padStart(4, '0')
+}
+
 export function plural(n: number, um: string, muitos: string): string {
   return `${n} ${n === 1 ? um : muitos}`
 }
