@@ -61,6 +61,9 @@ contextBridge.exposeInMainWorld('wtf', {
   terminalColar: (id, texto) => ipcRenderer.invoke('wtf:terminal-colar', id, texto),
   /** O texto de um pedido pronto ('mapear', 'pastas', 'documentos', 'guardrails'). */
   textoPedido: (tipo) => ipcRenderer.invoke('wtf:texto-pedido', tipo),
+  /** Documentos que a IA escreveu a pedido do painel. */
+  gerados: () => ipcRenderer.invoke('wtf:gerados'),
+  apagarGerado: (chave) => ipcRenderer.invoke('wtf:apagar-gerado', chave),
   terminalEncerrar: (id) => ipcRenderer.invoke('wtf:terminal-encerrar', id),
   /** A saída do terminal, conforme chega. Devolve como cancelar. */
   aoSairDoTerminal: (cb) => {

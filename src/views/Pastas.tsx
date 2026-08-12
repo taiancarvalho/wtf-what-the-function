@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { CornerDownRight, FolderTree, Pencil } from 'lucide-react'
 import { mapearPastas } from '@/lib/source'
+import { ApagarGerado } from '@/components/ApagarGerado'
 import { diaRelativo } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import type { ProjectSnapshot } from '@/types/protocol'
@@ -78,6 +79,7 @@ export function Pastas({ snapshot }: { snapshot: ProjectSnapshot }) {
         <Cabecalho
           titulo={t('pastas.titulo')}
           explicacao={t('pastas.paraQue')}
+          apagar={<ApagarGerado chave="pastas" arquivo="MAPA.md" onApagou={() => {}} />}
           quando={
             mapa.atualizadoEm
               ? t('pastas.atualizado', { quando: diaRelativo(mapa.atualizadoEm) })
@@ -157,16 +159,22 @@ function Cabecalho({
   titulo,
   explicacao,
   quando,
+  apagar,
 }: {
   titulo: string
   explicacao: string
   quando?: string
+  /** A lixeira do documento, quando ele existe. Ver `ApagarGerado`. */
+  apagar?: ReactNode
 }) {
   return (
     <header className="animate-in-up">
-      <h1 className="font-display text-[26px] leading-none text-[var(--color-ink)]">
-        {titulo}
-      </h1>
+      <div className="flex items-start gap-2">
+        <h1 className="font-display flex-1 text-[26px] leading-none text-[var(--color-ink)]">
+          {titulo}
+        </h1>
+        {apagar}
+      </div>
       <p className="mt-2 max-w-[62ch] text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
         {explicacao}
       </p>

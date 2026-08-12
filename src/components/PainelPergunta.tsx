@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CornerDownLeft, Lightbulb, X } from 'lucide-react'
+import { CornerDownLeft, Lightbulb, SquareTerminal, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useT } from '@/lib/i18n'
 import {
@@ -7,8 +7,10 @@ import {
   aoReceberResposta,
   lerChaves,
   lerConfig,
+  pedirTerminal,
   perguntar,
   podePerguntar,
+  podeTerminalEmbutido,
   salvarConfig,
 } from '@/lib/source'
 import { ConfigChaves } from '@/components/ConfigChaves'
@@ -24,10 +26,13 @@ import type { ContextoPergunta, WtfEvent } from '@/types/protocol'
 export function PainelPergunta({
   evento,
   featureNome,
+  temBtw,
   onFechar,
 }: {
   evento: WtfEvent | null
   featureNome?: string
+  /** Se o comando `/btw` existe neste projeto. Ver `perguntarNoTerminal`. */
+  temBtw?: boolean
   onFechar: () => void
 }) {
   const t = useT()
@@ -153,6 +158,41 @@ export function PainelPergunta({
   )
 
   /**
+   * O outro caminho: perguntar à IA que já está aberta no terminal do app.
+   *
+   * Este painel nasceu quando a única forma de responder aqui dentro era uma
+   * chave de API — e por isso ele pedia uma. Com o terminal embutido, a mesma
+   * pergunta chega ao agente que a pessoa já paga, sem chave nenhuma e sem
+   * fatura nova. A chave continua existindo para quem prefere a resposta
+   * formatada no painel e sem ocupar o agente, mas deixou de ser obrigatória.
+   *
+   * Tudo em UMA linha de propósito: com `/btw`, o que vem depois do comando é
+   * o argumento dele, e quebras de linha no meio arriscam o corpo se perder.
+   */
+  const perguntarNoTerminal = useCallback(
+    (texto: string) => {
+      const e = evento
+      if (!e || !texto.trim()) return
+      const partes = [
+        featureNome ? `sobre "${featureNome}"` : '',
+        e.human?.headline ? `— ${e.human.headline}` : '',
+        e.human?.attentionReason ? `(${e.human.attentionReason})` : '',
+      ].filter(Boolean)
+      const contexto = partes.length ? `${partes.join(' ')}: ` : ''
+      const corpo = `${contexto}${texto.trim()}`
+      pedirTerminal(
+        temBtw
+          ? `/btw ${corpo}`
+          : `${corpo} — responda em palavras simples, não altere nenhum arquivo, ` +
+            `e se estiver no meio de outro trabalho volte para ele depois.`,
+      )
+      setPergunta('')
+      onFechar()
+    },
+    [evento, featureNome, temBtw, onFechar],
+  )
+
+  /**
    * A porta de entrada. A primeira pergunta não sai sem a pessoa confirmar que
    * entendeu que aquilo gasta os créditos dela. Depois de aceito, passa direto.
    */
@@ -230,7 +270,13 @@ export function PainelPergunta({
               <p className="mt-1 text-[12px] text-[var(--color-ink-3)]">{featureNome}</p>
             )}
 
-            {podePerguntar() && temChave === false && (
+            {/*
+              Sem chave e SEM terminal, a chave é a única saída — só aí o
+              pedido de configurá-la faz sentido. Com o terminal aberto, exigir
+              uma chave para responder uma pergunta seria cobrar por algo que a
+              pessoa já tem instalado na própria máquina.
+            */}
+            {podePerguntar() && temChave === false && !podeTerminalEmbutido() && (
               <div
                 className="mt-4 rounded-lg border p-3.5"
                 style={{
@@ -327,16 +373,38 @@ export function PainelPergunta({
                     color: 'var(--color-ink)',
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => void enviar(pergunta)}
-                  disabled={esperando || !pergunta.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
-                  style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }}
-                >
-                  <CornerDownLeft size={12} />
-                  {t('pergunta.enviar')}
-                </button>
+                {/*
+                  Com terminal, ele é o botão PRINCIPAL: responde pelo agente
+                  que a pessoa já paga. A chave vira o caminho de quem prefere
+                  a resposta aqui dentro — deixou de ser o pedágio de entrada.
+                */}
+                {podeTerminalEmbutido() && (
+                  <button
+                    type="button"
+                    onClick={() => perguntarNoTerminal(pergunta)}
+                    disabled={!pergunta.trim()}
+                    title={t('pergunta.noTerminalNota')}
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-opacity disabled:opacity-50"
+                    style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
+                  >
+                    <SquareTerminal size={12} />
+                    {t('pergunta.noTerminal')}
+                  </button>
+                )}
+
+                {temChave !== false && (
+                  <button
+                    type="button"
+                    onClick={() => void enviar(pergunta)}
+                    disabled={esperando || !pergunta.trim()}
+                    title={t('pergunta.comChaveNota')}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+                    style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }}
+                  >
+                    <CornerDownLeft size={12} />
+                    {t('pergunta.enviar')}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -350,7 +418,11 @@ export function PainelPergunta({
                     key={s}
                     type="button"
                     disabled={esperando}
-                    onClick={() => void enviar(s)}
+                    onClick={() =>
+                      temChave === false && podeTerminalEmbutido()
+                        ? perguntarNoTerminal(s)
+                        : void enviar(s)
+                    }
                     className="rounded-full border px-2.5 py-1 text-[12px] transition-colors hover:bg-[var(--color-paper-3)] disabled:opacity-50"
                     style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink-2)' }}
                   >

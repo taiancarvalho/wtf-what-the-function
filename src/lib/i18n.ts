@@ -60,6 +60,7 @@ const pt: Dic = {
   'seg.confianca.media': 'talvez',
   'seg.confianca.baixa': 'confira',
   'seg.mais': 'e mais {n}',
+  'seg.pedirIA': 'Pedir para a IA verificar',
   'seg.limite': 'O WTF não diz que seu software está seguro — ninguém consegue afirmar isso olhando os arquivos. Ele avisa apenas sobre estes dois casos.',
   // home
   'home.dependeDeVoce': '{n} coisas dependem de você',
@@ -437,6 +438,16 @@ const pt: Dic = {
   'pergunta.campo': 'O que você quer entender?',
   'pergunta.placeholder': 'Pergunte com suas palavras…',
   'pergunta.enviar': 'Perguntar',
+  'apagar.titulo': 'Apagar {arquivo}',
+  'apagar.confirmar': 'Apagar {arquivo}?',
+  'apagar.sim': 'Apagar',
+  'apagar.nao': 'Não',
+  'apagar.recupera': 'Se o arquivo já estiver salvo no histórico do projeto, dá para recuperar por lá.',
+  'pergunta.noTerminal': 'Perguntar à IA',
+  'pergunta.noTerminalNota':
+    'A pergunta vai para a IA aberta no terminal do app. Não gera fatura, e ela responde sem largar o que está fazendo.',
+  'pergunta.comChaveNota':
+    'A resposta aparece aqui no painel e consome os créditos da sua chave.',
   'pergunta.pensando': 'Lendo a mudança…',
   'pergunta.sugestoes': 'Ou comece por aqui',
   'pergunta.sugestao.perigoso': 'Isso é perigoso?',
@@ -631,6 +642,7 @@ const en: Dic = {
   'seg.confianca.media': 'maybe',
   'seg.confianca.baixa': 'check this',
   'seg.mais': 'and {n} more',
+  'seg.pedirIA': 'Ask the AI to check this',
   'seg.limite': 'WTF does not claim your software is secure — nobody can claim that by looking at files. It only warns about these two cases.',
   'home.dependeDeVoce': '{n} things depend on you',
   'home.dependeDeVoce1': 'One thing depends on you',
@@ -982,6 +994,16 @@ const en: Dic = {
   'pergunta.campo': 'What do you want to understand?',
   'pergunta.placeholder': 'Ask in your own words…',
   'pergunta.enviar': 'Ask',
+  'apagar.titulo': 'Delete {arquivo}',
+  'apagar.confirmar': 'Delete {arquivo}?',
+  'apagar.sim': 'Delete',
+  'apagar.nao': 'No',
+  'apagar.recupera': 'If the file is already saved in the project history, you can get it back from there.',
+  'pergunta.noTerminal': 'Ask the AI',
+  'pergunta.noTerminalNota':
+    'The question goes to the AI open in the app terminal. No bill, and it answers without dropping what it is doing.',
+  'pergunta.comChaveNota':
+    'The answer shows up here in the panel and uses your key’s credits.',
   'pergunta.pensando': 'Reading the change…',
   'pergunta.sugestoes': 'Or start here',
   'pergunta.sugestao.perigoso': 'Is this dangerous?',
@@ -1174,6 +1196,7 @@ const es: Dic = {
   'seg.confianca.media': 'quizá',
   'seg.confianca.baixa': 'revísalo',
   'seg.mais': 'y {n} más',
+  'seg.pedirIA': 'Pedir a la IA que verifique',
   'seg.limite': 'WTF no dice que tu software es seguro — nadie puede afirmarlo mirando los archivos. Solo avisa de estos dos casos.',
   'home.dependeDeVoce': '{n} cosas dependen de ti',
   'home.dependeDeVoce1': 'Una cosa depende de ti',
@@ -1525,6 +1548,16 @@ const es: Dic = {
   'pergunta.campo': '¿Qué quieres entender?',
   'pergunta.placeholder': 'Pregunta con tus palabras…',
   'pergunta.enviar': 'Preguntar',
+  'apagar.titulo': 'Borrar {arquivo}',
+  'apagar.confirmar': '¿Borrar {arquivo}?',
+  'apagar.sim': 'Borrar',
+  'apagar.nao': 'No',
+  'apagar.recupera': 'Si el archivo ya está guardado en el historial del proyecto, puedes recuperarlo desde ahí.',
+  'pergunta.noTerminal': 'Preguntar a la IA',
+  'pergunta.noTerminalNota':
+    'La pregunta va a la IA abierta en la terminal de la app. No genera factura, y responde sin soltar lo que está haciendo.',
+  'pergunta.comChaveNota':
+    'La respuesta aparece aquí en el panel y consume los créditos de tu clave.',
   'pergunta.pensando': 'Leyendo el cambio…',
   'pergunta.sugestoes': 'O empieza por aquí',
   'pergunta.sugestao.perigoso': '¿Esto es peligroso?',
@@ -1704,7 +1737,8 @@ const es: Dic = {
   'compartilhar.semProjeto': 'Abre un proyecto para generar el resumen.',
 }
 
-const DICIONARIOS: Record<Idioma, Dic> = { 'pt-BR': pt, en, es }
+/** Exportado para os testes conferirem que os três andam juntos. */
+export const DICIONARIOS: Record<Idioma, Dic> = { 'pt-BR': pt, en, es }
 
 export const IdiomaContext = createContext<Idioma>('pt-BR')
 

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ApagarGerado } from '@/components/ApagarGerado'
 import {
   ChevronRight,
   FileText,
@@ -68,9 +69,12 @@ export function Documentos({ snapshot }: { snapshot: ProjectSnapshot }) {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-[900px] px-8 pt-7 pb-24">
         <header className="animate-in-up">
-          <h1 className="font-display text-[26px] leading-none text-[var(--color-ink)]">
-            {t('docs.titulo')}
-          </h1>
+          <div className="flex items-start gap-2">
+            <h1 className="font-display flex-1 text-[26px] leading-none text-[var(--color-ink)]">
+              {t('docs.titulo')}
+            </h1>
+            <ApagarGerado chave="documentos" arquivo=".wtf/docs.json" onApagou={() => {}} />
+          </div>
           <p className="mt-2 max-w-[64ch] text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
             {t('docs.paraQue')}
           </p>

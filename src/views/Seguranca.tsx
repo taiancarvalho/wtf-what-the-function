@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check, Eye, KeyRound, Loader2, ScrollText, ShieldCheck } from 'lucide-react'
 import { Seguranca as Achados } from '@/components/Seguranca'
 import { lerArquivo, pedirGuardrails, podeTerminalEmbutido } from '@/lib/source'
+import { ApagarGerado } from '@/components/ApagarGerado'
 import { useT } from '@/lib/i18n'
 import type { ProjectSnapshot } from '@/types/protocol'
 
@@ -150,11 +151,24 @@ function Guardrails() {
         {existe && (
           <Check size={13} className="shrink-0" style={{ color: 'var(--color-tested)' }} />
         )}
+        {existe && (
+          <span className="ml-auto">
+            <ApagarGerado
+              chave="guardrails"
+              arquivo="GUARDRAILS.md"
+              onApagou={() => setRegras(null)}
+            />
+          </span>
+        )}
       </div>
 
       <p className="mt-2 max-w-[58ch] text-[13px] leading-relaxed text-[var(--color-ink-2)]">
         {existe ? t('guard.existe') : t('guard.vazio')}
       </p>
+
+      {existe && (
+        <p className="mt-1 text-[11.5px] text-[var(--color-ink-3)]">{t('apagar.recupera')}</p>
+      )}
 
       {existe && (
         <pre className="mt-3 max-h-[380px] overflow-auto rounded-lg border bg-[var(--color-paper-3)] p-3 text-[12px] leading-relaxed whitespace-pre-wrap">

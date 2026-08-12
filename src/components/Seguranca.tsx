@@ -1,7 +1,61 @@
 import { useState } from 'react'
-import { ChevronDown, Eye, KeyRound, ShieldAlert } from 'lucide-react'
+import { ChevronDown, Eye, KeyRound, ShieldAlert, SquareTerminal } from 'lucide-react'
 import { useT } from '@/lib/i18n'
+import { pedirTerminal, podeTerminalEmbutido } from '@/lib/source'
 import type { AchadoExposto, AchadoSegredo, ProjectSnapshot } from '@/types/protocol'
+
+/**
+ * O pedido que sai daqui — e o que ele NUNCA carrega.
+ *
+ * O valor encontrado não entra na mensagem, nem mascarado. Ele já está no
+ * arquivo, e a IA vai abri-lo de qualquer forma: repeti-lo aqui só o copiaria
+ * para mais um lugar (a fila do terminal, o histórico da sessão, uma captura
+ * de tela do painel). Arquivo e linha bastam para achar; o rótulo basta para
+ * entender do que se trata.
+ *
+ * A instrução é deliberadamente conservadora. Trocar uma chave é operação com
+ * consequência — pode derrubar o que está no ar — e quem decide é o dono do
+ * projeto, depois de entender. Por isso: explique primeiro, mexa depois.
+ */
+function mensagemDeSeguranca(
+  segredos: AchadoSegredo[],
+  expostos: AchadoExposto[],
+): string {
+  const linhas: string[] = [
+    'Contexto (levantado pelo WTF, um painel que acompanha este projeto):',
+    'A varredura encontrou coisas que podem ser sensíveis. Os valores não estão ' +
+      'escritos aqui de propósito — abra os arquivos para ver.',
+    '',
+  ]
+
+  if (segredos.length) {
+    linhas.push('Possíveis chaves ou senhas no código:')
+    for (const a of segredos.slice(0, 12)) {
+      linhas.push(`- ${a.rotulo} em ${a.arquivo}:${a.linha} (confiança ${a.confianca})`)
+    }
+    linhas.push('')
+  }
+
+  if (expostos.length) {
+    linhas.push('Possíveis dados de pessoa no código que vai para o navegador:')
+    for (const a of expostos.slice(0, 12)) {
+      linhas.push(`- ${a.rotulo} em ${a.arquivo}:${a.linha} (confiança ${a.confianca})`)
+    }
+    linhas.push('')
+  }
+
+  linhas.push(
+    'Confira cada item e me diga, em palavras simples: quais são de verdade, ' +
+      'quais são alarme falso (exemplo em documentação, dado de teste), e qual é ' +
+      'o risco real de cada um que for verdadeiro.',
+    '',
+    'Não altere nada ainda. Se alguma chave precisar ser trocada ou algum dado ' +
+      'precisar sair do código, me explique o que isso quebra antes de fazer, e ' +
+      'espere eu confirmar. Nunca escreva o valor encontrado na sua resposta.',
+  )
+
+  return linhas.join('\n')
+}
 
 /**
  * Os dois avisos de segurança que o WTF sabe dar — e só estes.
@@ -51,9 +105,21 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
       </button>
 
       {!aberto && (
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
-          {t('seg.resumo', { chaves: segredos.length, dados: expostos.length })}
-        </p>
+        <>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+            {t('seg.resumo', { chaves: segredos.length, dados: expostos.length })}
+          </p>
+          {podeTerminalEmbutido() && (
+            <button
+              onClick={() => pedirTerminal(mensagemDeSeguranca(segredos, expostos))}
+              className="no-drag mt-2.5 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium"
+              style={{ background: 'var(--color-danger)', color: 'var(--color-paper)' }}
+            >
+              <SquareTerminal size={13} />
+              {t('seg.pedirIA')}
+            </button>
+          )}
+        </>
       )}
 
       {aberto && (
@@ -86,6 +152,18 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
                 porque: a.porque,
               }))}
             />
+          )}
+
+          {/* A saída. Um aviso sem saída é só ansiedade. */}
+          {podeTerminalEmbutido() && (
+            <button
+              onClick={() => pedirTerminal(mensagemDeSeguranca(segredos, expostos))}
+              className="no-drag inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium"
+              style={{ background: 'var(--color-danger)', color: 'var(--color-paper)' }}
+            >
+              <SquareTerminal size={13} />
+              {t('seg.pedirIA')}
+            </button>
           )}
 
           <p className="border-t pt-2.5 text-[11.5px] leading-relaxed text-[var(--color-ink-3)]">

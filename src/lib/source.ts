@@ -50,6 +50,8 @@ interface PonteWtf {
   terminalEncerrar?: (id: string) => Promise<unknown>
   terminalColar?: (id: string, texto: string) => Promise<unknown>
   textoPedido?: (tipo: string) => Promise<string | null>
+  gerados?: () => Promise<unknown>
+  apagarGerado?: (chave: string) => Promise<unknown>
   aoSairDoTerminal?: (cb: (dados: SaidaTerminal) => void) => () => void
   aoTerminarTerminal?: (cb: (dados: FimTerminal) => void) => () => void
   mapear?: () => Promise<unknown>
@@ -187,6 +189,34 @@ export function aoPedirTerminal(cb: OuvinteTerminal): () => void {
 }
 
 export const podeTerminalEmbutido = () => typeof ponte()?.terminalAbrir === 'function'
+
+/** Um documento que a IA escreveu a pedido do painel, e que dá para apagar. */
+export interface Gerado {
+  chave: string
+  arquivo: string
+  bytes: number
+  alteradoEm: string
+}
+
+export const podeApagarGerado = () => typeof ponte()?.apagarGerado === 'function'
+
+/** O que existe hoje no projeto. Só leitura. */
+export async function lerGerados(): Promise<Gerado[]> {
+  const r = await ponte()?.gerados?.()
+  return Array.isArray(r) ? (r as Gerado[]) : []
+}
+
+/**
+ * Apaga UM documento gerado, pela chave.
+ *
+ * Nunca por caminho: o processo principal tem a lista fechada do que é
+ * apagável, e é ele quem resolve o caminho. Um caminho vindo daqui seria um
+ * jeito de apagar arquivo que ninguém escolheu apagar.
+ */
+export async function apagarGerado(chave: string): Promise<{ ok?: boolean; erro?: string }> {
+  const r = await ponte()?.apagarGerado?.(chave)
+  return (r as { ok?: boolean; erro?: string }) ?? { erro: 'Só funciona no aplicativo.' }
+}
 
 /** Entrega um texto inteiro à sessão aberta. Colagem, nunca digitação. */
 export async function terminalColar(id: string, texto: string): Promise<void> {

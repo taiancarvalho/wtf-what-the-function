@@ -182,6 +182,7 @@ export function Timeline({
         featureNome={
           perguntandoSobre ? featurePorId.get(perguntandoSobre.featureId)?.name : undefined
         }
+        temBtw={snapshot.instalacao?.btw}
         onFechar={() => setPerguntandoSobre(null)}
       />
     </div>

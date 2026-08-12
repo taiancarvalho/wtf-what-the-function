@@ -34,6 +34,7 @@ import {
 } from './globalinstall.js'
 import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
 import { MODELO_PADRAO, perguntar } from './ask.js'
+import { apagarGerado, listarGerados } from './gerados.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import {
@@ -525,6 +526,17 @@ export const PEDIDOS = {
 
 /** O texto de um pedido, para o app entregá-lo ao terminal de dentro. */
 ipcMain.handle('wtf:texto-pedido', async (_e, tipo) => PEDIDOS[tipo] ?? null)
+
+/** Os documentos que a IA escreveu a pedido do painel — e a porta para apagá-los. */
+ipcMain.handle('wtf:gerados', async () => listarGerados(projetoAtual))
+
+ipcMain.handle('wtf:apagar-gerado', async (_e, chave) => {
+  const r = await apagarGerado(projetoAtual, typeof chave === 'string' ? chave : '')
+  // O painel lê o disco: sem esta releitura, a tela continuaria mostrando o
+  // mapa que acabou de deixar de existir.
+  if (r?.ok && win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'gerado-apagado')
+  return r
+})
 
 /** Dispara o onboarding: abre o agente já pedindo o mapeamento do projeto. */
 ipcMain.handle('wtf:mapear', async () => abrirTerminal(projetoAtual, PEDIDOS.mapear))

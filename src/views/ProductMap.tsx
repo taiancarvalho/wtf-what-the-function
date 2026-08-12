@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ApagarGerado } from '@/components/ApagarGerado'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   AlertTriangle,
@@ -140,6 +141,7 @@ export function ProductMap({ snapshot }: { snapshot: ProjectSnapshot }) {
             <h1 className="font-display text-[26px] leading-none text-[var(--color-ink)]">
               {t('mapa.tituloProjeto', { projeto: snapshot.project.name })}
             </h1>
+            <ApagarGerado chave="mapa" arquivo=".wtf/map.json" onApagou={() => {}} />
             <p className="text-[12px] text-[var(--color-ink-3)]">
               {t('progresso.partes', { n: snapshot.features.length })} ·{' '}
               {t('progresso.areas', { n: areasTotais })} ·{' '}
