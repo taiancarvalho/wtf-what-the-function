@@ -76,9 +76,30 @@ export function App() {
    * Duas travas: nada de recarregar mais de uma vez por segundo, e só mexer na
    * tela quando o conteúdo realmente mudou.
    */
+  const pendente = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const atualizarRef = useRef<(f?: boolean) => void>(() => {})
+
   const atualizar = useCallback(async (forcado = false) => {
     const agora = Date.now()
-    if (!forcado && agora - ultimaLeitura.current < 1000) return
+
+    /*
+     * Atrasar, nunca descartar.
+     *
+     * A primeira versão desta trava simplesmente ignorava avisos que
+     * chegassem dentro de um segundo do anterior — e o aviso mais importante
+     * é justamente o último da rajada: o hook grava o arquivo tocado, depois
+     * o comando rodado, e só então a declaração da IA. Descartando, a
+     * conclusão do trabalho era exatamente o que sumia.
+     */
+    if (!forcado && agora - ultimaLeitura.current < 1000) {
+      if (pendente.current) return
+      pendente.current = setTimeout(() => {
+        pendente.current = null
+        atualizarRef.current()
+      }, 1000)
+      return
+    }
     ultimaLeitura.current = agora
 
     if (forcado) setAtualizando(true)
@@ -98,6 +119,8 @@ export function App() {
       setTimeout(() => setAtualizando(false), 420)
     }
   }, [])
+
+  atualizarRef.current = atualizar
 
   useEffect(() => {
     atualizar(true)
@@ -230,7 +253,9 @@ export function App() {
           />
         </div>
         <div className="min-h-0 flex-1">
-          {aba === 'timeline' && <Timeline snapshot={snapshot} />}
+          {aba === 'timeline' && (
+            <Timeline snapshot={snapshot} onMudou={() => atualizar(true)} />
+          )}
           {aba === 'build' && <BuildMap snapshot={snapshot} />}
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
         </div>

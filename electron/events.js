@@ -73,6 +73,83 @@ const minutosDesde = (iso) => (iso ? (Date.now() - new Date(iso).getTime()) / 60
 
 const asc = (a, b) => new Date(a.at) - new Date(b.at)
 
+// -------------------------------------------------------- código do evento
+
+/**
+ * Código curto e estável de um evento — o mesmo que a pessoa vê no painel.
+ *
+ * ⚠️ CÓPIA DELIBERADA de `codigoCurto` em `src/lib/format.ts`. Main e renderer
+ * são processos separados e o main não importa de `src/`. Se um lado mudar, o
+ * outro TEM que mudar junto: é esse código que liga o aviso à resposta da IA,
+ * e duas versões diferentes quebram a ligação em silêncio.
+ */
+function codigoCurto(id) {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0
+  }
+  return h.toString(36).toUpperCase().slice(-4).padStart(4, '0')
+}
+
+/** Códigos de 4 caracteres citados num texto livre. Sempre em maiúsculas. */
+function codigosCitados(texto) {
+  const achados = String(texto ?? '').toUpperCase().match(/\b[A-Z0-9]{4}\b/g)
+  return achados ? [...new Set(achados)] : []
+}
+
+/** Tamanho máximo do trecho da resposta guardado no aviso original. */
+const LIMITE_RESPOSTA = 400
+
+const cortar = (texto) => {
+  const t = String(texto ?? '').trim()
+  return t.length <= LIMITE_RESPOSTA ? t : `${t.slice(0, LIMITE_RESPOSTA - 1).trimEnd()}…`
+}
+
+/**
+ * Fecha o ciclo do aviso.
+ *
+ * A pessoa pede à IA para conferir citando o código ("confere o XVFT"), e a IA
+ * responde citando o mesmo código. Sem isto a resposta virava um cartão novo e
+ * solto, e o aviso original ficava "precisa da sua atenção" para sempre — o
+ * jeito mais rápido de ensinar alguém a ignorar alertas.
+ */
+function ligarRespostas(feed, claims) {
+  const porCodigo = new Map()
+  for (const e of feed) {
+    const c = codigoCurto(e.id)
+    // Colisão é irrelevante nesta escala, mas se houver, o mais recente vence:
+    // é a ele que a pessoa estava olhando quando pediu para conferir.
+    if (!porCodigo.has(c)) porCodigo.set(c, e)
+  }
+
+  const idsDeClaim = new Set(claims.map((c) => c.id))
+
+  for (const c of claims.slice().sort(asc)) {
+    if (!c.text) continue
+    const resposta = feed.find((e) => e.id === c.id)
+    if (!resposta) continue
+    const proprio = codigoCurto(c.id)
+
+    for (const cod of codigosCitados(c.text)) {
+      if (cod === proprio) continue
+      const alvo = porCodigo.get(cod)
+      if (!alvo) continue
+      // Não se responde ao futuro, nem uma resposta responde outra resposta.
+      if (new Date(alvo.at) > new Date(c.at)) continue
+      if (idsDeClaim.has(alvo.id) && alvo.respondeA) continue
+
+      // O primeiro que responde é o que fecha; respostas seguintes não
+      // sobrescrevem, senão o registro de quem fechou o ciclo se perde.
+      if (!alvo.respondidoPor) {
+        alvo.respondidoPor = { eventId: c.id, at: c.at, texto: cortar(c.text) }
+      }
+      if (!resposta.respondeA) resposta.respondeA = cod
+    }
+  }
+
+  return feed
+}
+
 // ---------------------------------------------------------------- mesclagem
 
 /**
@@ -177,6 +254,9 @@ export function mesclarClaims(snapshot, agentEvents) {
 
   // 5. feed único, do mais recente para o mais antigo
   feed.sort((a, b) => new Date(b.at) - new Date(a.at))
+
+  // 5b. o ciclo fecha: claim que cita o código de um aviso responde àquele aviso
+  ligarRespostas(feed, claims)
 
   // 6. agentes vistos e sinal de vida
   const agentes = [...new Set([...(base.project.connectedAgents ?? []), ...eventos.map((e) => e.agent).filter(Boolean)])]

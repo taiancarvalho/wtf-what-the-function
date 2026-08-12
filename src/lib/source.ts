@@ -18,6 +18,7 @@ interface PonteWtf {
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
   lerArquivo?: (relativo: string) => Promise<unknown>
+  resolver?: (eventId: string) => Promise<unknown>
   aoMudarProjeto?: (cb: (motivo: string) => void) => () => void
 }
 
@@ -88,6 +89,20 @@ export async function lerArquivo(relativo: string): Promise<ArquivoAberto> {
     return { caminho: relativo, erro: 'Só funciona no aplicativo, não no navegador.' }
   }
   return (await p.lerArquivo(relativo)) as ArquivoAberto
+}
+
+export const podeResolver = () => typeof ponte()?.resolver === 'function'
+
+/**
+ * Marca (ou desmarca) um aviso como resolvido pela pessoa. Devolve a carga já
+ * atualizada, para o painel refletir a mudança sem esperar o watcher.
+ */
+export async function alternarResolvido(eventId: string): Promise<Carga | null> {
+  const p = ponte()
+  if (!p?.resolver) return null
+  const r = (await p.resolver(eventId)) as { snapshot?: unknown; erro?: string }
+  if (ehSnapshot(r?.snapshot)) return { snapshot: r.snapshot, fonte: 'real' }
+  return null
 }
 
 /** Abre o agente pedindo o mapeamento do projeto (onboarding). */

@@ -17,6 +17,7 @@ import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import { lerArquivo } from './reader.js'
 import { traduzirEventos } from './translator.js'
+import { alternarResolvido, aplicarResolvidos, lerResolvidos } from './resolved.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_URL = 'http://localhost:5273'
@@ -111,6 +112,10 @@ async function lerProjeto(dir) {
   // As que faltam são feitas depois, fora do caminho crítico — ver `traduzirAoFundo`.
   aplicarTraducoes(snapshot, await traduzirEventos(dir, snapshot.events, { maxChamadas: 0 }))
 
+  // Por último: o que a PESSOA marcou como resolvido à mão. Vem depois de tudo
+  // porque é a palavra final — nem o Git nem a IA desfazem essa decisão.
+  aplicarResolvidos(snapshot, await lerResolvidos(dir))
+
   snapshot.instalacao = await estadoInstalacao(dir)
   return snapshot
 }
@@ -188,6 +193,21 @@ ipcMain.handle('wtf:snapshot', async () => {
     observar(projetoAtual)
     traduzirAoFundo(projetoAtual, s?.events ?? [])
     return s
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
+/**
+ * Marca (ou desmarca) um aviso como resolvido pela pessoa. Escreve só em
+ * `.wtf/resolved.json` — nada do código do projeto é tocado.
+ */
+ipcMain.handle('wtf:resolver', async (_e, eventId) => {
+  if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
+  if (typeof eventId !== 'string' || !eventId) return { erro: 'Evento inválido.' }
+  try {
+    const { resolvido } = await alternarResolvido(projetoAtual, eventId)
+    return { resolvido, snapshot: await lerProjeto(projetoAtual) }
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }
   }

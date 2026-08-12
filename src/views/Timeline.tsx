@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  Check,
+  CheckCircle2,
   ChevronDown,
+  CornerUpLeft,
   FileText,
   FolderTree,
   Hammer,
   PackagePlus,
   PackageMinus,
+  RotateCcw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -17,7 +21,9 @@ import { VisualizadorArquivo } from '@/components/VisualizadorArquivo'
 import { OQueFazer } from '@/components/OQueFazer'
 import { acoesDeNaoSalvo, acoesDoEvento } from '@/lib/acoes'
 import { codigoCurto, diaRelativo, horaDe, plural } from '@/lib/format'
+import { alternarResolvido, podeResolver } from '@/lib/source'
 import { AGENT_LABEL } from '@/lib/state'
+import { montarAssuntos, type Assunto } from '@/lib/assuntos'
 import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/protocol'
 
 /**
@@ -41,7 +47,14 @@ const ICONE: Record<EventType, typeof Hammer> = {
   'user.validated': ThumbsUp,
 }
 
-export function Timeline({ snapshot }: { snapshot: ProjectSnapshot }) {
+export function Timeline({
+  snapshot,
+  onMudou,
+}: {
+  snapshot: ProjectSnapshot
+  /** Chamado quando algo escrito em disco pede uma releitura do projeto. */
+  onMudou?: () => void
+}) {
   const [aberto, setAberto] = useState<string | null>(snapshot.events[1]?.id ?? null)
   const [soAtencao, setSoAtencao] = useState(false)
   const [arquivoAberto, setArquivoAberto] = useState<string | null>(null)
@@ -51,19 +64,26 @@ export function Timeline({ snapshot }: { snapshot: ProjectSnapshot }) {
     [snapshot.features],
   )
 
-  const eventos = soAtencao
-    ? snapshot.events.filter((e) => e.human?.needsYourAttention)
-    : snapshot.events
+  /*
+   * O feed lista ASSUNTOS, não eventos.
+   *
+   * Um aviso e as respostas que ele recebeu são a mesma conversa: aparecem como
+   * um cartão só. Sem isso, cada pedido feito à IA criava uma linha nova na
+   * fila, e quanto mais a pessoa usasse o produto, mais pendências ela
+   * acumularia — o oposto do que este painel existe para fazer.
+   */
+  const assuntos = useMemo(() => montarAssuntos(snapshot.events), [snapshot.events])
 
-  const precisamAtencao = snapshot.events.filter((e) => e.human?.needsYourAttention).length
+  const visiveis = soAtencao ? assuntos.filter((a) => a.pedeAtencao) : assuntos
+  const precisamAtencao = assuntos.filter((a) => a.pedeAtencao).length
 
   // agrupa por dia, mantendo a ordem já invertida do mock
-  const dias: { rotulo: string; eventos: WtfEvent[] }[] = []
-  for (const e of eventos) {
-    const rotulo = diaRelativo(e.at)
+  const dias: { rotulo: string; assuntos: Assunto[] }[] = []
+  for (const a of visiveis) {
+    const rotulo = diaRelativo(a.aviso.at)
     const ultimo = dias.at(-1)
-    if (ultimo?.rotulo === rotulo) ultimo.eventos.push(e)
-    else dias.push({ rotulo, eventos: [e] })
+    if (ultimo?.rotulo === rotulo) ultimo.assuntos.push(a)
+    else dias.push({ rotulo, assuntos: [a] })
   }
 
   return (
@@ -113,14 +133,15 @@ export function Timeline({ snapshot }: { snapshot: ProjectSnapshot }) {
                 className="absolute top-2 bottom-2 left-[7px] w-px"
                 style={{ background: 'var(--color-rule)' }}
               />
-              {dia.eventos.map((e, i) => (
+              {dia.assuntos.map((a, i) => (
                 <Cartao
-                  key={e.id}
-                  evento={e}
-                  feature={featurePorId.get(e.featureId)}
-                  aberto={aberto === e.id}
-                  onToggle={() => setAberto(aberto === e.id ? null : e.id)}
+                  key={a.aviso.id}
+                  assunto={a}
+                  feature={featurePorId.get(a.aviso.featureId)}
+                  aberto={aberto === a.aviso.id}
+                  onToggle={() => setAberto(aberto === a.aviso.id ? null : a.aviso.id)}
                   onAbrirArquivo={setArquivoAberto}
+                  onMudou={onMudou}
                   delay={i * 0.045}
                 />
               ))}
@@ -218,23 +239,29 @@ function AgoraMesmo({ features }: { features: Feature[] }) {
 }
 
 function Cartao({
-  evento,
+  assunto,
   feature,
   aberto,
   onToggle,
   onAbrirArquivo,
+  onMudou,
   delay,
 }: {
-  evento: WtfEvent
+  assunto: Assunto
   feature: Feature | undefined
   aberto: boolean
   onToggle: () => void
   onAbrirArquivo: (caminho: string) => void
+  onMudou?: () => void
   delay: number
 }) {
+  const evento = assunto.aviso
   const h = evento.human
   const Icone = ICONE[evento.type]
-  const atencao = h?.needsYourAttention ?? false
+  const atencao = assunto.pedeAtencao
+  // O aviso existiu, mas o ciclo fechou. O cartão precisa dizer isso — senão
+  // não dá para distinguir "resolvido" de "ninguém nunca olhou".
+  const fechado = !atencao && (assunto.respondido || !!evento.resolvido)
   const cor = atencao ? 'var(--color-warn)' : 'var(--color-ink-3)'
 
   return (
@@ -319,35 +346,122 @@ function Cartao({
                 }}
               >
                 <AlertTriangle size={11} />
-                Precisa da sua atenção
+                {/* Já houve resposta: o que falta agora é você, não a IA. */}
+                {assunto.aguardando ? 'Aguardando sua decisão' : 'Precisa da sua atenção'}
+              </span>
+            )}
+            {fechado && <SeloFechado evento={evento} />}
+            {assunto.respostas.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-ink-3)]">
+                <CornerUpLeft size={11} />
+                {plural(assunto.respostas.length, 'resposta', 'respostas')}
               </span>
             )}
           </div>
         </button>
 
         {aberto && h && (
-          <Detalhes evento={evento} feature={feature} onAbrirArquivo={onAbrirArquivo} />
+          <Detalhes
+            assunto={assunto}
+            evento={evento}
+            feature={feature}
+            onAbrirArquivo={onAbrirArquivo}
+            onMudou={onMudou}
+          />
         )}
       </article>
     </li>
   )
 }
 
+/**
+ * O selo que ocupa o lugar do "Precisa da sua atenção" quando o ciclo fechou.
+ * Discreto de propósito: não é uma comemoração, é só o alerta parando de cobrar.
+ */
+function SeloFechado({ evento }: { evento: WtfEvent }) {
+  const pelaIA = !!evento.respondidoPor
+  const quando = evento.respondidoPor?.at ?? evento.resolvido?.at
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-[3px] text-[11px] font-medium"
+      style={{
+        color: 'var(--color-ink-2)',
+        background: 'color-mix(in oklab, var(--color-tested) 12%, transparent)',
+      }}
+    >
+      {pelaIA ? <CheckCircle2 size={11} /> : <Check size={11} />}
+      {pelaIA ? 'Respondido pela IA' : 'Você marcou como resolvido'}
+      {quando && (
+        <span style={{ color: 'var(--color-ink-3)' }}>
+            · {diaRelativo(quando).toLowerCase()} às {horaDe(quando)}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Botão de fechar o ciclo à mão, para o aviso que a IA nunca vai responder. */
+function BotaoResolver({ evento, onMudou }: { evento: WtfEvent; onMudou?: () => void }) {
+  const [ocupado, setOcupado] = useState(false)
+  const jaResolvido = !!evento.resolvido
+
+  async function clicar() {
+    setOcupado(true)
+    try {
+      await alternarResolvido(evento.id)
+      onMudou?.()
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={clicar}
+      disabled={ocupado}
+      className="no-drag mt-4 inline-flex cursor-default items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+      style={{ color: 'var(--color-ink-2)' }}
+    >
+      {jaResolvido ? <RotateCcw size={13} /> : <Check size={13} />}
+      {jaResolvido ? 'Reabrir' : 'Marcar como resolvido'}
+    </button>
+  )
+}
+
 /** NÍVEL 2 — o que mudou, por quê, e o que isso afeta. */
 function Detalhes({
+  assunto,
   evento,
   feature,
   onAbrirArquivo,
+  onMudou,
 }: {
+  assunto: Assunto
   feature?: Feature
   evento: WtfEvent
   onAbrirArquivo: (caminho: string) => void
+  onMudou?: () => void
 }) {
   const h = evento.human!
   const t = evento.technical
+  const atencao = assunto.pedeAtencao
+  const resp = evento.respondidoPor
 
   return (
     <div className="animate-in-up border-t px-5 pt-4 pb-5">
+      {/* Este cartão é a resposta de outro aviso — dá para voltar lá pelo código. */}
+      {evento.respondeA && (
+        <p className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-ink-3)]">
+          <CornerUpLeft size={13} className="shrink-0" />
+          Responde ao aviso{' '}
+          <span className="rounded border px-1.5 py-px font-mono text-[10.5px] tracking-wider">
+            {evento.respondeA}
+          </span>
+        </p>
+      )}
+
       <p className="text-[14.5px] leading-relaxed text-pretty text-[var(--color-ink)]">
         {h.what}
       </p>
@@ -369,7 +483,33 @@ function Detalhes({
         </div>
       )}
 
-      {h.needsYourAttention && h.attentionReason && (
+      {/* A resposta da IA, no próprio aviso. É o que fecha o ciclo aos olhos
+          de quem lê: o alerta e o desfecho no mesmo lugar. */}
+      {resp && (
+        <div
+          className="mt-4 flex gap-2.5 rounded-lg border p-3.5"
+          style={{
+            borderColor: 'color-mix(in oklab, var(--color-tested) 38%, transparent)',
+            background: 'color-mix(in oklab, var(--color-tested) 8%, transparent)',
+          }}
+        >
+          <CheckCircle2
+            size={15}
+            className="mt-[3px] shrink-0"
+            style={{ color: 'var(--color-tested)' }}
+          />
+          <div>
+            <Rotulo>
+              Respondido pela IA · {diaRelativo(resp.at).toLowerCase()} às {horaDe(resp.at)}
+            </Rotulo>
+            <p className="mt-1 text-[14px] leading-relaxed text-[var(--color-ink)]">
+              {resp.texto}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {atencao && h.attentionReason && (
         <div
           className="mt-4 flex gap-2.5 rounded-lg border p-3.5"
           style={{
@@ -389,7 +529,20 @@ function Detalhes({
       )}
 
       {/* Diagnóstico sem saída é só ansiedade: todo alerta oferece uma ação. */}
-      {h.needsYourAttention && <OQueFazer acoes={acoesDoEvento(evento, feature)} />}
+      {/* O que fazer vem da ÚLTIMA resposta — é ela que contém o que ficou
+          pendente —, mas citando o código do aviso que abriu o assunto, para a
+          próxima resposta da IA cair aqui e não abrir conversa nova. */}
+      {atencao && (
+        <OQueFazer
+          acoes={acoesDoEvento(assunto.ultimo, feature, codigoCurto(assunto.aviso.id))}
+        />
+      )}
+
+      {/* A segunda forma de fechar: a IA nunca vai responder tudo, e a pessoa
+          precisa poder dizer "já vi, pode parar de me cobrar". */}
+      {h.needsYourAttention && !evento.respondidoPor && podeResolver() && (
+        <BotaoResolver evento={evento} onMudou={onMudou} />
+      )}
 
       {/* o que o agente realmente disse — guardado como dito */}
       {evento.claim && (

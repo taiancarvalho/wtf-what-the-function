@@ -36,6 +36,11 @@ function dataPura(d: Date): Date {
  * "Corrige o AF3C" é uma frase que alguém consegue dizer — o identificador
  * interno (hash de commit, uuid) não é. Mesmo evento sempre gera o mesmo
  * código, então ele serve como referência entre o painel e a conversa com a IA.
+ *
+ * ⚠️ Esta lógica está DUPLICADA em `electron/events.js` (`codigoCurto`), porque
+ * o processo main não importa de `src/`. É o main que liga a resposta da IA ao
+ * aviso original comparando esses códigos: se um lado mudar, o outro TEM que
+ * mudar junto, ou a ligação para de acontecer sem ninguém perceber.
  */
 export function codigoCurto(id: string): string {
   let h = 0

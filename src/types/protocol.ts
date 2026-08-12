@@ -163,6 +163,34 @@ export interface WtfEvent {
   technical?: TechnicalDiff
   evidence: Evidence[]
   risk?: Risk
+  /**
+   * Este aviso já foi respondido pela IA: ela citou o código curto dele
+   * (ver `codigoCurto`) numa declaração posterior. Fecha o ciclo — o aviso
+   * para de pedir atenção.
+   */
+  respondidoPor?: {
+    /** Id do evento (claim) que respondeu. */
+    eventId: string
+    /** Quando a resposta foi declarada. */
+    at: string
+    /** O que a IA disse, cortado em ~400 caracteres. */
+    texto: string
+  }
+  /** Código curto do aviso que ESTE evento responde. Ex.: "XVFT". */
+  respondeA?: string
+  /** A pessoa marcou este aviso como resolvido à mão (`.wtf/resolved.json`). */
+  resolvido?: { at: string; por: string }
+}
+
+/**
+ * Um aviso só continua cobrando atenção se ninguém fechou o ciclo: nem a IA
+ * respondendo pelo código, nem a pessoa marcando como resolvido.
+ *
+ * Mesma conta usada na contagem do topo e no selo do cartão — alerta que nunca
+ * some ensina a ignorar alerta.
+ */
+export function pedeAtencao(e: WtfEvent): boolean {
+  return !!e.human?.needsYourAttention && !e.respondidoPor && !e.resolvido
 }
 
 // ----------------------------------------------------------------- projeto

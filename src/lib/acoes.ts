@@ -55,11 +55,21 @@ function rodape(codigo: string, parte: string, arquivos: string[] = [], id?: str
  * Ações para um evento que pede atenção.
  * A ordem importa: a primeira é a que a maioria das pessoas quer.
  */
-export function acoesDoEvento(evento: WtfEvent, feature?: Feature): Acao[] {
+export function acoesDoEvento(
+  evento: WtfEvent,
+  feature?: Feature,
+  codigoDoAssunto?: string,
+): Acao[] {
   const h = evento.human
   if (!h) return []
 
-  const codigo = codigoCurto(evento.id)
+  /*
+   * O código citado é sempre o do AVISO que abriu o assunto, nunca o da última
+   * resposta. Se cada resposta trouxesse um código novo, a próxima resposta da
+   * IA cairia num assunto diferente e a conversa se fragmentaria de novo — o
+   * mesmo problema voltando pela porta dos fundos.
+   */
+  const codigo = codigoDoAssunto ?? codigoCurto(evento.id)
   const parte = feature?.name ?? 'esta parte do projeto'
   const arquivos = evento.technical?.files ?? []
   const motivo = h.attentionReason ?? ''
