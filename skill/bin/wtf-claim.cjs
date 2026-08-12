@@ -68,9 +68,12 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 const acao = args._[0];
 
-if (acao !== 'start' && acao !== 'done' && acao !== 'falso-positivo') {
+const VEREDITOS = { 'falso-positivo': 'falso-positivo', 'problema-real': 'real' };
+
+if (acao !== 'start' && acao !== 'done' && !VEREDITOS[acao]) {
   falhar(
-    `ação inválida${acao ? ` ("${acao}")` : ''}. Use "start", "done" ou "falso-positivo".`
+    `ação inválida${acao ? ` ("${acao}")` : ''}. ` +
+      `Use "start", "done", "falso-positivo" ou "problema-real".`
   );
 }
 
@@ -98,7 +101,16 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
  *     --motivo "É o e-mail institucional do encarregado de dados; a LGPD exige
  *               que ele apareça na tela."
  */
-if (acao === 'falso-positivo') {
+/*
+ * `problema-real` — o outro lado, e o que faltava.
+ *
+ * Sem ele, o painel só sabia distinguir "ninguém olhou" de "alguém disse que
+ * não é nada". O item que a IA CONFERIU E CONFIRMOU ficava com a mesma cara de
+ * um que ninguém abriu — e é justamente o que precisa gritar até ser
+ * consertado. Marcar como real não conserta nada; deixa o aviso em pé e diz,
+ * ao lado dele, por que ele é sério.
+ */
+if (VEREDITOS[acao]) {
   const arquivo = typeof args.arquivo === 'string' ? args.arquivo.trim() : '';
   const linha = Number.parseInt(args.linha, 10);
   const motivo = typeof args.motivo === 'string' ? args.motivo.trim() : '';
@@ -128,6 +140,7 @@ if (acao === 'falso-positivo') {
     at: isoLocal(),
     motivo,
     por: 'claude-code',
+    veredito: VEREDITOS[acao],
   };
 
   try {
@@ -139,8 +152,11 @@ if (acao === 'falso-positivo') {
   }
 
   process.stdout.write(
-    `WTF: proposta registrada para ${arquivo}:${linha}. ` +
-      `Ela aparece no painel para o dono do projeto confirmar.\n`
+    VEREDITOS[acao] === 'real'
+      ? `WTF: ${arquivo}:${linha} marcado como problema real. ` +
+          `O aviso continua no painel, agora com o motivo e em destaque.\n`
+      : `WTF: proposta registrada para ${arquivo}:${linha}. ` +
+          `Ela aparece no painel para o dono do projeto confirmar.\n`
   );
   process.exit(0);
 }

@@ -63,12 +63,15 @@ function mensagemDeSeguranca(
      * cada varredura, para sempre, que é como se ensina alguém a ignorar
      * aviso de segurança. Ela PROPÕE; quem tira da lista é quem clicar.
      */
-    'Para cada item que for alarme falso, registre a sua conclusão assim ' +
-      '(uma linha por item):',
+    'Registre a sua conclusão sobre CADA item, uma linha por item:',
     'node .wtf/bin/wtf-claim.cjs falso-positivo --arquivo <caminho> --linha <n> ' +
       '--motivo "<por que não é problema, em uma frase simples>"',
-    'Isso NÃO tira o aviso: ele aparece no meu painel com o seu motivo, e eu ' +
-      'confirmo com um clique. Não registre nada que você tenha dúvida.',
+    'node .wtf/bin/wtf-claim.cjs problema-real --arquivo <caminho> --linha <n> ' +
+      '--motivo "<por que é sério, em uma frase simples>"',
+    'Nenhum dos dois altera arquivo nenhum. O falso positivo vira uma proposta ' +
+      'que eu confirmo com um clique; o problema real fica no painel em ' +
+      'destaque, sem botão para tirar, até ser corrigido. Não registre nada de ' +
+      'que você tenha dúvida — na dúvida, deixe o aviso de pé e me diga.',
     '',
     'Não altere nada ainda. Se alguma chave precisar ser trocada ou algum dado ' +
       'precisar sair do código, me explique o que isso quebra antes de fazer, e ' +
@@ -209,7 +212,38 @@ interface Item {
   /** O achado cru — é ele que vai para o disco quando a pessoa dispensa. */
   achado: { tipo?: string; arquivo: string; linha: number; trecho: string }
   /** O que a IA concluiu sobre este achado, quando alguém pediu que olhasse. */
-  proposta?: { motivo: string }
+  proposta?: { motivo: string; veredito?: string }
+}
+
+/**
+ * O veredito da IA quando ela CONFIRMOU que o problema é real.
+ *
+ * Este é o único estado que não tem botão para tirar da lista, e é de
+ * propósito: o que sai daqui é o conserto, não o clique. Antes, o item
+ * conferido-e-confirmado tinha a mesma cara do que ninguém tinha aberto — e
+ * era justamente o que precisava gritar até alguém arrumar.
+ */
+function ProblemaConfirmado({ motivo }: { motivo: string }) {
+  const t = useT()
+  return (
+    <div
+      className="mt-2 rounded-lg border p-2.5"
+      style={{
+        borderColor: 'var(--color-danger)',
+        background: 'color-mix(in oklab, var(--color-danger) 10%, transparent)',
+      }}
+    >
+      <p
+        className="flex items-baseline gap-1.5 text-[11px] font-semibold tracking-wide uppercase"
+        style={{ color: 'var(--color-danger)' }}
+      >
+        <ShieldAlert size={11} className="shrink-0" />
+        {t('seg.confirmado')}
+      </p>
+      <p className="mt-1 text-[12.5px] leading-snug text-[var(--color-ink)]">{motivo}</p>
+      <p className="mt-1.5 text-[11.5px] text-[var(--color-ink-2)]">{t('seg.confirmadoNota')}</p>
+    </div>
+  )
 }
 
 /**
@@ -363,7 +397,9 @@ function Grupo({
               {i.onde}
             </p>
             <p className="mt-1 text-[12px] leading-snug text-[var(--color-ink-2)]">{i.porque}</p>
-            {i.proposta ? (
+            {i.proposta?.veredito === 'real' ? (
+              <ProblemaConfirmado motivo={i.proposta.motivo} />
+            ) : i.proposta ? (
               <PropostaDaIA item={i} onResolveu={() => {}} />
             ) : (
               <BotaoNaoEProblema item={i} onPronto={() => {}} />

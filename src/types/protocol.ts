@@ -593,6 +593,11 @@ export interface PropostaFalsoPositivo {
   motivo: string
   at?: string | null
   por?: string
+  /**
+   * `'real'` = a IA conferiu e CONFIRMOU o problema. Esse não tem botão para
+   * tirar da lista: o que sai dele é o conserto, não o clique.
+   */
+  veredito?: 'falso-positivo' | 'real'
 }
 
 export interface AchadoSegredo {

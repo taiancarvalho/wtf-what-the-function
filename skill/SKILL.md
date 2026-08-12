@@ -120,6 +120,22 @@ Isso **não tira o aviso**. Ele aparece no painel com o seu motivo ao lado, e o
 dono do projeto confirma com um clique. É de propósito: um agente que arquiva
 sozinho o próprio alerta de segurança está corrigindo a própria prova.
 
+E o outro lado — o item que você conferiu e **confirmou** que é problema:
+
+```bash
+node .wtf/bin/wtf-claim.cjs problema-real \
+  --arquivo scripts/importar.mjs --linha 15 \
+  --motivo "Chave de administrador do banco escrita no código, e já commitada."
+```
+
+Marcar como real não conserta nada: deixa o aviso em pé, em destaque, com o seu
+motivo ao lado — e **sem botão para tirá-lo da lista**. Ele sai de lá pelo
+conserto, não pelo clique.
+
+Registre um dos dois para **cada** item que examinar. Um item sem veredito fica
+com a mesma cara de um que ninguém abriu, e a pessoa não tem como saber a
+diferença entre "ainda não olharam" e "olharam e é grave".
+
 Escreva o motivo para quem não programa, e **não registre nada de que você
 tenha dúvida** — na dúvida, deixe o aviso de pé e diga o que não conseguiu
 concluir. Um falso positivo que sobra custa um clique; um problema real

@@ -67,11 +67,26 @@ describe('marcar um achado como falso alarme', () => {
     expect(out.dispensados).toHaveLength(0)
   })
 
-  it('não dispensa achado parecido de outro arquivo', async () => {
+  /**
+   * O mesmo e-mail institucional aparece no rodapé, na política de privacidade
+   * e nos termos de uso — e a lei obriga que apareça. Julgar um deles é julgar
+   * todos: obrigar a pessoa a marcar quatro vezes a mesma coisa, e de novo a
+   * cada vez que uma linha for acrescentada acima, é como se ensina alguém a
+   * ignorar o painel.
+   */
+  it('vale para o VALOR, não para o lugar: o mesmo dado em outro arquivo já está julgado', async () => {
     const dir = projeto()
     await alternarDispensado(dir, achado())
-    const outro = achado({ arquivo: 'src/pages/Contato.tsx' })
-    expect(separarDispensados({ achados: [outro] }, await lerDispensados(dir)).achados).toHaveLength(1)
+    const emOutroArquivo = achado({ arquivo: 'src/pages/legal/Termos.tsx', linha: 133 })
+    const out = separarDispensados({ achados: [emOutroArquivo] }, await lerDispensados(dir))
+    expect(out.achados).toHaveLength(0)
+  })
+
+  it('acrescentar uma linha acima não ressuscita o aviso', async () => {
+    const dir = projeto()
+    await alternarDispensado(dir, achado())
+    const out = separarDispensados({ achados: [achado({ linha: 19 })] }, await lerDispensados(dir))
+    expect(out.achados).toHaveLength(0)
   })
 
   it('o que vai para o disco é só o trecho MASCARADO', async () => {

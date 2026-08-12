@@ -252,6 +252,18 @@ export function mesclarClaims(snapshot, agentEvents) {
     feed.push(montarProgresso(r, features))
   }
 
+  /*
+   * O que foi decidido sobre os avisos de segurança também é história.
+   *
+   * Sem isto, marcar sete avisos como falso alarme era uma ação sem rastro: o
+   * painel simplesmente tinha menos avisos no dia seguinte, e ninguém saberia
+   * dizer se eles foram resolvidos, dispensados ou se a varredura falhou.
+   * Decisão que some é decisão que não dá para revisar.
+   */
+  for (const d of eventos.filter((e) => e.kind === 'seguranca.decidida')) {
+    feed.push(montarDecisaoDeSeguranca(d))
+  }
+
   // 5. feed único, do mais recente para o mais antigo
   feed.sort((a, b) => new Date(b.at) - new Date(a.at))
 
@@ -453,6 +465,44 @@ function montarProgresso(r, features) {
         at: r.at,
       },
     ],
+  }
+}
+
+/**
+ * O cartão de "eu decidi sobre estes avisos".
+ *
+ * Fica no feed junto com o resto porque é isso que ele é: parte do que
+ * aconteceu no projeto, com data e motivo. `needsYourAttention: false` porque
+ * a decisão já foi tomada — o cartão informa, não cobra.
+ */
+function montarDecisaoDeSeguranca(e) {
+  const n = Number(e.quantos) || 1
+  const plural = n > 1
+  const motivos = Array.isArray(e.motivos) ? e.motivos.filter(Boolean).slice(0, 6) : []
+
+  return {
+    id: e.id,
+    at: e.at,
+    type: 'risk.cleared',
+    source: 'user',
+    featureId: 'seguranca',
+    human: {
+      headline: plural
+        ? `Você marcou ${n} avisos de segurança como falso alarme.`
+        : 'Você marcou um aviso de segurança como falso alarme.',
+      what: motivos.length
+        ? `O motivo de cada um:\n${motivos.map((m) => `• ${m}`).join('\n')}`
+        : 'Eles saíram da lista de coisas sensíveis.',
+      why:
+        'A varredura procura formatos, não certezas — e-mail institucional, ' +
+        'dado de exemplo e número sorteado têm a cara do que ela caça.',
+      impact:
+        'Estes avisos não aparecem mais. Se o valor de algum deles mudar, ele ' +
+        'volta a ser avisado: o que foi julgado foi aquele valor, não o lugar.',
+      affects: [],
+      needsYourAttention: false,
+    },
+    evidence: [],
   }
 }
 

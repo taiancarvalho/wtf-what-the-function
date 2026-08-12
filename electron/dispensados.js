@@ -22,13 +22,28 @@
  * Formato: { v: 1, itens: { "<digital>": { at: ISO, por, nota } } }
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const arquivoDe = (dir) => path.join(dir, '.wtf', 'seguranca-dispensada.json')
 
 /**
- * A impressão digital de um achado.
+ * A impressão digital de um achado: o TIPO e o VALOR. Não o lugar.
+ *
+ * ⚠️ ISTO JÁ FOI `tipo|arquivo|linha|valor`, E ESTAVA ERRADO.
+ *
+ * Incluir arquivo e linha parecia mais seguro, e na prática era o contrário:
+ * um e-mail institucional que a lei obriga a mostrar na tela é falso positivo
+ * PARA SEMPRE, mas bastava alguém acrescentar uma linha acima dele para o
+ * aviso voltar — e a pessoa marcava de novo, e de novo. Um alerta que
+ * ressuscita a cada edição do arquivo ensina exatamente o que este painel
+ * existe para evitar: a ignorar alertas.
+ *
+ * O que precisa continuar valendo é a outra metade: se o VALOR daquele lugar
+ * mudar, a dispensa não vale mais. Foi julgado o `dpo@empresa.com`, não a
+ * linha 18 — e o dia em que aparecer uma chave de verdade ali, o painel avisa,
+ * porque o valor é outro.
  *
  * `trecho` já vem mascarado da varredura (nunca o valor inteiro), e é isso que
  * faz esta chave poder ser gravada em disco sem virar mais um lugar onde o
@@ -36,9 +51,9 @@ const arquivoDe = (dir) => path.join(dir, '.wtf', 'seguranca-dispensada.json')
  */
 export function digitalDoAchado(achado) {
   if (!achado || typeof achado !== 'object') return null
-  const { tipo, arquivo, linha, trecho } = achado
-  if (typeof arquivo !== 'string' || !arquivo) return null
-  return [tipo ?? '?', arquivo, linha ?? 0, trecho ?? ''].join('|')
+  const { tipo, trecho } = achado
+  if (typeof trecho !== 'string' || !trecho) return null
+  return [tipo ?? '?', trecho].join('|')
 }
 
 /** Lê as dispensas. Nunca lança: arquivo ausente ou podre valem "nenhuma". */
@@ -120,6 +135,8 @@ export async function lerPropostas(dir) {
       motivo,
       at: typeof v.at === 'string' ? v.at : null,
       por: typeof v.por === 'string' ? v.por : 'ia',
+      // 'real' = a IA conferiu e CONFIRMOU. O aviso fica, e fica em destaque.
+      veredito: v.veredito === 'real' ? 'real' : 'falso-positivo',
     }
   }
   return out
@@ -163,8 +180,41 @@ export function separarDispensados(varredura, dispensados, propostas) {
     // A proposta viaja COM o achado: quem lê o aviso lê, na mesma linha, o
     // motivo pelo qual a IA acha que ele não é problema.
     const p = sugeridas[`${a.arquivo}:${a.linha}`]
-    valem.push(p ? { ...a, proposta: { motivo: p.motivo, at: p.at, por: p.por } } : a)
+    valem.push(
+      p ? { ...a, proposta: { motivo: p.motivo, at: p.at, por: p.por, veredito: p.veredito } } : a,
+    )
   }
 
   return { ...varredura, achados: valem, dispensados: fora }
+}
+
+/**
+ * Registra no histórico do projeto que uma decisão foi tomada.
+ *
+ * Vai para o mesmo `events.jsonl` que a IA usa, porque é o mesmo tipo de coisa:
+ * algo que aconteceu, com data e motivo. Uma decisão que não deixa rastro é uma
+ * decisão que ninguém consegue revisar depois — inclusive quem a tomou.
+ */
+export async function registrarDecisao(dir, achados) {
+  if (!dir || !Array.isArray(achados) || achados.length === 0) return
+  const evento = {
+    v: 1,
+    id: randomUUID(),
+    at: new Date().toISOString(),
+    kind: 'seguranca.decidida',
+    agent: 'wtf',
+    sessionId: 'painel',
+    quantos: achados.length,
+    motivos: achados.map((a) => a?.nota || a?.rotulo).filter(Boolean),
+  }
+  try {
+    await mkdir(path.join(dir, '.wtf'), { recursive: true })
+    await appendFile(
+      path.join(dir, '.wtf', 'events.jsonl'),
+      JSON.stringify(evento).replace(/\n/g, ' ') + '\n',
+      'utf8',
+    )
+  } catch {
+    /* registrar é desejável, nunca obrigatório: não derruba a dispensa */
+  }
 }

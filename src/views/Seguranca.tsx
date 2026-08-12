@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Check, Eye, KeyRound, Loader2, RefreshCw, ScrollText, ShieldCheck, Sparkles } from 'lucide-react'
+import {
+  Check,
+  Eye,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  ScrollText,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
 import { Seguranca as Achados } from '@/components/Seguranca'
 import { dispensarAchado, lerArquivo, pedirGuardrails, podeTerminalEmbutido } from '@/lib/source'
 import { ApagarGerado } from '@/components/ApagarGerado'
@@ -58,10 +68,10 @@ export function Seguranca({
    * para dizer a mesma coisa. Quem quiser julgar um por um continua podendo:
    * cada achado traz o motivo e os dois botões.
    */
-  const comProposta = [
-    ...(segredos?.achados ?? []),
-    ...(expostos?.achados ?? []),
-  ].filter((a) => a.proposta)
+  const todos = [...(segredos?.achados ?? []), ...(expostos?.achados ?? [])]
+  const comProposta = todos.filter((a) => a.proposta && a.proposta.veredito !== 'real')
+  /** Conferidos pela IA e CONFIRMADOS. Não têm botão: têm conserto. */
+  const confirmados = todos.filter((a) => a.proposta?.veredito === 'real')
 
   const [aceitando, setAceitando] = useState(false)
 
@@ -103,6 +113,27 @@ export function Seguranca({
           Com achados, o cartão de sempre — o mesmo que aparece na Home, para a
           pessoa não ter que aprender duas telas para o mesmo assunto.
         */}
+        {confirmados.length > 0 && (
+          <section
+            className="animate-in-up mt-5 rounded-xl border p-4"
+            style={{
+              borderColor: 'var(--color-danger)',
+              background: 'color-mix(in oklab, var(--color-danger) 10%, transparent)',
+            }}
+          >
+            <p
+              className="flex items-center gap-1.5 text-[13.5px] font-semibold"
+              style={{ color: 'var(--color-danger)' }}
+            >
+              <ShieldAlert size={14} className="shrink-0" />
+              {t('seguranca.confirmados', { n: confirmados.length })}
+            </p>
+            <p className="mt-1 text-[12.5px] leading-snug text-[var(--color-ink-2)]">
+              {t('seguranca.confirmadosNota')}
+            </p>
+          </section>
+        )}
+
         {comProposta.length > 0 && (
           <section
             className="animate-in-up mt-5 rounded-xl border p-4"

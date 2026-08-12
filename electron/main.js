@@ -39,6 +39,7 @@ import {
   alternarDispensado,
   lerDispensados,
   lerPropostas,
+  registrarDecisao,
   removerProposta,
   separarDispensados,
 } from './dispensados.js'
@@ -555,6 +556,10 @@ ipcMain.handle('wtf:dispensar-achado', async (_e, achado, nota) => {
   const r = await alternarDispensado(projetoAtual, achado, nota)
   // Aceitar a proposta consome a proposta: ela já cumpriu o papel dela.
   if (achado?.arquivo) await removerProposta(projetoAtual, achado.arquivo, achado.linha)
+  // Só o "marcar" vira história; desmarcar é correção de rota, não decisão.
+  if (r?.dispensado) {
+    await registrarDecisao(projetoAtual, [{ ...achado, nota: nota ?? achado?.rotulo }])
+  }
   if (win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'seguranca')
   return r
 })
