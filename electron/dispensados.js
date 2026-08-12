@@ -90,6 +90,54 @@ export async function alternarDispensado(dir, achado, nota) {
   return { dispensado: !jaTinha, itens }
 }
 
+const arquivoPropostas = (dir) => path.join(dir, '.wtf', 'seguranca-propostas.json')
+
+/**
+ * As propostas de falso positivo escritas pela IA.
+ *
+ * Chave: `<arquivo>:<linha>`. É por arquivo e linha, e não pela impressão
+ * digital completa, porque a IA não conhece o trecho mascarado — ela olhou o
+ * arquivo, não o painel. Quando a pessoa ACEITA, aí sim gravamos a digital
+ * inteira, e a dispensa passa a caducar se o valor daquele lugar mudar.
+ */
+export async function lerPropostas(dir) {
+  if (!dir) return {}
+  let dados
+  try {
+    dados = JSON.parse(await readFile(arquivoPropostas(dir), 'utf8'))
+  } catch {
+    return {}
+  }
+  const itens = dados?.itens
+  if (!itens || typeof itens !== 'object') return {}
+
+  const out = {}
+  for (const [chave, v] of Object.entries(itens)) {
+    if (!chave || !v || typeof v !== 'object') continue
+    const motivo = typeof v.motivo === 'string' ? v.motivo.trim() : ''
+    if (!motivo) continue // proposta sem motivo não dá para ninguém decidir
+    out[chave] = {
+      motivo,
+      at: typeof v.at === 'string' ? v.at : null,
+      por: typeof v.por === 'string' ? v.por : 'ia',
+    }
+  }
+  return out
+}
+
+/** Tira uma proposta da lista — quando a pessoa aceita ou recusa. */
+export async function removerProposta(dir, arquivo, linha) {
+  if (!dir || !arquivo) return
+  const itens = await lerPropostas(dir)
+  delete itens[`${arquivo}:${linha}`]
+  await mkdir(path.dirname(arquivoPropostas(dir)), { recursive: true })
+  await writeFile(
+    arquivoPropostas(dir),
+    JSON.stringify({ v: 1, itens }, null, 2) + '\n',
+    'utf8',
+  )
+}
+
 /**
  * Separa os achados entre os que continuam valendo e os dispensados.
  *
@@ -98,17 +146,24 @@ export async function alternarDispensado(dir, achado, nota) {
  * transformaria uma decisão da pessoa em apagamento — e ela perderia o caminho
  * de voltar atrás.
  */
-export function separarDispensados(varredura, dispensados) {
+export function separarDispensados(varredura, dispensados, propostas) {
   if (!varredura || !Array.isArray(varredura.achados)) return varredura
   const mapa = dispensados ?? {}
+  const sugeridas = propostas ?? {}
 
   const valem = []
   const fora = []
   for (const a of varredura.achados) {
     const chave = digitalDoAchado(a)
     const d = chave ? mapa[chave] : null
-    if (d) fora.push({ ...a, dispensadoEm: d.at, nota: d.nota })
-    else valem.push(a)
+    if (d) {
+      fora.push({ ...a, dispensadoEm: d.at, nota: d.nota })
+      continue
+    }
+    // A proposta viaja COM o achado: quem lê o aviso lê, na mesma linha, o
+    // motivo pelo qual a IA acha que ele não é problema.
+    const p = sugeridas[`${a.arquivo}:${a.linha}`]
+    valem.push(p ? { ...a, proposta: { motivo: p.motivo, at: p.at, por: p.por } } : a)
   }
 
   return { ...varredura, achados: valem, dispensados: fora }

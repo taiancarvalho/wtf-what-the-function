@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Check, Eye, KeyRound, Loader2, RefreshCw, ScrollText, ShieldCheck } from 'lucide-react'
+import { Check, Eye, KeyRound, Loader2, RefreshCw, ScrollText, ShieldCheck, Sparkles } from 'lucide-react'
 import { Seguranca as Achados } from '@/components/Seguranca'
-import { lerArquivo, pedirGuardrails, podeTerminalEmbutido } from '@/lib/source'
+import { dispensarAchado, lerArquivo, pedirGuardrails, podeTerminalEmbutido } from '@/lib/source'
 import { ApagarGerado } from '@/components/ApagarGerado'
 import { useT } from '@/lib/i18n'
 import type { ProjectSnapshot } from '@/types/protocol'
@@ -50,6 +50,31 @@ export function Seguranca({
   const dispensados =
     (segredos?.dispensados?.length ?? 0) + (expostos?.dispensados?.length ?? 0)
 
+  /*
+   * As propostas da IA, todas de uma vez.
+   *
+   * Sete achados analisados, sete cliques — e a pessoa desiste no terceiro.
+   * A decisão continua sendo dela, mas ela não precisa repeti-la sete vezes
+   * para dizer a mesma coisa. Quem quiser julgar um por um continua podendo:
+   * cada achado traz o motivo e os dois botões.
+   */
+  const comProposta = [
+    ...(segredos?.achados ?? []),
+    ...(expostos?.achados ?? []),
+  ].filter((a) => a.proposta)
+
+  const [aceitando, setAceitando] = useState(false)
+
+  async function aceitarTodas() {
+    setAceitando(true)
+    try {
+      for (const a of comProposta) await dispensarAchado(a, a.proposta?.motivo)
+      onVarrer?.()
+    } finally {
+      setAceitando(false)
+    }
+  }
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-[760px] px-8 pt-7 pb-24">
@@ -78,6 +103,33 @@ export function Seguranca({
           Com achados, o cartão de sempre — o mesmo que aparece na Home, para a
           pessoa não ter que aprender duas telas para o mesmo assunto.
         */}
+        {comProposta.length > 0 && (
+          <section
+            className="animate-in-up mt-5 rounded-xl border p-4"
+            style={{
+              borderColor: 'color-mix(in oklab, var(--color-accent) 34%, transparent)',
+              background: 'color-mix(in oklab, var(--color-accent) 6%, transparent)',
+            }}
+          >
+            <p className="flex items-center gap-1.5 text-[13px] font-medium">
+              <Sparkles size={13} className="shrink-0 text-[var(--color-accent)]" />
+              {t('seguranca.propostas', { n: comProposta.length })}
+            </p>
+            <p className="mt-1 text-[12.5px] leading-snug text-[var(--color-ink-2)]">
+              {t('seguranca.propostasNota')}
+            </p>
+            <button
+              onClick={aceitarTodas}
+              disabled={aceitando}
+              className="no-drag mt-2.5 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium disabled:opacity-60"
+              style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
+            >
+              {aceitando ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {t('seguranca.aceitarTodas', { n: comProposta.length })}
+            </button>
+          </section>
+        )}
+
         {total > 0 ? (
           <Achados snapshot={snapshot} />
         ) : (

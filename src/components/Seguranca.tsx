@@ -1,7 +1,13 @@
 import { useState } from 'react'
-import { ChevronDown, Eye, KeyRound, ShieldAlert, SquareTerminal, ThumbsUp } from 'lucide-react'
+import { Check, ChevronDown, Eye, KeyRound, ShieldAlert, Sparkles, SquareTerminal, ThumbsUp, X } from 'lucide-react'
 import { useT } from '@/lib/i18n'
-import { dispensarAchado, pedirTerminal, podeDispensar, podeTerminalEmbutido } from '@/lib/source'
+import {
+  dispensarAchado,
+  pedirTerminal,
+  podeDispensar,
+  podeTerminalEmbutido,
+  recusarProposta,
+} from '@/lib/source'
 import type { AchadoExposto, AchadoSegredo, ProjectSnapshot } from '@/types/protocol'
 
 /**
@@ -48,6 +54,21 @@ function mensagemDeSeguranca(
     'Confira cada item e me diga, em palavras simples: quais são de verdade, ' +
       'quais são alarme falso (exemplo em documentação, dado de teste), e qual é ' +
       'o risco real de cada um que for verdadeiro.',
+    '',
+    /*
+     * O caminho de volta.
+     *
+     * Sem esta parte, a IA concluía "é falso positivo, marque no painel" e não
+     * havia onde marcar — nem para ela nem para quem leu. O aviso voltava a
+     * cada varredura, para sempre, que é como se ensina alguém a ignorar
+     * aviso de segurança. Ela PROPÕE; quem tira da lista é quem clicar.
+     */
+    'Para cada item que for alarme falso, registre a sua conclusão assim ' +
+      '(uma linha por item):',
+    'node .wtf/bin/wtf-claim.cjs falso-positivo --arquivo <caminho> --linha <n> ' +
+      '--motivo "<por que não é problema, em uma frase simples>"',
+    'Isso NÃO tira o aviso: ele aparece no meu painel com o seu motivo, e eu ' +
+      'confirmo com um clique. Não registre nada que você tenha dúvida.',
     '',
     'Não altere nada ainda. Se alguma chave precisar ser trocada ou algum dado ' +
       'precisar sair do código, me explique o que isso quebra antes de fazer, e ' +
@@ -136,6 +157,7 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
                 confianca: a.confianca,
                 porque: t('seg.chavesPorque'),
                 achado: a,
+                proposta: a.proposta,
               }))}
             />
           )}
@@ -152,6 +174,7 @@ export function Seguranca({ snapshot }: { snapshot: ProjectSnapshot }) {
                 confianca: a.confianca,
                 porque: a.porque,
                 achado: a,
+                proposta: a.proposta,
               }))}
             />
           )}
@@ -185,6 +208,75 @@ interface Item {
   porque: string
   /** O achado cru — é ele que vai para o disco quando a pessoa dispensa. */
   achado: { tipo?: string; arquivo: string; linha: number; trecho: string }
+  /** O que a IA concluiu sobre este achado, quando alguém pediu que olhasse. */
+  proposta?: { motivo: string }
+}
+
+/**
+ * A proposta da IA, e os dois botões que a resolvem.
+ *
+ * A varredura acerta o formato e erra o contexto — um e-mail institucional que
+ * a lei obriga a mostrar tem exatamente a cara do que ela procura. Quem
+ * consegue julgar isso é quem lê o código, e a IA costuma acertar.
+ *
+ * O que ela NÃO pode é arquivar sozinha o próprio alerta de segurança: seria a
+ * IA corrigindo a própria prova, que é o contrário do que este painel faz. Ela
+ * escreve o motivo; a decisão continua sendo de um clique de quem manda.
+ */
+function PropostaDaIA({
+  item,
+  onResolveu,
+}: {
+  item: Item
+  onResolveu: () => void
+}) {
+  const t = useT()
+  const [indo, setIndo] = useState(false)
+  if (!item.proposta) return null
+
+  return (
+    <div
+      className="mt-2 rounded-lg border p-2.5"
+      style={{
+        borderColor: 'color-mix(in oklab, var(--color-accent) 34%, transparent)',
+        background: 'color-mix(in oklab, var(--color-accent) 6%, transparent)',
+      }}
+    >
+      <p className="flex items-baseline gap-1.5 text-[11px] tracking-wide text-[var(--color-ink-3)] uppercase">
+        <Sparkles size={11} className="shrink-0" />
+        {t('seg.propostaTitulo')}
+      </p>
+      <p className="mt-1 text-[12.5px] leading-snug text-[var(--color-ink-2)]">
+        {item.proposta.motivo}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <button
+          onClick={() => {
+            setIndo(true)
+            void dispensarAchado(item.achado, item.proposta?.motivo).then(onResolveu)
+          }}
+          disabled={indo}
+          className="no-drag inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium disabled:opacity-60"
+          style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
+        >
+          <Check size={12} />
+          {t('seg.propostaAceitar')}
+        </button>
+        <button
+          onClick={() => {
+            setIndo(true)
+            void recusarProposta(item.achado.arquivo, item.achado.linha).then(onResolveu)
+          }}
+          disabled={indo}
+          className="no-drag inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] text-[var(--color-ink-2)] disabled:opacity-60"
+          style={{ borderColor: 'var(--color-rule)' }}
+        >
+          <X size={12} />
+          {t('seg.propostaRecusar')}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -271,7 +363,11 @@ function Grupo({
               {i.onde}
             </p>
             <p className="mt-1 text-[12px] leading-snug text-[var(--color-ink-2)]">{i.porque}</p>
-            <BotaoNaoEProblema item={i} onPronto={() => {}} />
+            {i.proposta ? (
+              <PropostaDaIA item={i} onResolveu={() => {}} />
+            ) : (
+              <BotaoNaoEProblema item={i} onPronto={() => {}} />
+            )}
           </li>
         ))}
       </ul>

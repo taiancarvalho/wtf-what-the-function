@@ -588,6 +588,13 @@ export interface DesdeUltimaVisita {
  * 2 do fim, o resto mascarado. Mostrar a chave na tela seria um segundo
  * vazamento — screenshot, gravação, print de suporte.
  */
+/** A IA analisou este achado e acha que não é problema. Só ela achar não basta. */
+export interface PropostaFalsoPositivo {
+  motivo: string
+  at?: string | null
+  por?: string
+}
+
 export interface AchadoSegredo {
   /** Caminho relativo à raiz do projeto. */
   arquivo: string
@@ -599,6 +606,8 @@ export interface AchadoSegredo {
   rotulo: string
   /** O valor MASCARADO. Nunca o segredo. */
   trecho: string
+  /** A IA propôs marcar como falso alarme, com o motivo. */
+  proposta?: PropostaFalsoPositivo
   /**
    * 'alta' = formato conhecido de provedor (AKIA…, sk-ant-…, chave privada).
    * 'media' = padrão genérico (`senha=algo`), que erra mais.
@@ -638,6 +647,8 @@ export interface AchadoExposto {
   rotulo: string
   /** O valor MASCARADO. Nunca o dado inteiro. */
   trecho: string
+  /** A IA propôs marcar como falso alarme, com o motivo. */
+  proposta?: PropostaFalsoPositivo
   /**
    * 'alta' = formato inequívoco e validado (CPF formatado, cartão no Luhn).
    * 'media'/'baixa' = casos com dúvida, ou arquivo que parece rodar no servidor.

@@ -35,7 +35,13 @@ import {
 import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
 import { MODELO_PADRAO, perguntar } from './ask.js'
 import { apagarGerado, listarGerados } from './gerados.js'
-import { alternarDispensado, lerDispensados, separarDispensados } from './dispensados.js'
+import {
+  alternarDispensado,
+  lerDispensados,
+  lerPropostas,
+  removerProposta,
+  separarDispensados,
+} from './dispensados.js'
 import { observarProjeto } from './watcher.js'
 import { abrirTerminal } from './terminal.js'
 import {
@@ -254,8 +260,9 @@ async function lerProjeto(dir) {
    * alerta que nunca some é a ignorar alertas.
    */
   const dispensados = await lerDispensados(dir)
-  snapshot.segredos = separarDispensados(snapshot.segredos, dispensados)
-  snapshot.expostos = separarDispensados(snapshot.expostos, dispensados)
+  const propostas = await lerPropostas(dir)
+  snapshot.segredos = separarDispensados(snapshot.segredos, dispensados, propostas)
+  snapshot.expostos = separarDispensados(snapshot.expostos, dispensados, propostas)
 
   /*
    * O passado do projeto — SEMPRE do cache, nunca calculado aqui.
@@ -546,8 +553,17 @@ ipcMain.handle('wtf:gerados', async () => listarGerados(projetoAtual))
 /** "Isso não é problema": marca (ou desmarca) um achado como falso alarme. */
 ipcMain.handle('wtf:dispensar-achado', async (_e, achado, nota) => {
   const r = await alternarDispensado(projetoAtual, achado, nota)
+  // Aceitar a proposta consome a proposta: ela já cumpriu o papel dela.
+  if (achado?.arquivo) await removerProposta(projetoAtual, achado.arquivo, achado.linha)
   if (win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'seguranca')
   return r
+})
+
+/** "Não, isso é problema mesmo": tira a proposta sem dispensar o achado. */
+ipcMain.handle('wtf:recusar-proposta', async (_e, arquivo, linha) => {
+  await removerProposta(projetoAtual, arquivo, linha)
+  if (win && !win.isDestroyed()) win.webContents.send('wtf:mudou', 'seguranca')
+  return { ok: true }
 })
 
 ipcMain.handle('wtf:apagar-gerado', async (_e, chave) => {

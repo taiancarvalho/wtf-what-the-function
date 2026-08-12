@@ -61,6 +61,13 @@ const pt: Dic = {
   'seg.confianca.baixa': 'confira',
   'seg.mais': 'e mais {n}',
   'seg.pedirIA': 'Pedir para a IA verificar',
+  'seg.propostaTitulo': 'A IA analisou e diz que não é problema',
+  'seg.propostaAceitar': 'Concordo, tirar da lista',
+  'seg.propostaRecusar': 'Não, manter o aviso',
+  'seguranca.propostas': 'A IA analisou {n} destes avisos',
+  'seguranca.propostasNota':
+    'Ela diz que não são problema, e escreveu o motivo de cada um junto do aviso. Quem decide é você — a IA não tira aviso de segurança sozinha.',
+  'seguranca.aceitarTodas': 'Concordo com as {n}, tirar da lista',
   'seg.naoEProblema': 'Isso não é problema',
   'seg.naoEProblemaDica':
     'Tira este aviso da lista. Se o valor nesse lugar mudar, o WTF volta a avisar.',
@@ -651,6 +658,13 @@ const en: Dic = {
   'seg.confianca.baixa': 'check this',
   'seg.mais': 'and {n} more',
   'seg.pedirIA': 'Ask the AI to check this',
+  'seg.propostaTitulo': 'The AI looked at this and says it is not a problem',
+  'seg.propostaAceitar': 'Agree, remove it',
+  'seg.propostaRecusar': 'No, keep the notice',
+  'seguranca.propostas': 'The AI looked at {n} of these notices',
+  'seguranca.propostasNota':
+    'It says they are not a problem, and wrote the reason next to each one. You decide — the AI never removes a security notice on its own.',
+  'seguranca.aceitarTodas': 'Agree with all {n}, remove them',
   'seg.naoEProblema': 'This is not a problem',
   'seg.naoEProblemaDica':
     'Removes this notice from the list. If the value in that spot changes, WTF warns you again.',
@@ -1213,6 +1227,13 @@ const es: Dic = {
   'seg.confianca.baixa': 'revísalo',
   'seg.mais': 'y {n} más',
   'seg.pedirIA': 'Pedir a la IA que verifique',
+  'seg.propostaTitulo': 'La IA lo analizó y dice que no es un problema',
+  'seg.propostaAceitar': 'De acuerdo, quitarlo',
+  'seg.propostaRecusar': 'No, mantener el aviso',
+  'seguranca.propostas': 'La IA analizó {n} de estos avisos',
+  'seguranca.propostasNota':
+    'Dice que no son un problema, y escribió el motivo de cada uno junto al aviso. Quien decide eres tú — la IA nunca quita un aviso de seguridad sola.',
+  'seguranca.aceitarTodas': 'De acuerdo con los {n}, quitarlos',
   'seg.naoEProblema': 'Esto no es un problema',
   'seg.naoEProblemaDica':
     'Quita este aviso de la lista. Si el valor en ese lugar cambia, WTF vuelve a avisar.',

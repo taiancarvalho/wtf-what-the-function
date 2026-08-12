@@ -68,16 +68,87 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 const acao = args._[0];
 
-if (acao !== 'start' && acao !== 'done') {
-  falhar(`ação inválida${acao ? ` ("${acao}")` : ''}. Use "start" ou "done".`);
+if (acao !== 'start' && acao !== 'done' && acao !== 'falso-positivo') {
+  falhar(
+    `ação inválida${acao ? ` ("${acao}")` : ''}. Use "start", "done" ou "falso-positivo".`
+  );
+}
+
+const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+
+/*
+ * `falso-positivo` — a IA PROPÕE, o dono do projeto confirma.
+ *
+ * A varredura de segurança acerta o formato e erra o contexto: um e-mail
+ * institucional que a lei obriga a mostrar, um número sorteado que parece
+ * telefone, um telefone de exemplo dentro de um campo. Quando alguém pede à IA
+ * que confira, ela costuma acertar quais são inofensivos — e até aqui não
+ * tinha onde dizer isso. O aviso voltava a cada varredura, para sempre.
+ *
+ * ⚠️ ISTO NÃO SILENCIA NADA SOZINHO, E É DE PROPÓSITO.
+ *
+ * Deixar a IA arquivar o próprio alerta de segurança seria ela corrigindo a
+ * própria prova — exatamente o que este produto existe para impedir. O que
+ * este comando grava é uma PROPOSTA, com o motivo escrito por extenso. Ela
+ * aparece no painel ao lado do achado, e some com um clique de quem manda no
+ * projeto. Um clique para os sete, se forem sete.
+ *
+ *   node .wtf/bin/wtf-claim.cjs falso-positivo \
+ *     --arquivo src/pages/Contato.tsx --linha 18 \
+ *     --motivo "É o e-mail institucional do encarregado de dados; a LGPD exige
+ *               que ele apareça na tela."
+ */
+if (acao === 'falso-positivo') {
+  const arquivo = typeof args.arquivo === 'string' ? args.arquivo.trim() : '';
+  const linha = Number.parseInt(args.linha, 10);
+  const motivo = typeof args.motivo === 'string' ? args.motivo.trim() : '';
+
+  if (!arquivo) falhar('--arquivo é obrigatório: o caminho onde está o achado.');
+  if (!Number.isFinite(linha) || linha < 1) falhar('--linha é obrigatório e deve ser um número.');
+  if (!motivo) {
+    falhar(
+      '--motivo é obrigatório. Quem vai decidir é o dono do projeto, e sem o ' +
+        'motivo ele não tem como decidir nada.'
+    );
+  }
+
+  const alvo = path.join(projectDir, '.wtf', 'seguranca-propostas.json');
+  let dados = { v: 1, itens: {} };
+  try {
+    const bruto = fs.readFileSync(alvo, 'utf8');
+    const lido = JSON.parse(bruto);
+    if (lido && typeof lido === 'object' && lido.itens && typeof lido.itens === 'object') {
+      dados = { v: 1, itens: lido.itens };
+    }
+  } catch {
+    /* sem arquivo ainda, ou ilegível: começamos do zero */
+  }
+
+  dados.itens[`${arquivo}:${linha}`] = {
+    at: isoLocal(),
+    motivo,
+    por: 'claude-code',
+  };
+
+  try {
+    fs.mkdirSync(path.dirname(alvo), { recursive: true });
+    fs.writeFileSync(alvo, JSON.stringify(dados, null, 2) + '\n', 'utf8');
+  } catch (err) {
+    process.stderr.write(`WTF: falha ao gravar a proposta: ${err.message}\n`);
+    process.exit(1);
+  }
+
+  process.stdout.write(
+    `WTF: proposta registrada para ${arquivo}:${linha}. ` +
+      `Ela aparece no painel para o dono do projeto confirmar.\n`
+  );
+  process.exit(0);
 }
 
 const feature = typeof args.feature === 'string' ? args.feature.trim() : '';
 if (!feature) {
   falhar('--feature é obrigatório e deve receber um texto descrevendo a feature.');
 }
-
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
 const evento = {
   v: 1,

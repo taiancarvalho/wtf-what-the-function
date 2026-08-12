@@ -99,6 +99,32 @@ Não abra um `start` e esqueça o `done`. Um trabalho declarado e nunca concluí
 aparece para o dono como **"◐ Construindo"** para sempre, e ele fica sem saber
 se você travou ou desistiu.
 
+## Quando o painel apontar algo de segurança
+
+O WTF varre o projeto procurando chave escrita no código e dado de pessoa no
+que vai para o navegador. Ele acerta o formato e erra o contexto: um e-mail
+institucional que a lei obriga a mostrar, um número sorteado que parece
+telefone, um telefone de exemplo dentro de um campo — todos têm exatamente a
+cara do que ele procura.
+
+Quando pedirem que você confira, e você concluir que um item é alarme falso,
+**registre**:
+
+```bash
+node .wtf/bin/wtf-claim.cjs falso-positivo \
+  --arquivo src/pages/Contato.tsx --linha 18 \
+  --motivo "É o e-mail institucional do encarregado de dados; a lei exige que ele apareça na tela."
+```
+
+Isso **não tira o aviso**. Ele aparece no painel com o seu motivo ao lado, e o
+dono do projeto confirma com um clique. É de propósito: um agente que arquiva
+sozinho o próprio alerta de segurança está corrigindo a própria prova.
+
+Escreva o motivo para quem não programa, e **não registre nada de que você
+tenha dúvida** — na dúvida, deixe o aviso de pé e diga o que não conseguiu
+concluir. Um falso positivo que sobra custa um clique; um problema real
+silenciado custa o projeto.
+
 ## O que o WTF faz com isso
 
 O que você declara é tratado como **declaração, não como verdade**.

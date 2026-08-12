@@ -53,6 +53,7 @@ interface PonteWtf {
   gerados?: () => Promise<unknown>
   apagarGerado?: (chave: string) => Promise<unknown>
   dispensarAchado?: (achado: unknown, nota?: string) => Promise<unknown>
+  recusarProposta?: (arquivo: string, linha: number) => Promise<unknown>
   aoSairDoTerminal?: (cb: (dados: SaidaTerminal) => void) => () => void
   aoTerminarTerminal?: (cb: (dados: FimTerminal) => void) => () => void
   mapear?: () => Promise<unknown>
@@ -234,6 +235,11 @@ export async function dispensarAchado(
 ): Promise<{ dispensado?: boolean }> {
   const r = await ponte()?.dispensarAchado?.(achado, nota)
   return (r as { dispensado?: boolean }) ?? {}
+}
+
+/** "Não, isso é problema mesmo": tira a proposta da IA sem dispensar o achado. */
+export async function recusarProposta(arquivo: string, linha: number): Promise<void> {
+  await ponte()?.recusarProposta?.(arquivo, linha)
 }
 
 /** Entrega um texto inteiro à sessão aberta. Colagem, nunca digitação. */
