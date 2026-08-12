@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld('wtf', {
   /** Instala a skill + hook no projeto observado (pede confirmação). */
   instalar: () => ipcRenderer.invoke('wtf:instalar'),
   desinstalar: () => ipcRenderer.invoke('wtf:desinstalar'),
+  /**
+   * O que a instalação escreveria no projeto, com o texto integral de cada
+   * arquivo. Só leitura — serve para a pessoa ver antes de aceitar.
+   */
+  lerPacoteInstalacao: () => ipcRenderer.invoke('wtf:pacote-instalacao'),
   /** Abre o terminal do sistema na pasta, já com o agente rodando. */
   abrirTerminal: (mensagem) => ipcRenderer.invoke('wtf:abrir-terminal', mensagem),
   /** Abre o agente já pedindo o mapeamento do projeto (onboarding). */

@@ -333,3 +333,43 @@ export interface ProjectSnapshot {
   /** Ausente quando o projeto ainda não tem `MAPA.md`. */
   pastas?: MapaPastas
 }
+
+// ------------------------------------------- o que a instalação vai escrever
+
+/** Um arquivo que a instalação do WTF criaria dentro do projeto. */
+export interface ItemInstalacao {
+  /** Caminho relativo à raiz do projeto. */
+  destino: string
+  /** Arquivo de origem, dentro da pasta `skill/` do aplicativo. */
+  origem: string
+  /** Rótulo humano — o que este arquivo faz, sem jargão. */
+  titulo: string
+  /** Uma frase: por que este arquivo existe. */
+  proposito: string
+  /** O texto integral que seria escrito, já com o idioma escolhido aplicado. */
+  conteudo: string
+  bytes: number
+  /** Já está instalado no projeto? */
+  jaExiste: boolean
+  /** Se existe, o que está lá é idêntico ao que seria escrito? */
+  igual: boolean
+  /** Preenchido quando o arquivo de origem não pôde ser lido. */
+  erro?: string
+}
+
+/** Um hook que seria registrado em `.claude/settings.local.json`. */
+export interface HookDeclarado {
+  evento: string
+  /** `null` quando o hook vale para qualquer ferramenta. */
+  matcher: string | null
+  /** O comando exato, como aparece no arquivo. */
+  comando: string
+}
+
+/** Tudo o que a instalação escreve — para ver antes de aceitar. */
+export interface PacoteInstalacao {
+  itens: ItemInstalacao[]
+  hooks: HookDeclarado[]
+  /** Linhas acrescentadas ao `.gitignore`. */
+  gitignore: string[]
+}

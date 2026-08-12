@@ -12,7 +12,9 @@
     "dev": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:5273 && electron .\"",
     "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node bin/wtf.mjs",
+    "dev:app": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:5273 && electron .\""
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.11",
@@ -34,5 +36,16 @@
     "motion": "^12.23.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
-  }
+  },
+  "bin": {
+    "wtf": "bin/wtf.mjs"
+  },
+  "files": [
+    "bin",
+    "electron",
+    "skill",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }

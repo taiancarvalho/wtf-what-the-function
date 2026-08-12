@@ -118,15 +118,29 @@ app local, gratuito e sem servidor.
 A skill depende do agente cooperar. O hook não — ele registra os arquivos
 tocados mesmo quando o agente esquece de declarar.
 
-## Rodar
+## Instalar e abrir
 
 ```bash
+git clone https://github.com/taiancarvalho/wtf-what-the-function.git
+cd wtf-what-the-function
 npm install
-npm run dev                                   # projeto de exemplo
-WTF_PROJECT=~/caminho/do/projeto npm run dev  # projeto real
+npm link          # opcional: cria o comando `wtf` no sistema
 ```
 
-Ou abra o app e use "Abrir um projeto de verdade".
+Depois, de dentro de qualquer projeto:
+
+```bash
+cd ~/Projetos/minha-loja
+wtf               # abre o painel nesta pasta e devolve o terminal
+```
+
+Sem `npm link`, use `npm start` dentro da pasta do WTF, ou `wtf ~/caminho/do/projeto`.
+
+Não há ícone no Dock nem instalador: o app roda pelo Node que você já tem, e o
+ícone é o genérico do Electron. Isso só muda com um instalador assinado, que
+custa uma conta paga de desenvolvedor — e a decisão foi não fazer por ora.
+
+Para mexer no código do próprio WTF: `npm run dev` (recarrega ao salvar).
 
 ## Estado atual
 

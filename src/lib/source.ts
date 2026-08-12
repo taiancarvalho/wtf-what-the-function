@@ -3,6 +3,7 @@ import type {
   ConfigProjeto,
   ContextoPergunta,
   EstadoChaves,
+  PacoteInstalacao,
   PedacoResposta,
   ProjectSnapshot,
   ProvedorChave,
@@ -22,6 +23,7 @@ interface PonteWtf {
   escolherProjeto?: () => Promise<unknown>
   instalar?: () => Promise<unknown>
   desinstalar?: () => Promise<unknown>
+  lerPacoteInstalacao?: () => Promise<unknown>
   abrirTerminal?: (mensagem?: string) => Promise<unknown>
   mapear?: () => Promise<unknown>
   mapearPastas?: () => Promise<unknown>
@@ -85,6 +87,18 @@ export async function carregar(): Promise<Carga> {
 }
 
 export const podeInstalar = () => typeof ponte()?.instalar === 'function'
+export const podeVerPacote = () => typeof ponte()?.lerPacoteInstalacao === 'function'
+
+/**
+ * Tudo o que a instalação escreveria no projeto, com o texto integral de cada
+ * arquivo — para a pessoa ler antes de aceitar. `null` fora do aplicativo.
+ */
+export async function lerPacoteInstalacao(): Promise<PacoteInstalacao | null> {
+  const p = ponte()
+  if (!p?.lerPacoteInstalacao) return null
+  const r = (await p.lerPacoteInstalacao()) as PacoteInstalacao & { erro?: string }
+  return Array.isArray(r?.itens) ? r : null
+}
 export const podeAbrirTerminal = () => typeof ponte()?.abrirTerminal === 'function'
 
 /** Abre a IA numa janela nova. Com `mensagem`, ela já começa escrita. */

@@ -16,6 +16,7 @@ import { aplicarMapa, readProjectMap } from './map.js'
 import { lerMapaPastas } from './folders.js'
 import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
 import { lerConfig, salvarConfig } from './config.js'
+import { lerPacoteInstalacao } from './disclosure.js'
 import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
 import { MODELO_PADRAO, perguntar } from './ask.js'
 import { observarProjeto } from './watcher.js'
@@ -419,6 +420,18 @@ ipcMain.handle('wtf:escolher-projeto', async () => {
  * Instala a skill e o hook no projeto observado. É a única escrita que o WTF
  * faz — e só acontece por clique explícito, com confirmação.
  */
+/**
+ * Tudo o que a instalação escreveria, com o conteúdo integral de cada arquivo.
+ * Só leitura: chamar isto nunca toca no projeto.
+ */
+ipcMain.handle('wtf:pacote-instalacao', async () => {
+  try {
+    return await lerPacoteInstalacao(projetoAtual)
+  } catch (erro) {
+    return { erro: String(erro?.message ?? erro) }
+  }
+})
+
 ipcMain.handle('wtf:instalar', async () => {
   if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
   const r = await dialog.showMessageBox({

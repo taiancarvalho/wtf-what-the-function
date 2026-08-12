@@ -2,23 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Blocks,
   FlaskConical,
-  FolderSearch,
   FolderTree,
   House,
   ListChecks,
   Newspaper,
+  Settings2,
 } from 'lucide-react'
 import {
   aoMudarProjeto,
   carregar,
   escolherProjeto,
-  podeEscolherProjeto,
   salvarConfig,
   type Carga,
 } from '@/lib/source'
 import { InstalarSkill } from '@/components/InstalarSkill'
-import { EscolherIdioma } from '@/components/EscolherIdioma'
-import { ConfigChaves } from '@/components/ConfigChaves'
 import { IdiomaContext, useT, type Idioma } from '@/lib/i18n'
 import { BarraTopo } from '@/components/BarraTopo'
 import { BuildMap } from '@/views/BuildMap'
@@ -26,9 +23,10 @@ import { ProductMap } from '@/views/ProductMap'
 import { Timeline } from '@/views/Timeline'
 import { Home } from '@/views/Home'
 import { Pastas } from '@/views/Pastas'
+import { Configuracoes } from '@/views/Configuracoes'
 import { AGENT_LABEL } from '@/lib/state'
 
-type Aba = 'home' | 'timeline' | 'build' | 'mapa' | 'pastas'
+type Aba = 'home' | 'timeline' | 'build' | 'mapa' | 'pastas' | 'config'
 
 const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] = [
   { id: 'home', label: 'nav.home', icone: House, nota: 'nav.home.nota' },
@@ -36,6 +34,7 @@ const ABAS: { id: Aba; label: string; icone: typeof Newspaper; nota: string }[] 
   { id: 'build', label: 'nav.progresso', icone: ListChecks, nota: 'nav.progresso.nota' },
   { id: 'mapa', label: 'nav.mapa', icone: Blocks, nota: 'nav.mapa.nota' },
   { id: 'pastas', label: 'nav.pastas', icone: FolderTree, nota: 'nav.pastas.nota' },
+  { id: 'config', label: 'nav.config', icone: Settings2, nota: 'nav.config.nota' },
 ]
 
 /**
@@ -241,25 +240,19 @@ function Painel({
             </span>
           )}
 
-          {podeEscolherProjeto() && (
-            <button
-              onClick={trocarProjeto}
-              className="no-drag mt-3 flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-[12.5px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
-            >
-              <FolderSearch size={14} className="shrink-0" />
-              {fonte === 'real' ? t('lateral.trocarProjeto') : t('lateral.abrirProjeto')}
-            </button>
-          )}
+          {/*
+            Discreto para o recorrente, explícito para o decisivo.
 
-          {fonte === 'real' && (
+            Idioma, chaves e troca de projeto viraram Configurações: são coisas
+            que se mexe uma vez e não precisam ocupar a lateral todo dia. Já a
+            instalação da skill fica aqui ENQUANTO não estiver instalada — sem
+            ela o WTF só enxerga o passado, então esse convite precisa ser
+            impossível de ignorar. Depois de instalada, ela só vive em
+            Configurações.
+          */}
+          {fonte === 'real' && !snapshot.instalacao?.instalado && (
             <InstalarSkill instalacao={snapshot.instalacao} onMudou={setCarga} />
           )}
-
-          {fonte === 'real' && (
-            <EscolherIdioma config={snapshot.config} onSalvar={trocarIdioma} />
-          )}
-
-          {fonte === 'real' && <ConfigChaves />}
 
           {erro && <AvisoErro erro={erro} />}
         </div>
@@ -336,6 +329,15 @@ function Painel({
           )}
           {aba === 'mapa' && <ProductMap snapshot={snapshot} />}
           {aba === 'pastas' && <Pastas snapshot={snapshot} />}
+          {aba === 'config' && (
+            <Configuracoes
+              snapshot={snapshot}
+              fonteDados={fonte}
+              onTrocarProjeto={trocarProjeto}
+              onSalvarIdioma={trocarIdioma}
+              onMudou={setCarga}
+            />
+          )}
         </div>
       </main>
     </div>

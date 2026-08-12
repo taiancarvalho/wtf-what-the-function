@@ -23,8 +23,16 @@ import { lerConfig } from './config.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ORIGEM = path.join(__dirname, '..', 'skill')
 
+/**
+ * Onde moram os arquivos de origem. Exportada porque `disclosure.js` precisa
+ * ler exatamente os MESMOS arquivos que serão copiados — se as duas partes
+ * resolvessem o caminho por conta própria, a tela poderia mostrar um conteúdo
+ * e a instalação escrever outro.
+ */
+export const ORIGEM_SKILL = ORIGEM
+
 /** destino no projeto → arquivo de origem dentro de `skill/` */
-const ALVOS = {
+export const ALVOS = {
   skill: ['.claude/skills/wtf/SKILL.md', 'SKILL.md'],
   mapear: ['.claude/skills/wtf-mapear/SKILL.md', 'mapear/SKILL.md'],
   pastas: ['.claude/skills/wtf-pastas/SKILL.md', 'pastas/SKILL.md'],
@@ -36,7 +44,21 @@ const ALVOS = {
 /** Arquivos que precisam de bit de execução. */
 const EXECUTAVEIS = new Set(['hook', 'cli'])
 
-const COMANDO_HOOK = 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/wtf-observer.cjs"'
+export const COMANDO_HOOK = 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/wtf-observer.cjs"'
+
+/**
+ * Os hooks que serão registrados em `.claude/settings.local.json`. É esta lista
+ * que `instalar()` aplica e que `disclosure.js` mostra — uma só definição, para
+ * a tela nunca prometer algo diferente do que é escrito.
+ */
+export const HOOKS = [
+  { evento: 'SessionStart', matcher: null },
+  { evento: 'Stop', matcher: null },
+  { evento: 'PostToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit|Bash' },
+]
+
+/** Linhas acrescentadas ao `.gitignore` do projeto. */
+export const GITIGNORE = ['# WTF — histórico local do que a IA declarou', '.wtf/events.jsonl']
 
 // ------------------------------------------------------------------ estado
 
@@ -89,14 +111,14 @@ export async function instalar(dir) {
 
   const novo = structuredClone(atual)
   novo.hooks ??= {}
-  for (const evento of ['SessionStart', 'Stop', 'PostToolUse']) {
+  for (const { evento, matcher } of HOOKS) {
     novo.hooks[evento] ??= []
     const jaTem = novo.hooks[evento].some((g) =>
       (g?.hooks ?? []).some((x) => String(x?.command ?? '').includes('wtf-observer')),
     )
     if (jaTem) continue
     novo.hooks[evento].push({
-      ...(evento === 'PostToolUse' ? { matcher: 'Edit|Write|MultiEdit|NotebookEdit|Bash' } : {}),
+      ...(matcher ? { matcher } : {}),
       hooks: [{ type: 'command', command: COMANDO_HOOK, timeout: 10 }],
     })
   }
@@ -172,7 +194,7 @@ async function backup(p) {
 
 async function garantirGitignore(dir) {
   const alvo = path.join(dir, '.gitignore')
-  const linha = '.wtf/events.jsonl'
+  const linha = GITIGNORE[GITIGNORE.length - 1]
   let conteudo = ''
   try {
     conteudo = await fs.readFile(alvo, 'utf8')
@@ -181,7 +203,7 @@ async function garantirGitignore(dir) {
   }
   if (conteudo.split('\n').some((l) => l.trim() === linha)) return
   const sufixo = conteudo && !conteudo.endsWith('\n') ? '\n' : ''
-  await fs.appendFile(alvo, `${sufixo}\n# WTF — histórico local do que a IA declarou\n${linha}\n`, 'utf8')
+  await fs.appendFile(alvo, `${sufixo}\n${GITIGNORE.join('\n')}\n`, 'utf8')
 }
 
 // ------------------------------------------------------------------ idioma
@@ -223,12 +245,31 @@ const SKILLS_COM_IDIOMA = [
  * Nunca lança: idioma errado na skill é ruim, mas derrubar a instalação por
  * causa disso seria pior.
  */
+/**
+ * O conteúdo final de um arquivo instalado: o original do `skill/` já com a
+ * seção de idioma aplicada, quando o arquivo carrega uma. Pura, para que
+ * `disclosure.js` possa mostrar EXATAMENTE o texto que vai para o disco sem
+ * escrever nada.
+ */
+export function comIdioma(rel, conteudo, config) {
+  const montar = SKILLS_COM_IDIOMA.find(([alvo]) => alvo === rel)?.[1]
+  if (!montar) return conteudo
+  const nome = config?.nomeIdiomaConteudo || 'português do Brasil'
+  const miolo = `${ABRE}\n${montar(nome)}\n${FECHA}`
+  const ini = conteudo.indexOf(ABRE)
+  const fim = conteudo.indexOf(FECHA)
+  if (ini >= 0 && fim > ini) {
+    return conteudo.slice(0, ini) + miolo + conteudo.slice(fim + FECHA.length)
+  }
+  const sufixo = conteudo.endsWith('\n') ? '' : '\n'
+  return `${conteudo}${sufixo}\n## Idioma\n\n${miolo}\n`
+}
+
 export async function aplicarIdiomaNaSkill(dir, config) {
   if (!dir) return { ok: false, arquivos: [] }
-  const nome = config?.nomeIdiomaConteudo || 'português do Brasil'
   const tocados = []
 
-  for (const [rel, montar] of SKILLS_COM_IDIOMA) {
+  for (const [rel] of SKILLS_COM_IDIOMA) {
     const alvo = path.join(dir, rel)
     let conteudo
     try {
@@ -237,18 +278,7 @@ export async function aplicarIdiomaNaSkill(dir, config) {
       continue // skill não instalada: nada a fazer
     }
 
-    const miolo = `${ABRE}\n${montar(nome)}\n${FECHA}`
-    const ini = conteudo.indexOf(ABRE)
-    const fim = conteudo.indexOf(FECHA)
-
-    let novo
-    if (ini >= 0 && fim > ini) {
-      novo = conteudo.slice(0, ini) + miolo + conteudo.slice(fim + FECHA.length)
-    } else {
-      const sufixo = conteudo.endsWith('\n') ? '' : '\n'
-      novo = `${conteudo}${sufixo}\n## Idioma\n\n${miolo}\n`
-    }
-
+    const novo = comIdioma(rel, conteudo, config)
     if (novo === conteudo) continue
     try {
       await fs.writeFile(alvo, novo, 'utf8')
