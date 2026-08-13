@@ -5,6 +5,7 @@ import {
   KeyRound,
   Loader2,
   RefreshCw,
+  ScanSearch,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
@@ -210,25 +211,53 @@ export function Seguranca({
                 <Achados snapshot={snapshot} />
               </div>
             ) : (
+              /*
+               * ⚠️ AQUI A TELA JÁ MENTIU, E MENTIR SOBRE SEGURANÇA É O PIOR
+               * DEFEITO QUE ESTE PRODUTO PODE TER.
+               *
+               * A bifurcação era só do parágrafo: o título dizia "Nada
+               * encontrado nesta varredura" com um escudo verde — a cor que no
+               * resto do app significa "a máquina conferiu" — mesmo quando
+               * NENHUM arquivo tinha sido lido. Em letras miúdas, embaixo, a
+               * ressalva. Para quem não programa, escudo verde mais "nada
+               * encontrado" é uma só frase: "meu projeto está limpo".
+               *
+               * Era o WTF fazendo exatamente o que ele existe para denunciar —
+               * afirmar sem prova. Zero arquivos lidos não é um resultado
+               * tranquilizador: é a AUSÊNCIA de resultado, e a tela tem que
+               * dizer isso com a mesma clareza com que diria o contrário.
+               *
+               * Agora o bloco inteiro muda: outro ícone (nada de escudo
+               * aprovando), tinta neutra, título que admite que ninguém olhou —
+               * e o botão de varrer DENTRO do bloco. Antes ele morava na outra
+               * coluna: quem lia "ainda não rodou" tinha que atravessar a tela
+               * para poder rodar.
+               */
               <section className="card animate-in-up p-card" style={{ animationDelay: '0.05s' }}>
                 <div className="flex items-center gap-item">
-                  {/* Verde de "a máquina conferiu" — o mesmo sentido que o
-                      token carrega no resto do app. A varredura É uma
-                      verificação automática que passou; nenhum outro token
-                      significa isso, e inventar uma sexta cor para dizer a
-                      mesma coisa é o que produziu os cinco significados de
-                      terracota que a crítica achou. */}
-                  <ShieldCheck
-                    size={16}
-                    className="shrink-0"
-                    style={{ color: 'var(--color-tested)' }}
-                  />
-                  {/* Aqui o título NÃO é rótulo: ele é a resposta da tela ("não
-                      achei nada"), e a frase abaixo é a ressalva dele. Por isso
-                      `text-title` (19px) e não `.label` — era 15px, quase o
-                      mesmo corpo do parágrafo que ele encabeçava. */}
+                  {varridos > 0 ? (
+                    /* Verde de "a máquina conferiu" — o mesmo sentido que o
+                       token carrega no resto do app, e agora só aparece quando
+                       a máquina de fato conferiu alguma coisa. */
+                    <ShieldCheck
+                      size={16}
+                      className="shrink-0"
+                      style={{ color: 'var(--color-tested)' }}
+                    />
+                  ) : (
+                    /* Nem escudo, nem verde: uma lupa em tinta neutra. Ninguém
+                       procurou ainda, e nenhum ícone de aprovação pode aparecer
+                       antes de existir o que aprovar. */
+                    <ScanSearch
+                      size={16}
+                      className="shrink-0"
+                      style={{ color: 'var(--color-ink-3)' }}
+                    />
+                  )}
+                  {/* Aqui o título NÃO é rótulo: ele é a resposta da tela, e a
+                      frase abaixo é a ressalva dele. Por isso `text-title`. */}
                   <h2 className="font-display text-title text-[var(--color-ink)]">
-                    {t('seguranca.nadaTitulo')}
+                    {varridos > 0 ? t('seguranca.nadaTitulo') : t('seguranca.aindaNaoTitulo')}
                   </h2>
                 </div>
                 <p className="text-lead mt-item max-w-[62ch] text-[var(--color-ink-2)]">
@@ -236,6 +265,19 @@ export function Seguranca({
                     ? t('seguranca.nadaTexto', { arquivos: varridos })
                     : t('seguranca.aindaNao')}
                 </p>
+
+                {/* A saída mora junto da frase que a pede. */}
+                {varridos === 0 && onVarrer && (
+                  <button
+                    onClick={varrer}
+                    disabled={varrendo}
+                    className="no-drag mt-card inline-flex items-center gap-hair rounded-lg px-3 py-1.5 text-meta font-medium transition-opacity disabled:opacity-60"
+                    style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
+                  >
+                    <RefreshCw size={13} className={varrendo ? 'animate-spin' : undefined} />
+                    {varrendo ? t('seguranca.varrendo') : t('seguranca.varrer')}
+                  </button>
+                )}
               </section>
             )}
 

@@ -116,6 +116,7 @@ const pt: Dic = {
   'seguranca.nadaTitulo': 'Nada encontrado nesta varredura',
   'seguranca.nadaTexto':
     'Foram lidos {arquivos} arquivos e nenhuma chave nem dado de pessoa apareceu. Isso não quer dizer que o projeto está seguro — quer dizer que estas duas coisas não foram encontradas.',
+  'seguranca.aindaNaoTitulo': 'Ninguém olhou este projeto ainda',
   'seguranca.aindaNao': 'A varredura ainda não rodou neste projeto.',
   'seguranca.truncado':
     'A varredura parou antes do fim: o projeto é grande demais para ser lido inteiro. O que está além do limite não foi olhado.',
@@ -722,6 +723,7 @@ const en: Dic = {
   'seguranca.nadaTitulo': 'Nothing found in this scan',
   'seguranca.nadaTexto':
     '{arquivos} files were read and no key or personal data showed up. That does not mean the project is secure — it means these two things were not found.',
+  'seguranca.aindaNaoTitulo': 'Nobody has looked at this project yet',
   'seguranca.aindaNao': 'The scan has not run on this project yet.',
   'seguranca.truncado':
     'The scan stopped early: the project is too large to read in full. Anything past the limit was not looked at.',
@@ -1302,6 +1304,7 @@ const es: Dic = {
   'seguranca.nadaTitulo': 'Nada encontrado en este barrido',
   'seguranca.nadaTexto':
     'Se leyeron {arquivos} archivos y no apareció ninguna clave ni dato de persona. Eso no significa que el proyecto esté seguro — significa que estas dos cosas no se encontraron.',
+  'seguranca.aindaNaoTitulo': 'Nadie ha revisado este proyecto todavía',
   'seguranca.aindaNao': 'El barrido todavía no se ejecutó en este proyecto.',
   'seguranca.truncado':
     'El barrido se detuvo antes del final: el proyecto es demasiado grande para leerlo entero. Lo que está más allá del límite no fue revisado.',
