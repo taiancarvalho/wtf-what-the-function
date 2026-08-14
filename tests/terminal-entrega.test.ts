@@ -69,8 +69,17 @@ describe('entregar um pedido à sessão', () => {
     saida.length = 0
 
     const pedido = 'Possíveis dados de pessoa no código:\n- E-mail em src/x.tsx:18\nConfira cada item.'
-    await entregar(s.id, pedido)
+    const r = await entregar(s.id, pedido)
     await esperar(1200)
+
+    /*
+     * O retorno importa tanto quanto a tela: `viaAgente` (ou a recusa por não
+     * achar agente nenhum) é a prova de que o shell foi reconhecido como
+     * SOZINHO. Sem esta asserção, um falso positivo na detecção passaria
+     * despercebido — o texto seria colado, e as três asserções abaixo, que só
+     * procuram reclamação do zsh, não veriam a reclamação de outro shell.
+     */
+    expect(r?.ok === false || r?.viaAgente === true, JSON.stringify(r)).toBe(true)
 
     const texto = tudo()
     // A assinatura exata do desastre: o zsh reclamando de cada linha.
@@ -99,10 +108,20 @@ describe('entregar um pedido à sessão', () => {
      * antes de o programa existir.
      */
     escrever(s.id, `node -e "process.stdout.write('PRON'+'TO\\n');process.stdin.pipe(process.stdout)"\r`)
-    await ate(() => tudo().includes('PRONTO'))
+    const partiu = await ate(() => tudo().includes('PRONTO'))
+    expect(partiu, `o eco não chegou a rodar. Terminal:\n${tudo()}`).toBe(true)
     saida.length = 0
 
-    await entregar(s.id, 'primeira linha\nsegunda linha')
+    /*
+     * `viaAgente` aqui seria o bug: significa que a detecção não viu o programa
+     * rodando e mandou executar o agente por cima dele. Sem esta asserção, o
+     * sintoma no Windows era um `''` genérico, que não dizia qual das duas
+     * pontas tinha quebrado.
+     */
+    const r = await entregar(s.id, 'primeira linha\nsegunda linha')
+    expect(r, JSON.stringify(r)).toMatchObject({ ok: true })
+    expect(r?.viaAgente, 'colou pelo agente: a detecção não viu o programa').toBeUndefined()
+
     await ate(() => tudo().includes('segunda linha'))
 
     const texto = tudo()

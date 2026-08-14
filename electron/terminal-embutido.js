@@ -293,10 +293,35 @@ export function sequenciaDeColagem(texto) {
  * Erro vale "sozinho": no pior caso executamos o agente de novo, que é o
  * desfecho seguro. O contrário — colar texto num shell vazio — é o que não
  * pode acontecer nunca.
+ *
+ * No Windows não há `pgrep`, e perguntar pelo caminho de Unix devolvia erro —
+ * ou seja, "sozinho" para SEMPRE. Com o agente rodando, o pedido nunca era
+ * colado: ele caía no ramo de executar o agente de novo. Errava para o lado
+ * seguro, mas errava toda vez. Lá a mesma pergunta é feita ao CIM.
+ *
+ * Sempre por caminho absoluto, nunca pelo PATH: quem responde "que processos
+ * existem" não pode ser um executável que qualquer pasta do PATH substitui.
  */
 function temProgramaRodando(pid) {
   return new Promise((resolve) => {
     if (typeof pid !== 'number' || pid <= 0) return resolve(false)
+
+    if (process.platform === 'win32') {
+      const ps = path.join(
+        process.env.SystemRoot || 'C:\\Windows',
+        'System32',
+        'WindowsPowerShell',
+        'v1.0',
+        'powershell.exe',
+      )
+      // `pid` já foi validado como número acima — não há texto de fora aqui.
+      const consulta = `@(Get-CimInstance Win32_Process -Filter "ParentProcessId=${pid}").Count`
+      execFile(ps, ['-NoProfile', '-NonInteractive', '-Command', consulta], (erro, saida) => {
+        resolve(!erro && Number(String(saida ?? '').trim()) > 0)
+      })
+      return
+    }
+
     execFile('/usr/bin/pgrep', ['-P', String(pid)], (erro, saida) => {
       resolve(!erro && String(saida ?? '').trim().length > 0)
     })
