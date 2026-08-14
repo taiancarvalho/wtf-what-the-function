@@ -140,7 +140,7 @@ export async function abrirSessao({ win, dir, mensagem, cols, rows }) {
     return { erro: String(erro?.message ?? erro) }
   }
 
-  sessoes.set(id, { pty: processo, dir })
+  sessoes.set(id, { pty: processo, dir, agenteLancado: false })
 
   /*
    * A saída vai em LOTES de ~16 ms, não byte a byte.
@@ -247,6 +247,9 @@ export async function abrirSessao({ win, dir, mensagem, cols, rows }) {
     agente = await detectarAgente()
     if (agente) {
       processo.write(`clear && ${aspasShell(agente.caminho)} ${aspasShell(mensagem)}\r`)
+      // Quem lançou o agente foi o WTF, e é só por isso que uma colagem pode
+      // ser considerada nesta sessão depois. Ver `entregar`.
+      sessoes.get(id).agenteLancado = true
     }
   }
 
@@ -353,7 +356,22 @@ export async function entregar(id, texto) {
   const s = sessoes.get(id)
   if (!s || typeof texto !== 'string' || !texto.trim()) return { ok: false }
 
-  if (await temProgramaRodando(s.pty.pid)) {
+  /*
+   * Duas condições, e nenhuma delas basta sozinha.
+   *
+   * `agenteLancado` é a porta: sem o WTF ter posto um agente nesta sessão, não
+   * existe hipótese de colagem. Só perguntar ao sistema "tem filho?" não serve
+   * — nos primeiros ~400ms de QUALQUER shell há filhos de inicialização
+   * (`mise`, `nvm`, `direnv`, plugins de prompt), e a resposta era "tem agente
+   * escutando" para um shell que estava apenas nascendo. Um pedido colado ali
+   * é executado como comando assim que o prompt aparece.
+   *
+   * E `agenteLancado` sozinho também não basta: o agente termina, a pessoa dá
+   * Ctrl+C, e a sessão volta ao shell com a marca ainda de pé. Por isso o
+   * sistema continua sendo consultado — mas agora só depois da porta, quando a
+   * inicialização já passou faz tempo e um filho vivo significa mesmo o agente.
+   */
+  if (s.agenteLancado && (await temProgramaRodando(s.pty.pid))) {
     return colar(id, texto)
   }
 

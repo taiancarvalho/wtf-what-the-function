@@ -1,7 +1,23 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
+/*
+ * O agente é falso, e precisa ser.
+ *
+ * `detectarAgente` procura em pastas conhecidas ANTES do PATH, então numa
+ * máquina com Claude Code instalado o teste abria uma sessão do agente de
+ * verdade — na pasta temporária, pedindo permissão de acesso. Interceptar a
+ * detecção mantém o teste igual em qualquer máquina e no CI.
+ */
+const falso = vi.hoisted(() => ({ caminho: '' }))
+
+vi.mock('../electron/terminal.js', async (original) => ({
+  ...((await original()) as object),
+  detectarAgente: async () =>
+    falso.caminho ? { cmd: 'claude', rotulo: 'Agente falso', caminho: falso.caminho } : null,
+}))
 
 // @ts-expect-error módulo do processo main, sem tipos
 import { abrirSessao, encerrarTodas, entregar, escrever } from '../electron/terminal-embutido.js'
@@ -48,8 +64,24 @@ async function ate(cond: () => boolean, limite = 6000): Promise<boolean> {
   return cond()
 }
 
+/** O agente falso anuncia que subiu; a espera é por este sinal, não por relógio. */
+const PRONTO = 'AGENTE-NO-AR'
+
+/*
+ * A colagem só é considerada em sessão que o WTF abriu COM agente — é essa
+ * marca que separa "há alguém escutando" de "o shell está nascendo com um
+ * `mise` de inicialização pendurado nele". O agente falso é um eco: anuncia
+ * que subiu e fica devolvendo o que recebe, como um agente esperando ordem.
+ */
 beforeAll(async () => {
   raiz = await mkdtemp(path.join(os.tmpdir(), 'wtf-pty-'))
+  const bin = await mkdtemp(path.join(os.tmpdir(), 'wtf-bin-'))
+  falso.caminho = path.join(bin, 'agente-falso.mjs')
+  await writeFile(
+    falso.caminho,
+    `#!/usr/bin/env node\nprocess.stdout.write('${PRONTO}\\n')\nprocess.stdin.pipe(process.stdout)\n`,
+    { mode: 0o755 },
+  )
 })
 
 afterAll(async () => {
@@ -88,39 +120,40 @@ describe('entregar um pedido à sessão', () => {
     expect(texto).not.toMatch(/number expected/i)
   })
 
-  it('com um programa RODANDO, o texto é colado — e chega inteiro', async () => {
+  /*
+   * `detectarAgente` procura o agente com `/usr/bin/which`, que não existe no
+   * Windows — lá nenhuma sessão chega a lançar agente, e o cenário deste teste
+   * não tem como acontecer. Não é o teste que é de Unix: é o produto.
+   */
+  it.skipIf(process.platform === 'win32')(
+    'com um programa RODANDO, o texto é colado — e chega inteiro',
+    async () => {
     saida.length = 0
-    const s = await abrirSessao({ win, dir: raiz, cols: 80, rows: 24 })
+    // Uma sessão que o WTF abriu COM agente: é essa marca, e não a mera
+    // existência de um filho do shell, que autoriza colar mais tarde.
+    const s = await abrirSessao({ win, dir: raiz, mensagem: 'oi', cols: 80, rows: 24 })
     expect(s.erro, s.erro).toBeUndefined()
-    await ate(() => tudo().length > 0)
+    expect(s.agente, 'nenhum agente falso foi detectado').toBeTruthy()
 
     /*
-     * Um eco em Node faz o papel do agente: um programa que fica lendo o que
-     * chega e devolve. É o que distingue "tem alguém escutando" de "shell
-     * vazio".
-     *
-     * Node, e não `cat`, porque este teste precisa valer nos três sistemas —
-     * no Windows `cat` é o Get-Content do PowerShell, que quer um arquivo e
-     * não a entrada padrão, e o Ctrl-D que encerrava o `cat` não encerra nada.
-     *
-     * O sinal de partida é montado por concatenação: escrito inteiro, ele
-     * apareceria no ECO do próprio comando digitado, e a espera terminaria
-     * antes de o programa existir.
+     * Espera-se o SINAL do agente, e não bytes quaisquer nem um sono fixo: o
+     * comando é escrito no pty antes de o shell terminar de nascer, e com a
+     * suíte inteira em paralelo essa partida passa de dez segundos. Bytes
+     * quaisquer chegariam no eco do comando, muito antes de haver quem escute.
      */
-    escrever(s.id, `node -e "process.stdout.write('PRON'+'TO\\n');process.stdin.pipe(process.stdout)"\r`)
-    const partiu = await ate(() => tudo().includes('PRONTO'))
-    expect(partiu, `o eco não chegou a rodar. Terminal:\n${tudo()}`).toBe(true)
+    const partiu = await ate(() => tudo().includes(PRONTO), 15_000)
+    expect(partiu, `o agente falso não chegou a rodar. Terminal:\n${tudo()}`).toBe(true)
     saida.length = 0
 
     /*
-     * `viaAgente` aqui seria o bug: significa que a detecção não viu o programa
-     * rodando e mandou executar o agente por cima dele. Sem esta asserção, o
-     * sintoma no Windows era um `''` genérico, que não dizia qual das duas
-     * pontas tinha quebrado.
+     * `viaAgente` aqui seria o bug: significa que a decisão não viu o agente
+     * rodando e mandou executá-lo por cima dele mesmo. Sem esta asserção, o
+     * sintoma era um `''` genérico, que não dizia qual das duas pontas tinha
+     * quebrado.
      */
     const r = await entregar(s.id, 'primeira linha\nsegunda linha')
     expect(r, JSON.stringify(r)).toMatchObject({ ok: true })
-    expect(r?.viaAgente, 'colou pelo agente: a detecção não viu o programa').toBeUndefined()
+    expect(r?.viaAgente, 'executou o agente: a decisão não viu que ele já roda').toBeUndefined()
 
     await ate(() => tudo().includes('segunda linha'))
 
@@ -129,7 +162,7 @@ describe('entregar um pedido à sessão', () => {
     expect(texto).toContain('segunda linha')
     expect(texto).not.toMatch(/command not found/i)
 
-    escrever(s.id, '\x03') // Ctrl-C encerra o eco nos três sistemas
+    escrever(s.id, '\x03')
   })
 
   it('sessão que não existe não escreve em lugar nenhum', async () => {
