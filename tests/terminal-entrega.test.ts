@@ -85,10 +85,21 @@ describe('entregar um pedido à sessão', () => {
     expect(s.erro, s.erro).toBeUndefined()
     await ate(() => tudo().length > 0)
 
-    // `cat` faz o papel do agente: um programa que fica lendo o que chega e
-    // devolve. É o que distingue "tem alguém escutando" de "shell vazio".
-    escrever(s.id, 'cat\r')
-    await esperar(700)
+    /*
+     * Um eco em Node faz o papel do agente: um programa que fica lendo o que
+     * chega e devolve. É o que distingue "tem alguém escutando" de "shell
+     * vazio".
+     *
+     * Node, e não `cat`, porque este teste precisa valer nos três sistemas —
+     * no Windows `cat` é o Get-Content do PowerShell, que quer um arquivo e
+     * não a entrada padrão, e o Ctrl-D que encerrava o `cat` não encerra nada.
+     *
+     * O sinal de partida é montado por concatenação: escrito inteiro, ele
+     * apareceria no ECO do próprio comando digitado, e a espera terminaria
+     * antes de o programa existir.
+     */
+    escrever(s.id, `node -e "process.stdout.write('PRON'+'TO\\n');process.stdin.pipe(process.stdout)"\r`)
+    await ate(() => tudo().includes('PRONTO'))
     saida.length = 0
 
     await entregar(s.id, 'primeira linha\nsegunda linha')
@@ -99,7 +110,7 @@ describe('entregar um pedido à sessão', () => {
     expect(texto).toContain('segunda linha')
     expect(texto).not.toMatch(/command not found/i)
 
-    escrever(s.id, '\x04') // encerra o `cat`
+    escrever(s.id, '\x03') // Ctrl-C encerra o eco nos três sistemas
   })
 
   it('sessão que não existe não escreve em lugar nenhum', async () => {
