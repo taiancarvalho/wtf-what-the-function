@@ -86,7 +86,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   encerrarTodas()
-  await rm(raiz, { recursive: true, force: true })
+  /*
+   * Com retry: o Windows tranca a pasta enquanto ela for o cwd de um processo
+   * vivo, e o shell da sessão leva um instante para morrer depois do
+   * `encerrarTodas`. Sem isto, a limpeza estourava EBUSY e derrubava o arquivo
+   * inteiro DEPOIS de todos os testes já terem passado.
+   */
+  await rm(raiz, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
 describe('entregar um pedido à sessão', () => {
