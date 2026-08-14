@@ -18,35 +18,12 @@ import type { MarcoHistorico, ProjectSnapshot } from '@/types/protocol'
  *   3. a régua   — os mesmos marcos em números, para quem não confia em gráfico
  *
  * O gráfico é desenhado à mão em SVG de propósito: uma biblioteca traria o
- * tema dela junto, e aqui a cor TEM que ser a mesma do resto do app — o verde
- * de "testado" é o mesmo verde em toda tela. Tudo em `var(--color-...)`, então
- * claro e escuro funcionam sem nenhuma media query.
+ * tema dela junto, e a cor aqui tem que ser a mesma do resto do app. Tudo em
+ * `var(--color-...)`, então claro e escuro funcionam sem media query.
  *
- * ─── o que mudou na superfície ────────────────────────────────────────────
- *
- * 1. TAMANHOS. Esta tela tinha 20 tamanhos escritos à mão (26, 15, 13,5, 13,
- *    12,5, 11,5 e 9px dentro do SVG). Nenhum sobreviveu: tudo caiu nos cinco
- *    degraus da escala. Os 9px do gráfico eram o pior caso — dentro de um
- *    viewBox de 720 que renderiza a ~688px, chegavam ao olho a 8,6px, e
- *    encolhiam mais ainda quando a janela estreitava. Eram justamente os
- *    rótulos que dão ESCALA ao desenho.
- *
- * 2. LARGURA. Era uma coluna centrada de 860px: numa janela de 1440 com a
- *    lateral aberta sobram ~1200, ou seja, ~340px de margem morta. Agora é o
- *    mesmo par leitura + trilho da Home: à esquerda o que se OLHA (o gráfico e
- *    o ritmo, dois desenhos que precisam de largura), à direita os 400px de
- *    trilho com a régua — a lista de marcos em números, que é índice, se
- *    confere linha a linha e é vertical por natureza.
- *
- * 3. RITMO. Blocos separados por 16px, o mesmo valor do respiro interno dos
- *    cartões — com os dois espaços iguais nada agrupava. Agora 8px dentro,
- *    32px entre grupos, e a régua perdeu as linhas divisórias que só existiam
- *    para compensar o espaço uniforme.
- *
- * 4. HIERARQUIA. Havia quatro títulos serifados de 15px (um por seção)
- *    competindo com um h1 de 26px, e cada um deles era MAIOR que o conteúdo
- *    que encabeçava (listas de 12,5px). Agora existe um `text-display` só — o
- *    da tela — e todo título de seção é rótulo de 11px em caixa alta.
+ * Texto dentro do SVG usa os degraus da escala, nunca um tamanho à mão: o
+ * viewBox reduz o que for escrito ali, e o rótulo que dá escala ao desenho
+ * chega ao olho menor do que aparenta no código.
  */
 
 const historicoDe = (snapshot: ProjectSnapshot) => snapshot.historico
@@ -59,15 +36,9 @@ export const desdeUltimaVisitaDe = (snapshot: ProjectSnapshot) =>
 /*
  * Geometria do desenho, em unidades do viewBox.
  *
- * POR QUÊ os rótulos saíram de dentro do SVG: eram `<text fontSize={9}>` — três
- * valores de eixo e até cinco datas — num viewBox de 720 renderizado a ~688px,
- * ou seja, 8,6px de verdade, para um público que não lê código. E o problema
- * não se resolve aumentando o número: qualquer texto dentro do viewBox encolhe
- * junto com ele, então o mesmo gráfico numa janela estreita cairia para 6px.
- *
- * Agora o SVG desenha só as formas, e os rótulos são HTML em `text-meta`
- * (13px), posicionados em PORCENTAGEM da caixa. Porcentagem não escala com o
- * viewBox: o desenho estica, o texto não.
+ * O SVG desenha só as formas. Rótulo é HTML posicionado em porcentagem da
+ * caixa, nunca `<text>` dentro do viewBox: texto lá dentro encolhe junto com o
+ * desenho, e numa janela estreita chega ao olho ilegível.
  */
 const LARG = 720
 const ALT = 156

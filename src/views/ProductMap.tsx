@@ -30,39 +30,14 @@ import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
  * VOCABULÁRIO do projeto: os nomes que o dono usa para falar do próprio
  * software. Por isso o nome da parte é o conteúdo mais forte da tela.
  *
- * ───────────────────────────────────── o que mudou na superfície (rodada 3)
+ * Duas regras que a tela não pode quebrar:
  *
- * 1. ESCALA. Havia 43 tamanhos escritos à mão nesta tela (27 `text-[…px]` +
- *    16 ícones `size={…}`), sendo 3 usos de 10px e 4 de 11,5px carregando
- *    informação de verdade — num app cujo público é justamente quem NÃO lê
- *    código. Abaixo de 11px a pessoa não lê, adivinha. Agora só existem os
- *    cinco degraus (28/19/15/13/11) e o piso de 11px.
- *
- * 2. LARGURA. Era uma coluna de conteúdo dentro de `max-w-[1180px]` com um
- *    painel de 300px que só existia quando havia parte selecionada, e só a
- *    partir de `lg:` — ou seja, na maior parte do tempo a metade direita da
- *    janela era margem morta (a crítica mediu 41% de papel em branco no app).
- *    Agora a tela tem trilho SEMPRE: à esquerda os distritos, à direita o
- *    censo dos cinco estados (que é também o filtro) e, quando há uma parte
- *    aberta, o detalhe dela. A quebra é por `@container` e não por viewport,
- *    igual à Início: quem decide se cabem duas colunas é a largura que SOBRA
- *    aqui — a lateral do app pode estar fechada e o terminal docado à direita.
- *
- * 3. RITMO. Tudo era 16px, por fora e por dentro dos cartões, e por isso nada
- *    agrupava. Agora: 8px dentro de um grupo, 16px de respiro de cartão, 32px
- *    entre grupos. Com isso as três réguas verticais que separavam os filtros
- *    deixaram de ser necessárias — o espaço já separa.
- *
- * 4. HIERARQUIA. O nome da área (13px serifa) era MAIOR que o nome da parte
- *    (12px), ou seja, a moldura pesava mais que o conteúdo. Invertido: a área
- *    virou rótulo (`.label`, 11px caixa alta) e o nome da parte subiu para o
- *    degrau de leitura (15px). Um `text-display` só na tela, o título.
- *
- * 5. COR. `--color-warn` está aposentado: os 8 usos viraram `--color-danger`.
- *    E a seleção parou de ser pintada com a cor do ESTADO da parte — um anel
- *    terracota em volta de uma parte aprovada dizia "aprovado" e "selecionado"
- *    com a mesma tinta. Seleção é interação, e interação é `--color-accent`
- *    sobre `--color-accent-soft`, que é o token de realce de fundo.
+ * - A quebra do trilho é por `@container`, nunca por viewport: a lateral pode
+ *   estar fechada e o terminal docado à direita, e quem decide se cabem duas
+ *   colunas é a largura que sobra aqui.
+ * - Seleção é interação, e usa `--color-accent` sobre `--color-accent-soft` —
+ *   nunca a cor do estado da parte, senão "aprovado" e "selecionado" saem com
+ *   a mesma tinta.
  */
 
 /** "Agora" do mock. Quando o motor existir, vira Date.now(). */

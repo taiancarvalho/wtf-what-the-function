@@ -12,17 +12,11 @@ import { Compartilhar } from '@/components/Compartilhar'
 /**
  * A faixa do topo: onde você está, à esquerda; o que dá para fazer, à direita.
  *
- * POR QUÊ ela deixou de ser só um canto: eram 46px de altura atravessando
- * 1253px de largura com três botões grudados na direita — 84% de faixa vazia,
- * igual em todas as nove abas. A faixa equivalente do Linear é usada de ponta
- * a ponta, com o nome do que se está vendo à esquerda e o contador vivo. Aqui
- * ela recebeu três coisas, nessa ordem de leitura: o nome da seção, a frase que
- * explica para que ela serve (a mesma legenda que saiu de baixo dos 9 itens do
- * menu) e o número que importa nesta tela — "Acontecendo · o que a IA mexeu ·
- * 12 mudanças".
+ * Três coisas, nesta ordem de leitura: o nome da seção, a frase que explica
+ * para que ela serve e o número que importa nesta tela — "Acontecendo · o que
+ * a IA mexeu · 12 mudanças".
  *
- * A faixa inteira continua sendo a alça de arrastar a janela; só os botões
- * repõem `no-drag`.
+ * A faixa inteira é a alça de arrastar a janela; só os botões repõem `no-drag`.
  *
  * "Atualizar" é redundante por design: o painel já se atualiza sozinho quando o
  * projeto muda. O botão existe porque, para quem não programa, ver um botão de

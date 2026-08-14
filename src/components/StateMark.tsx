@@ -4,12 +4,9 @@ import { STATE, type MarkShape } from '@/lib/state'
 import type { FeatureState } from '@/types/protocol'
 
 /**
- * Tamanhos da marca. O desenho é o mesmo em todos — o viewBox 24×24 de
- * `STATE[state].shape` é escalado, nunca redesenhado, senão a marca deixaria
- * de ser um alfabeto e viraria cinco ícones parecidos.
- *
- * `lado` é o desenho; `slot` é a coluna que ele ocupa. Mantive os slots que já
- * existiam (16px e 24px) para não mexer no ritmo horizontal das listas.
+ * O viewBox 24×24 de `STATE[state].shape` é escalado, nunca redesenhado por
+ * tamanho — redesenhar transforma o alfabeto em cinco ícones parecidos.
+ * `lado` é o desenho; `slot` é a coluna que ele ocupa nas listas.
  */
 const TAMANHO = {
   /** Selo dentro de linha de lista. 12px — o menor lugar onde a marca vive. */
@@ -25,17 +22,13 @@ export type TamanhoMarca = keyof typeof TAMANHO | number
 /**
  * A marca do estado — o alfabeto do produto, igual em todas as telas.
  *
- * A regra que rege este componente: **a forma ordena, a cor confirma.**
- * Se você tirar toda a cor da tela, os cinco estados continuam ordenáveis,
- * porque cada um acrescenta material ao anterior (anel → meio miolo → miolo
- * inteiro → órbita → núcleo). O raciocínio numérico por trás de cada forma
- * está em `src/lib/state.ts`, junto da geometria.
+ * A forma ordena, a cor confirma: sem cor nenhuma os cinco estados continuam
+ * ordenáveis, porque cada um acrescenta material ao anterior. A geometria vive
+ * em `src/lib/state.ts`.
  *
- * Acessibilidade: forma nenhuma é lida por leitor de tela. Por padrão a marca
- * se anuncia com o nome do estado E a frase que o explica ("Testado — alguma
- * verificação automática passou..."), porque o nome sozinho não diz o que
- * mudou. Quando já existe texto visível ao lado (como em `StateChip`), passe
- * `decorativa` para não repetir a informação duas vezes.
+ * Forma nenhuma é lida por leitor de tela, então a marca se anuncia com o nome
+ * do estado E a frase que o explica. Havendo texto visível ao lado, passe
+ * `decorativa` para não repetir.
  */
 export function StateMark({
   state,

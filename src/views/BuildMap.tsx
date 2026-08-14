@@ -24,41 +24,15 @@ import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
  * Planejado → Construindo → Pronto → Testado → Você aprovou.
  * Cada parte do projeto é um card, na coluna do seu estado.
  *
- * NINGUÉM ARRASTA NADA — E ISSO É UMA DECISÃO, NÃO UMA LIMITAÇÃO.
+ * Ninguém arrasta card, e isso é a decisão: num kanban comum a posição é
+ * opinião de quem moveu, e o quadro mente assim que alguém esquece de mover.
+ * Aqui a coluna é derivada de evidência, e o card anda sozinho quando o código
+ * prova que andou.
  *
- * Num kanban comum, a posição do card é a OPINIÃO de quem arrastou: alguém
- * move "para pronto" porque acha que está pronto, e o quadro começa a mentir no
- * instante em que alguém esquece de mover. É uma segunda realidade que precisa
- * ser mantida à mão, e que sempre atrasa em relação ao código.
+ * Cada card usa `layoutId` = id da feature, estável entre colunas, para a troca
+ * de estado virar movimento em vez de um sumiço seguido de um aparecimento.
  *
- * Aqui a coluna é DERIVADA de evidência. O estado vem do que foi provado no
- * projeto (a IA declarou, o código existe, o teste passou, você aprovou), então
- * o card anda sozinho quando o código prova que andou. Não existe "arrastar"
- * porque não existe nada para o arrasto significar: mover um card sem mover o
- * software seria falsificar o painel.
- *
- * Por isso a animação importa tanto: ver o card caminhar sozinho para a coluna
- * seguinte é o momento em que a pessoa VÊ a construção acontecer. Cada card usa
- * `layoutId` = id da feature, estável entre colunas, para que a troca de estado
- * vire movimento e não um sumiço com um aparecimento.
- *
- * Os detalhes técnicos continuam vivendo um clique abaixo, dentro do card.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * O QUE MUDOU NA SUPERFÍCIE (rodada 1 do diagnóstico)
- *
- * Medido na captura: 83% da caixa do quadro era vazio. Cinco colunas de
- * largura FIXA (250px) numa faixa de ~1250px deixavam sobra à direita, cada
- * coluna tinha no máximo 4 cards e o rodapé morria com 374px em branco. Ao
- * mesmo tempo o card carregava só nome + área + data a 12,5px, enquanto a
- * frase que explica a parte para quem não programa (`feature.summary`) já
- * existia no dado e NÃO aparecia até alguém clicar.
- *
- * As três respostas, todas de superfície:
- *   1. grade que preenche a largura (nenhuma coluna com largura fixa);
- *   2. card mais gordo, com a frase "o que é" sempre visível;
- *   3. tipografia separando coluna de card — antes eram 13px e 12,5px, mesmo
- *      peso e mesma cor, e quem separava os dois era uma régua.
+ * Nenhuma coluna tem largura fixa: a grade preenche a faixa disponível.
  */
 
 function media(features: Feature[]): number {
@@ -82,13 +56,8 @@ const TRANSICAO = {
 }
 
 /**
- * Teto de largura de coluna, em px.
- *
- * A grade preenche a faixa inteira — mas quando a pessoa esconde estados,
- * sobram 2 ou 3 colunas, e `1fr` faria cada uma virar uma faixa de 600px com
- * um título de 19px perdido no meio. Acima de ~420px a linha de texto do card
- * fica larga demais para o tamanho da letra. Então: a coluna cresce até caber
- * a faixa, e para aqui.
+ * Teto de largura de coluna. Sem ele, esconder estados deixa 2 ou 3 colunas e
+ * `1fr` estica cada uma até a linha de texto do card ficar larga demais.
  */
 const COLUNA_MAX = 420
 /** Piso: abaixo disso o card não comporta nome + frase. Aí a faixa rola. */
@@ -99,18 +68,11 @@ const COLUNA_MIN = 180
 /**
  * A barra do topo: um CENSO, não um termômetro.
  *
- * POR QUÊ deixou de ser um degradê: era
- * `linear-gradient(90deg, implemented, terracota)` interpolado em sRGB, e o
- * meio desse caminho é um marrom morto (~#5f4a3a) que não existe em token
- * nenhum — uma sexta cor de estado, inventada pelo navegador. Pior: ela
- * afirmava "teal = começo, terracota = fim" enquanto na régua 40px abaixo o
- * teal é o estado do MEIO (3º de 5). A barra dizia uma coisa, as colunas
- * diziam outra.
+ * Cinco segmentos na ordem de `STATE_ORDER`, cada um na cor do seu estado e
+ * com a largura da sua contagem — a versão de 8px do quadro logo abaixo.
  *
- * Agora são cinco segmentos na ordem de `STATE_ORDER`, cada um na cor do seu
- * estado e com a largura da sua contagem. Nenhuma cor nasce entre dois tokens,
- * e a barra vira a versão de 8px do quadro que está logo abaixo: a mancha
- * cinza à esquerda é literalmente a coluna "planejado".
+ * Nunca use degradê aqui: interpolar entre dois tokens inventa uma sexta cor
+ * de estado que não existe em lugar nenhum do produto.
  *
  * `aria-hidden` porque a régua-legenda logo abaixo já anuncia exatamente as
  * mesmas contagens, e ela é focável — repetir seria ler o mesmo censo duas

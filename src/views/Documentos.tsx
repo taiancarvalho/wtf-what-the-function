@@ -24,20 +24,10 @@ import type {
 type T = (chave: string, vars?: Record<string, string | number>) => string
 
 /**
- * A tinta da confiança.
- *
- * POR QUÊ deixou de usar as cores de estado: `alta` era `--color-tested` e
- * `media` era `--color-building` — dois dos cinco tokens de ESTADO da parte do
- * software (a máquina conferiu / está sendo escrito agora) emprestados para
- * dizer outra coisa (o quanto a IA acredita na própria leitura). Uma cor, um
- * significado: se o verde de "testado" também diz "certeza alta", o verde
- * deixou de afirmar qualquer coisa.
- *
- * O que sobra é uma rampa de tinta neutra, e ela é INVERSA à confiança: quanto
- * mais certeza, mais quieto (não há nada a fazer); a única que grita é `baixa`,
- * porque ela é literalmente um pedido de conferência — e para pedido existe um
- * token só, `--color-danger`. `baixa` NUNCA pode parecer igual a `alta`, e
- * continua não parecendo: é a única com pílula, borda e carmim.
+ * A tinta da confiança: rampa neutra, inversa à certeza — quanto mais certeza,
+ * mais quieto. Nunca use os tokens de estado aqui; uma cor, um significado.
+ * `baixa` é a única que grita, com pílula, borda e `--color-danger`, porque é
+ * um pedido de conferência.
  */
 const TINTA_CONFIANCA: Record<AssuntoDocs['confianca'], string> = {
   alta: 'var(--color-ink-3)',
@@ -58,33 +48,14 @@ function quando(iso?: string | null): string {
 /**
  * O mapa do conhecimento escrito do projeto.
  *
- * Em duas camadas, e a diferença entre elas importa. De um lado os FATOS da
- * varredura — quantos documentos existem, quais têm nome repetido — porque isso
- * é verificável e não depende de ninguém opinar: a pessoa vê com os próprios
- * olhos os 26 arquivos chamados README. Do outro a LEITURA da IA, que é opinião
- * e por isso carrega a confiança estampada em cada assunto.
+ * Duas camadas separadas por POSIÇÃO, e a separação é a tese da tela: à
+ * esquerda a leitura da IA, que é opinião e por isso carrega confiança
+ * estampada; no trilho os fatos da varredura, que são verificáveis. O fato
+ * nunca fica embaixo da opinião — fica ao lado dela.
  *
- * ─── a moldura, e por que ela deixou de ser uma coluna centrada ───────────
- *
- * POR QUÊ: a crítica mediu 41% da janela em papel em branco, e esta tela era
- * uma coluna de 900px no meio de 1456 — quase 280px mortos de cada lado,
- * enquanto os caminhos de arquivo quebravam em três linhas dentro da coluna.
- * Margem morta não vira respiro, vira lugar nenhum.
- *
- * Então virou trilho, na mesma medida da tela Início (leitura + 400px), para
- * que as duas pareçam o mesmo produto. À esquerda a LEITURA: qual documento
- * vale hoje sobre cada assunto, em frases inteiras — é a pergunta que traz
- * alguém a esta tela. À direita o CENSO: contagens e listas de nomes repetidos,
- * coisas que se conferem de relance, não se leem.
- *
- * As duas camadas continuam separadas — mas agora por POSIÇÃO, lado a lado, e
- * não por ordem vertical. O fato não fica escondido embaixo da opinião: ele
- * está no alto da tela, ao lado dela, o tempo todo. Abaixo de 960px de largura
- * ÚTIL o trilho desce para o fim, e aí a ordem vira leitura → fatos.
- *
- * A quebra é por `@container` e não por viewport de propósito: a lateral do app
- * pode estar aberta ou fechada e o terminal pode estar docado à direita — o que
- * decide se cabem duas colunas é a largura que sobra AQUI.
+ * A quebra é por `@container`, nunca por viewport: a lateral pode estar
+ * fechada e o terminal docado à direita. Abaixo de 960px de largura útil o
+ * trilho desce para o fim, e a ordem vira leitura → fatos.
  */
 export function Documentos({ snapshot }: { snapshot: ProjectSnapshot }) {
   const t = useT()

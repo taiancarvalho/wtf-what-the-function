@@ -32,24 +32,12 @@ import type { FeatureState, ProjectSnapshot } from '@/types/protocol'
  *
  * Nada aqui é decorativo: se um bloco não tem o que dizer, ele some.
  *
- * ─── a moldura, e por que ela é de duas colunas ───────────────────────────
+ * Duas colunas, e a divisão tem critério: à esquerda o que se LÊ (o que pede
+ * decisão, em frases inteiras); à direita, 400px do que se CONFERE de relance.
  *
- * POR QUÊ: a crítica mediu 41% da janela em papel em branco. Uma coluna de
- * 760px centrada numa tela de 1440 deixa ~600px de margem morta dos dois
- * lados, e a tela ainda assim acabava em 63% da altura — dizia "4 coisas
- * dependem de você" e mostrava 3, dizia "última coisa que aconteceu" e
- * mostrava 1.
- *
- * A margem morta não vira respiro: vira lugar nenhum. Então ela virou trilho.
- * À esquerda fica a LEITURA (o que pede decisão, em frases inteiras) numa
- * medida de ~680px — a linha de texto não muda, porque ela já estava certa.
- * À direita, 400px de ESTADO: como o projeto está, o que a varredura achou, e
- * o que aconteceu por último. São coisas que a pessoa confere, não lê.
- *
- * A quebra é por container e não por viewport de propósito: a lateral do app
- * pode estar aberta ou fechada e o terminal pode estar docado à direita — o
- * que decide se cabem duas colunas é a largura que sobra AQUI, não o tamanho
- * do monitor.
+ * A quebra é por `@container`, nunca por viewport: a lateral pode estar
+ * fechada e o terminal docado à direita, e quem decide se cabem duas colunas é
+ * a largura que sobra aqui, não o tamanho do monitor.
  */
 export function Home({
   snapshot,
@@ -497,18 +485,12 @@ function Marca({ estado }: { estado: string }) {
 /**
  * O cartão de um assunto da coluna de leitura.
  *
- * POR QUÊ o título virou rótulo: ele era 13px semibold e os itens dentro dele
- * eram 14px medium — o rótulo do container era menor que o conteúdo, que é a
- * hierarquia exatamente ao contrário. Um título de bloco aqui não é uma
- * manchete: é a etiqueta que diz de que grupo se trata. Por isso `.label` —
- * 11px, caixa alta, na cor do assunto. O tamanho ele cede para o conteúdo.
+ * O título é `.label`, não manchete: é a etiqueta do grupo, e cede tamanho
+ * para o conteúdo.
  *
- * POR QUÊ o espaço entre blocos dobrou (16px → 32px): 16px era também o
- * respiro DENTRO de cada cartão. Com os dois espaços iguais, nada agrupava — a
- * tela virava uma lista uniforme de coisas soltas. O espaço entre grupos é
- * sempre o dobro do maior espaço que existe dentro deles. Ele mora no
- * `space-y-group` das colunas, e não em cada bloco, para que um bloco que some
- * não deixe o buraco dele para trás.
+ * O espaço entre grupos é sempre o dobro do maior espaço dentro deles, senão
+ * nada agrupa. Ele mora no `space-y-group` das colunas, e não em cada bloco,
+ * para um bloco que some não deixar o buraco dele para trás.
  */
 function Bloco({
   cor,

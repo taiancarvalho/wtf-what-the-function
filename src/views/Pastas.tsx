@@ -18,29 +18,10 @@ function limparSecao(nome: string): string {
  * coisa mora". Por isso o desenho da árvore é redesenhado aqui linha a linha —
  * o prefixo é só o traço, o que importa é o nome e a frase ao lado.
  *
- * ─── o que mudou na superfície (diagnóstico em .gauntlet/diagnostico) ───────
- *
- * TAMANHOS. A tela tinha 15 tamanhos escritos à mão — 10, 11,5, 12, 12,5, 13,
- * 13,5, 14, 26 — sendo que 12, 12,5 e 13 apareciam lado a lado na MESMA linha.
- * Meio pixel de diferença não comunica hierarquia nenhuma; só ruído. Agora são
- * três degraus da escala: display (título), lead (a frase que explica a pasta)
- * e meta (o nome da pasta e o traço da árvore). O rótulo de seção estava a
- * 10px — abaixo do piso de 11px, num app para quem não lê código — e virou
- * `.label`.
- *
- * LARGURA. Era uma coluna de 860px centrada: numa janela de 1456 com a lateral
- * aberta, ~180px mortos de cada lado, e a frase de cada pasta espremida em
- * ~520px enquanto sobrava tela. A margem morta virou trilho, com os mesmos
- * números da Home (leitura + 32 + 400): o índice das seções, que é o que se
- * confere, sai da coluna de leitura e a frase de cada pasta ganha a largura.
- * A quebra é por `@container` e não por viewport, porque quem decide se cabem
- * duas colunas é a largura que SOBRA aqui — a lateral pode estar fechada e o
- * terminal docado à direita.
- *
- * RITMO. Cada linha tinha 3px de respiro e as seções eram separadas por um
- * filete — ou seja, o que agrupava era um traço, não o espaço. Agora: 8px
- * entre irmãos da lista (4 em cima + 4 embaixo), 32px entre seções. Com essa
- * distância o filete ficou redundante e saiu.
+ * Mesma moldura da Início — leitura + trilho de 400px, quebra por `@container`
+ * e não por viewport, porque a lateral pode estar fechada e o terminal docado.
+ * O índice das seções vive no trilho, para a frase de cada pasta ficar com a
+ * largura da coluna de leitura.
  */
 export function Pastas({ snapshot }: { snapshot: ProjectSnapshot }) {
   const t = useT()

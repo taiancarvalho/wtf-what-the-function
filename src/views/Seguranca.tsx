@@ -30,23 +30,10 @@ import type { ProjectSnapshot } from '@/types/protocol'
  * procurado, o que foi encontrado e o que ficou de fora. A frase "está tudo
  * seguro" é exatamente a confiança cega que este produto existe para desfazer.
  *
- * ─── a moldura, e por que ela virou duas colunas ──────────────────────────
- *
- * POR QUÊ: esta tela tinha uma coluna de 760px centrada. A crítica mediu 41%
- * da janela em papel em branco — numa tela de 1456 isso são ~340px mortos de
- * cada lado, e no caso mais comum desta aba (nada encontrado) o conteúdo
- * acabava na primeira dobra e o resto da altura também ficava vazio.
- *
- * A tela tem dois assuntos, e eles se leem de formas diferentes:
- *   - o que ficou EXPOSTO e as regras do projeto: frases inteiras, decisão,
- *     documento. Isso é leitura, e fica à esquerda.
- *   - a VARREDURA em si — o que ela procura, onde ela parou, o que você já
- *     marcou como falso alarme e o que ela não promete. Isso se confere, não
- *     se lê. Virou o trilho de 400px à direita.
- *
- * A quebra é por `@container` e não por viewport, igual à Início: quem decide
- * se cabem duas colunas é a largura que SOBRA aqui (a lateral pode estar
- * fechada, o terminal pode estar docado à direita), não o tamanho do monitor.
+ * Dois assuntos que se leem de formas diferentes: à esquerda o que ficou
+ * exposto e as regras do projeto, que são leitura; no trilho de 400px a
+ * varredura em si — o que ela procura, onde parou, o que não promete — que se
+ * confere. A quebra é por `@container`, nunca por viewport.
  */
 export function Seguranca({
   snapshot,
@@ -346,11 +333,9 @@ export function Seguranca({
 /**
  * Uma das duas coisas que a varredura procura.
  *
- * Empilhado, e não "nome — nota" na mesma linha: numa coluna de 400px a linha
- * corrida quebrava em três e o nome deixava de ser reconhecível de relance.
- * O que separa o nome da nota é a TINTA, não o tamanho — os dois estão no
- * degrau de metadado. Combinar um degrau da escala com um tamanho avulso é
- * exatamente como nasceram os 22 tamanhos que esta tela tinha.
+ * Empilhado, não "nome — nota" na mesma linha: no trilho de 400px a linha
+ * corrida quebra em três. O que separa nome de nota é a TINTA, não o tamanho —
+ * os dois ficam no mesmo degrau da escala.
  */
 function Procurado({
   icone: Icone,

@@ -49,43 +49,14 @@ import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/prot
  *   3. técnico   — atrás de "Ver parte técnica"
  *   4. código    — atrás de "Ver o código"
  *
- * ─── o que mudou depois do diagnóstico (.gauntlet/diagnostico/RESUMO.md) ───
+ * O detalhe abre no trilho da direita, nunca dentro do cartão: expandir no
+ * lugar empurra o resto do feed para fora da tela.
  *
- * POR QUÊ a tela deixou de ser uma coluna centrada: 41% da janela era papel em
- * branco — uma coluna de 652px numa tela de 1456. A leitura desceu para a
- * esquerda (a linha de texto continua com a mesma medida) e os 400px que
- * sobravam viraram um trilho com o índice de dias, o filtro de atenção e o
- * DETALHE do cartão escolhido. Antes o detalhe abria DENTRO do cartão e
- * empurrava o resto do feed para centenas de pixels abaixo: ler uma mudança
- * custava perder a fila inteira de vista.
- *
- * POR QUÊ os tamanhos de letra encolheram para cinco: havia quatro tamanhos
- * (14,5 / 14 / 13,5 / 13px) fazendo o MESMO papel — parágrafo que a pessoa lê.
- * Diferença de 0,5px não comunica hierarquia, só ruído. Agora todo parágrafo é
- * `text-lead`, todo metadado é `text-meta`, todo rótulo é `.label`.
- *
- * POR QUÊ o espaçamento passou a usar os quatro degraus: toda separação era
- * 16px — o mesmo valor do respiro interno dos cartões. Se o espaço DENTRO de um
- * grupo é igual ao espaço ENTRE grupos, nada agrupa. Aqui: `item` (8) entre
- * cartões irmãos, `card` (16) dentro do cartão, `group` (32) entre os dias.
- *
- * POR QUÊ o cartão escolhido não é mais um cartão tingido: escolha e alerta
- * estavam disputando o mesmo canal. O cartão escolhido ganhava um campo de cor
- * no fundo; o selo de atenção também é cor. Como o cartão que a pessoa abre é,
- * quase sempre, justamente o que pede atenção, os dois efeitos caíam juntos e
- * não dava para saber qual deles pintou aquele cartão.
- *
- * E não bastaria trocar o fundo por uma tinta neutra: um campo claro cercado
- * por um contorno saturado é lido com a cor do contorno (é o efeito aquarela —
- * a matiz da borda "vaza" para dentro do campo que ela fecha). Como a borda
- * carmim do alerta continua ali — ela é o sinal mais importante da tela, e não
- * se apaga —, qualquer preenchimento dentro dela voltaria a parecer rosado.
- *
- * Então a escolha saiu da cor e virou GEOMETRIA: um filete de tinta neutra na
- * beirada DIREITA do cartão, virado para o trilho, com o filete gêmeo no topo
- * do detalhe. Os dois se encaram através da calha e formam a ponte "este
- * cartão alimenta aquele painel". A cor voltou a significar uma coisa só:
- * carmim é atenção, e nada mais.
+ * A escolha é marcada por GEOMETRIA, não por cor — um filete na beirada
+ * direita do cartão, encarando o filete gêmeo do detalhe. Tingir o fundo não
+ * funciona nem em tinta neutra: um campo cercado pela borda carmim do alerta é
+ * lido com a cor da borda, e escolha e atenção passam a disputar o mesmo canal.
+ * Carmim significa atenção, e nada mais.
  */
 
 const ICONE: Record<EventType, typeof Hammer> = {
@@ -404,15 +375,10 @@ function FiltroAtencao({
 /**
  * A porta para traduzir o que ainda está em linguagem de commit.
  *
- * Um projeto que já existia antes do WTF chega com o histórico inteiro por
- * traduzir — e o feed, que é a tela principal, aparece escrito para quem
- * programa. Havia um aviso para isso, mas ele só era EMPURRADO quando a
- * leitura de fundo topava com pendências: quem abrisse a aba depois não via
- * nada, e ficava sem saber que existia um jeito de melhorar aquilo.
- *
- * Agora a tela pergunta ao abrir. E pergunta o custo junto: traduzir consome a
- * assinatura de quem tem plano limitado, então a pessoa decide antes, não
- * depois.
+ * Um projeto que já existia antes do WTF chega com o histórico todo em
+ * linguagem de commit, então a tela pergunta ao abrir — e pergunta o custo
+ * junto: traduzir consome a assinatura de quem tem plano limitado, e a decisão
+ * precisa vir antes do gasto.
  */
 function FaixaTraducao({ onTraduziu }: { onTraduziu?: () => void }) {
   const t = useT()
@@ -770,16 +736,11 @@ function Cartao({
 }
 
 /**
- * O código do aviso — e o clique que faltava.
- *
- * Ele existe para ser CITADO: é dizendo "confere o XVFT" que a pessoa amarra o
- * pedido a este cartão, e é citando o mesmo código que a IA fecha o ciclo. Só
- * que o código ficava ali como enfeite, e copiá-lo exigia selecionar quatro
- * caracteres de 10px com o mouse. Agora um clique copia.
+ * O código do aviso, feito para ser citado — "confere o XVFT" é o que amarra o
+ * pedido a este cartão. Um clique copia.
  *
  * `stopPropagation` porque ele mora dentro do botão que abre o cartão: sem
- * isso, copiar abriria e fecharia o cartão junto — dois efeitos para um clique
- * é a definição de interface que age sozinha.
+ * isso, copiar abriria e fecharia o cartão junto.
  */
 function CodigoCopiavel({ codigo }: { codigo: string }) {
   const t = useT()
