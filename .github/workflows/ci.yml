@@ -1,0 +1,40 @@
+# O WTF só foi executado no macOS. Os três sistemas rodam aqui porque o código
+# trata plataforma em vários pontos — pasta de dados, shell, terminal externo,
+# moldura da janela — e nenhum deles tinha prova fora do Mac.
+name: Conferências
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  conferir:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Sem fail-fast: quando o Windows quebra, ainda queremos saber se o Linux
+      # passou. Um cancela o outro justamente no caso que interessa.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tipos
+        run: npx tsc --noEmit
+
+      - name: Testes
+        run: npm test
+
+      - name: Build
+        run: npm run build

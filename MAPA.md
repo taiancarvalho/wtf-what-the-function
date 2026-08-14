@@ -30,7 +30,8 @@ wtf/
 ├── skill/bin/           o programinha que a IA chama para declarar o que vai fazer
 │
 │  ── VERIFICAÇÃO ──
-└── tests/               conferências automáticas de que os bastidores continuam funcionando
+├── tests/               conferências automáticas de que os bastidores continuam funcionando
+└── .github/workflows/   as mesmas conferências rodando sozinhas no GitHub, nos três sistemas
 ```
 
 ## Pastas que não entram aqui
