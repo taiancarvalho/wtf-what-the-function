@@ -135,11 +135,25 @@ if (!(await existe(path.join(projeto, '.git')))) {
 const precisaCompilar = !(await existe(path.join(raizApp, 'dist', 'index.html')))
 if (precisaCompilar) {
   console.log('Preparando o WTF pela primeira vez (isso leva alguns segundos)…')
-  await rodar('npm', ['run', 'build'])
+  // `npm.cmd` no Windows: `npm` sem extensão não é executável para o spawn.
+  await rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'])
 }
 
-const electron = path.join(raizApp, 'node_modules', '.bin', 'electron')
-if (!(await existe(electron))) {
+/*
+ * O caminho vem do pacote `electron`, não de `node_modules/.bin/electron`.
+ *
+ * O atalho em `.bin` é um `.cmd` no Windows, e `spawn` sem shell não executa
+ * `.cmd` — o comando morria com ENOENT antes de abrir qualquer janela. O
+ * pacote exporta o executável de verdade (`electron.exe`, ou o binário dentro
+ * do `.app` no macOS), que roda igual nos três sistemas.
+ */
+let electron
+try {
+  electron = (await import('electron')).default
+} catch {
+  electron = null
+}
+if (!electron || !(await existe(electron))) {
   console.error('\n  Dependências faltando. Rode "npm install" na pasta do WTF.\n')
   process.exit(1)
 }

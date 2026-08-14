@@ -101,6 +101,39 @@ const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production'
 /** @type {BrowserWindow | null} */
 let win = null
 
+/** Altura da faixa de topo do app, em px. Precisa casar com `App.tsx`. */
+const ALTURA_TOPO = 46
+
+/**
+ * A barra de título nativa some e o título vive dentro do layout — mas cada
+ * sistema esconde de um jeito, e usar o jeito do macOS nos outros deixa a
+ * janela SEM botão de fechar.
+ *
+ * - macOS: `hiddenInset` mantém os três botões flutuando, reposicionados para
+ *   caírem dentro da faixa de 46px.
+ * - Windows: `hidden` some com tudo, então `titleBarOverlay` devolve os botões
+ *   desenhados pelo sistema por cima da faixa, nas cores do tema.
+ * - Linux: nenhum dos dois é confiável entre os ambientes de janela, então
+ *   fica a moldura nativa padrão.
+ */
+function molduraDaJanela() {
+  if (process.platform === 'darwin') {
+    return { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 22 } }
+  }
+  if (process.platform === 'win32') {
+    const noite = nativeTheme.shouldUseDarkColors
+    return {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: noite ? '#15130f' : '#f6f2e9',
+        symbolColor: noite ? '#e8e2d6' : '#2b2620',
+        height: ALTURA_TOPO,
+      },
+    }
+  }
+  return {}
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -108,9 +141,7 @@ function createWindow() {
     minWidth: 940,
     minHeight: 640,
     show: false,
-    // A barra de título nativa some; o título vive dentro do layout (ver TitleBar.tsx).
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 18, y: 22 },
+    ...molduraDaJanela(),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#15130f' : '#f6f2e9',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -121,6 +152,15 @@ function createWindow() {
   })
 
   win.once('ready-to-show', () => win?.show())
+
+  // No Windows os botões são pintados pelo sistema e não seguem o tema
+  // sozinhos: sem isto, trocar para o modo escuro deixa símbolos escuros sobre
+  // faixa escura.
+  if (process.platform === 'win32') {
+    nativeTheme.on('updated', () => {
+      if (win?.isDestroyed() === false) win.setTitleBarOverlay(molduraDaJanela().titleBarOverlay)
+    })
+  }
 
   // Links externos abrem no navegador, nunca dentro do app.
   win.webContents.setWindowOpenHandler(({ url }) => {
