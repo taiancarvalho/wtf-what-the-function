@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react'
-import { RevalidarChip, UnsavedChip, WorkingChip } from '@/components/StateMark'
+import { RevalidarChip, StateMark, UnsavedChip, WorkingChip } from '@/components/StateMark'
 import { alternarValidado, podeValidar } from '@/lib/source'
 import { STATE, STATE_ORDER, stateProgress } from '@/lib/state'
 import { diaRelativo } from '@/lib/format'
@@ -24,25 +24,15 @@ import type { Feature, FeatureState, ProjectSnapshot } from '@/types/protocol'
  * Planejado → Construindo → Pronto → Testado → Você aprovou.
  * Cada parte do projeto é um card, na coluna do seu estado.
  *
- * NINGUÉM ARRASTA NADA — E ISSO É UMA DECISÃO, NÃO UMA LIMITAÇÃO.
+ * Ninguém arrasta card, e isso é a decisão: num kanban comum a posição é
+ * opinião de quem moveu, e o quadro mente assim que alguém esquece de mover.
+ * Aqui a coluna é derivada de evidência, e o card anda sozinho quando o código
+ * prova que andou.
  *
- * Num kanban comum, a posição do card é a OPINIÃO de quem arrastou: alguém
- * move "para pronto" porque acha que está pronto, e o quadro começa a mentir no
- * instante em que alguém esquece de mover. É uma segunda realidade que precisa
- * ser mantida à mão, e que sempre atrasa em relação ao código.
+ * Cada card usa `layoutId` = id da feature, estável entre colunas, para a troca
+ * de estado virar movimento em vez de um sumiço seguido de um aparecimento.
  *
- * Aqui a coluna é DERIVADA de evidência. O estado vem do que foi provado no
- * projeto (a IA declarou, o código existe, o teste passou, você aprovou), então
- * o card anda sozinho quando o código prova que andou. Não existe "arrastar"
- * porque não existe nada para o arrasto significar: mover um card sem mover o
- * software seria falsificar o painel.
- *
- * Por isso a animação importa tanto: ver o card caminhar sozinho para a coluna
- * seguinte é o momento em que a pessoa VÊ a construção acontecer. Cada card usa
- * `layoutId` = id da feature, estável entre colunas, para que a troca de estado
- * vire movimento e não um sumiço com um aparecimento.
- *
- * Os detalhes técnicos continuam vivendo um clique abaixo, dentro do card.
+ * Nenhuma coluna tem largura fixa: a grade preenche a faixa disponível.
  */
 
 function media(features: Feature[]): number {
@@ -65,22 +55,62 @@ const TRANSICAO = {
   mass: 0.7,
 }
 
+/**
+ * Teto de largura de coluna. Sem ele, esconder estados deixa 2 ou 3 colunas e
+ * `1fr` estica cada uma até a linha de texto do card ficar larga demais.
+ */
+const COLUNA_MAX = 420
+/** Piso: abaixo disso o card não comporta nome + frase. Aí a faixa rola. */
+const COLUNA_MIN = 180
+
 // ------------------------------------------------------------------ barras
 
-function Barra({ valor, alta = false }: { valor: number; alta?: boolean }) {
+/**
+ * A barra do topo: um CENSO, não um termômetro.
+ *
+ * Cinco segmentos na ordem de `STATE_ORDER`, cada um na cor do seu estado e
+ * com a largura da sua contagem — a versão de 8px do quadro logo abaixo.
+ *
+ * Nunca use degradê aqui: interpolar entre dois tokens inventa uma sexta cor
+ * de estado que não existe em lugar nenhum do produto.
+ *
+ * `aria-hidden` porque a régua-legenda logo abaixo já anuncia exatamente as
+ * mesmas contagens, e ela é focável — repetir seria ler o mesmo censo duas
+ * vezes seguidas.
+ */
+function BarraEstados({
+  contagem,
+  total,
+}: {
+  contagem: { state: FeatureState; n: number }[]
+  total: number
+}) {
+  const t = useT()
   return (
     <div
-      className="w-full overflow-hidden rounded-full bg-[var(--color-paper-3)]"
-      style={{ height: alta ? 6 : 3 }}
+      aria-hidden
+      className="flex h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--color-paper-3)]"
     >
-      <div
-        className="h-full rounded-full transition-[width] duration-700 ease-out"
-        style={{
-          width: `${pct(valor)}%`,
-          background:
-            'linear-gradient(90deg, var(--color-implemented), var(--color-validated))',
-        }}
-      />
+      {total > 0 &&
+        contagem.map(({ state, n }) =>
+          n === 0 ? null : (
+            <div
+              key={state}
+              /* O segmento cresce/encolhe junto com o card que trocou de
+                 coluna — mesma duração da animação do quadro. */
+              className="h-full transition-[flex-basis] duration-700 ease-out"
+              style={{
+                flexGrow: 0,
+                flexBasis: `${(n / total) * 100}%`,
+                /* 3px: uma parte só, num projeto de 200, ainda precisa deixar
+                   marca. Sem isto o segmento arredonda para zero e some. */
+                minWidth: 3,
+                background: STATE[state].color,
+              }}
+              title={`${n} · ${t(`estado.${state}`)}`}
+            />
+          ),
+        )}
     </div>
   )
 }
@@ -90,10 +120,10 @@ function Barra({ valor, alta = false }: { valor: number; alta?: boolean }) {
 /**
  * Dois eixos de filtro, deliberadamente diferentes:
  *
- * - ESTADOS (○ ◐ ● ✓ ✓✓) funcionam por EXCLUSÃO. Todos começam ligados; clicar
- *   desliga aquele estado. Num kanban, esconder um estado é esconder a COLUNA
- *   inteira — então a coluna some, e a contagem de escondidas diz quantas
- *   partes foram embora com ela.
+ * - ESTADOS funcionam por EXCLUSÃO. Todos começam ligados; clicar desliga
+ *   aquele estado. Num kanban, esconder um estado é esconder a COLUNA inteira
+ *   — então a coluna some, e a contagem de escondidas diz quantas partes foram
+ *   embora com ela.
  * - QUALIFICADORES (fora do plano, não salvo) NÃO são estados — uma parte pode
  *   ter os dois, ou nenhum. Escondê-los não faria sentido como o inverso de um
  *   estado, então eles funcionam por INCLUSÃO: clicar mostra SOMENTE as partes
@@ -132,8 +162,11 @@ function Card({
     feature.attention === 'warning' || feature.attention === 'critical'
       ? feature.attention
       : null
-  const corAtencao =
-    atencao === 'critical' ? 'var(--color-danger)' : 'var(--color-warn)'
+  /* Um alerta é um alerta: `--color-warn` virou apelido de `--color-danger` no
+     sistema novo (os dois níveis estavam a ΔE 1,1 do terracota de aprovação, ou
+     seja, "perigo" e "você aprovou" eram a mesma cor). O que separa aviso de
+     crítico aqui é o texto do aria-label, não um segundo vermelho. */
+  const corAtencao = 'var(--color-danger)'
   const validada = feature.state === 'validated'
   const conferivel =
     podeValidar() &&
@@ -149,13 +182,21 @@ function Card({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
-      className="card cursor-pointer p-2 hover:bg-[color-mix(in_oklab,var(--color-ink-3)_6%,transparent)]"
+      /* p-card (16px) e não p-2 (8px): o respiro interno do cartão é um degrau
+         do sistema, e é ele que separa o card do card vizinho (gap 8px) — o
+         espaço DENTRO precisa ser maior que o espaço ENTRE, senão a lista não
+         agrupa. */
+      className="card cursor-pointer p-card hover:bg-[color-mix(in_oklab,var(--color-ink-3)_6%,transparent)]"
       style={{
         borderLeft: atencao
           ? `2px solid ${corAtencao}`
           : '2px solid transparent',
+        /* 14% e não 7%: a 7% o color-mix rendia 3 pontos de RGB de diferença
+           contra o fundo do cartão — um tint que ninguém enxerga não é sinal,
+           é enfeite. 14% é o primeiro valor em que a mancha aparece nos dois
+           temas sem competir com o filete da borda. */
         background: atencao
-          ? `color-mix(in oklab, ${corAtencao} 7%, transparent)`
+          ? `color-mix(in oklab, ${corAtencao} 14%, transparent)`
           : undefined,
       }}
     >
@@ -172,59 +213,71 @@ function Card({
         }}
         className="group"
       >
-        <div className="flex items-start gap-1.5">
-          <span className="min-w-0 flex-1 text-[12.5px] leading-[17px] text-[var(--color-ink)]">
+        <div className="flex items-start gap-item">
+          {/* text-title (19px/500) e não 12,5px/400: este nome é O conteúdo da
+              tela. Antes o texto mais forte da página era o nome do projeto na
+              lateral (21px), e o cabeçalho da coluna estava a 0,5px do nome da
+              parte — mesma cor, mesmo peso. Agora a distância entre coluna
+              (11px caixa alta) e card (19px) é impossível de confundir. */}
+          <h3 className="text-title min-w-0 flex-1 text-[var(--color-ink)]">
             {feature.name}
-          </span>
-          <span className="w-[26px] shrink-0 text-right">
-            {conferivel && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  // Aprovar não pode abrir/fechar o card.
-                  e.stopPropagation()
-                  onAprovar()
-                }}
-                title={
+          </h3>
+          {conferivel && (
+            <button
+              type="button"
+              onClick={(e) => {
+                // Aprovar não pode abrir/fechar o card.
+                e.stopPropagation()
+                onAprovar()
+              }}
+              title={
+                validada
+                  ? t('progresso.desfazerAprovacao')
+                  : t('progresso.aprovar')
+              }
+              aria-label={
+                validada
+                  ? t('progresso.desfazerAprovacao')
+                  : t('progresso.aprovar')
+              }
+              /* O botão deixou de ser o glifo "✓✓": desde o sistema novo, ✓✓
+                 não é mais a marca de "você aprovou" (ela virou geometria) —
+                 manter o glifo aqui seria ensinar um alfabeto que não existe
+                 mais. O botão mostra a MARCA do estado que ele produz. */
+              className="no-drag flex shrink-0 items-center justify-center rounded-full border p-1 transition hover:border-[var(--color-validated)]"
+              style={{
+                borderColor: validada
+                  ? 'var(--color-validated)'
+                  : 'var(--color-rule)',
+              }}
+            >
+              <span
+                className={
                   validada
-                    ? t('progresso.desfazerAprovacao')
-                    : t('progresso.aprovar')
-                }
-                aria-label={
-                  validada
-                    ? t('progresso.desfazerAprovacao')
-                    : t('progresso.aprovar')
-                }
-                className="no-drag rounded-full border px-1.5 py-[1px] text-[10.5px] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                style={
-                  validada
-                    ? {
-                        borderColor: 'var(--color-validated)',
-                        color: 'var(--color-validated)',
-                      }
-                    : {
-                        borderColor: 'var(--color-rule)',
-                        color: 'var(--color-ink-2)',
-                        opacity: 0.6,
-                      }
+                    ? ''
+                    : 'opacity-45 transition group-hover:opacity-100'
                 }
               >
-                ✓✓
-              </button>
-            )}
-          </span>
+                <StateMark state="validated" size={14} decorativa />
+              </span>
+            </button>
+          )}
         </div>
 
-        {/* A área não vira sub-cabeçalho dentro da coluna (poluiria); ela viaja
-            junto do card, que é onde a informação é lida. */}
-        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-[var(--color-ink-3)]">
-          <span className="min-w-0 flex-1 truncate" title={feature.area}>
-            {feature.area}
-          </span>
-          <span className="shrink-0 whitespace-nowrap">
-            {diaRelativo(feature.lastTouchedAt)}
-          </span>
-        </div>
+        {/* A frase que explica a parte para quem não programa. Ela já existia
+            em `feature.summary` e só aparecia depois de um clique — ou seja, a
+            informação mais humana do quadro estava escondida atrás de uma
+            interação. Fechado, ela cabe em duas linhas; aberto, vai inteira. */}
+        {feature.summary && (
+          <p
+            className={[
+              'text-lead mt-hair text-[var(--color-ink-2)]',
+              aberta ? '' : 'line-clamp-2',
+            ].join(' ')}
+          >
+            {feature.summary}
+          </p>
+        )}
 
         {/* Marcas: eixos que não são o estado, e por isso não mudam de coluna. */}
         {(feature.origin === 'discovered' ||
@@ -232,13 +285,13 @@ function Card({
           feature.working ||
           feature.revalidar ||
           atencao) && (
-          <div className="mt-1 flex flex-wrap items-center gap-1">
+          <div className="mt-item flex flex-wrap items-center gap-hair">
             {feature.origin === 'discovered' && (
               <span
-                className="inline-flex items-center gap-1 text-[10.5px] text-[var(--color-ink-3)]"
+                className="text-meta inline-flex items-center gap-hair text-[var(--color-ink-3)]"
                 title={t('marca.foraDoPlanoDica')}
               >
-                <Sparkles size={10} strokeWidth={1.75} aria-hidden />
+                <Sparkles size={12} strokeWidth={1.75} aria-hidden />
                 {t('marca.foraDoPlanoCurto')}
               </span>
             )}
@@ -247,7 +300,7 @@ function Card({
             {feature.revalidar && <RevalidarChip desde={feature.validadoEm} />}
             {atencao && (
               <AlertTriangle
-                size={11}
+                size={13}
                 strokeWidth={2}
                 className="shrink-0"
                 style={{ color: corAtencao }}
@@ -261,16 +314,28 @@ function Card({
           </div>
         )}
 
-        {/* Expandido: tudo o que a versão em lista já mostrava, sem truncar. */}
-        {aberta && (
-          <div className="animate-in-up mt-2">
-            <p className="text-[12px] leading-relaxed text-[var(--color-ink-2)]">
-              {feature.summary}
-            </p>
+        {/* Rodapé do card: área e data. text-meta (13px) — eram 10,5px, e
+            havia 38 usos desse tamanho no app carregando informação real para
+            quem não lê código. Abaixo de 11px a pessoa não lê, adivinha. */}
+        <div className="text-meta mt-item flex items-center gap-item text-[var(--color-ink-3)]">
+          <span className="min-w-0 flex-1 truncate" title={feature.area}>
+            {feature.area}
+          </span>
+          <span className="shrink-0 whitespace-nowrap">
+            {diaRelativo(feature.lastTouchedAt)}
+          </span>
+        </div>
 
-            <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-ink-3)]">
-              <span style={{ color: meta.color }}>
-                {meta.mark} {t(`estado.${feature.state}`)}
+        {/* Expandido: o que é técnico continua um clique abaixo. */}
+        {aberta && (
+          <div className="animate-in-up mt-card">
+            <p className="text-meta text-[var(--color-ink-3)]">
+              <span
+                className="inline-flex items-center gap-hair"
+                style={{ color: meta.color }}
+              >
+                <StateMark state={feature.state} size="sm" decorativa />
+                {t(`estado.${feature.state}`)}
               </span>
               {' — '}
               {t(`estado.${feature.state}.sentido`)}
@@ -278,7 +343,7 @@ function Card({
 
             {feature.working && feature.workingClaim && (
               <p
-                className="mt-2 text-[11px] leading-relaxed"
+                className="text-meta mt-item"
                 style={{ color: 'var(--color-building)' }}
                 title={t('marca.mexendoDica')}
               >
@@ -286,23 +351,23 @@ function Card({
               </p>
             )}
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-[var(--color-ink-3)]">
+            <div className="text-meta mt-item flex flex-wrap items-center gap-x-card gap-y-hair text-[var(--color-ink-3)]">
               <span
-                className="flex items-center gap-1"
+                className="flex items-center gap-hair"
                 title={t('geral.arquivosDica')}
               >
-                <Files size={11} aria-hidden />
+                <Files size={13} aria-hidden />
                 {feature.files.length === 1
                   ? t('geral.arquivo')
                   : t('geral.arquivos', { n: feature.files.length })}
               </span>
               {feature.unsaved && (
                 <span
-                  className="flex items-center gap-1"
-                  style={{ color: 'var(--color-warn)' }}
+                  className="flex items-center gap-hair"
+                  style={{ color: 'var(--color-danger)' }}
                   title={t('marca.naoSalvoDica')}
                 >
-                  <CloudOff size={11} aria-hidden />
+                  <CloudOff size={13} aria-hidden />
                   {(feature.unsavedCount ?? 1) === 1
                     ? t('marca.naoSalvo')
                     : t('marca.naoSalvos', { n: feature.unsavedCount ?? 1 })}
@@ -311,15 +376,15 @@ function Card({
             </div>
 
             {feature.files.length > 0 && (
-              <div className="mt-2 flex items-start gap-1.5">
+              <div className="mt-item flex items-start gap-hair">
                 <FileText
-                  size={11}
+                  size={13}
                   aria-hidden
-                  className="mt-[3px] shrink-0 text-[var(--color-ink-3)]"
+                  className="mt-[2px] shrink-0 text-[var(--color-ink-3)]"
                 />
                 {/* `planRef` não existe no tipo Feature — o que existe são os
                     arquivos que o WTF associou a esta parte. */}
-                <span className="font-mono text-[10.5px] break-all text-[var(--color-ink-3)]">
+                <span className="text-meta font-mono break-all text-[var(--color-ink-3)]">
                   {feature.files.join(' · ')}
                 </span>
               </div>
@@ -350,31 +415,39 @@ function Coluna({
   const meta = STATE[state]
 
   return (
-    <section className="flex h-full w-[250px] min-w-0 shrink-0 flex-col">
+    /* Sem `w-[250px] shrink-0`: a largura vem da grade do quadro. Cinco
+       colunas fixas de 250px numa faixa de ~1250px deixavam sobra morta à
+       direita e espremiam o card em 234px de conteúdo. */
+    <section className="flex h-full min-w-0 flex-col">
       <div
-        className="rule-double flex shrink-0 items-baseline gap-1.5 pt-2 pb-1.5"
+        className="flex shrink-0 items-center gap-hair pt-item pb-item"
+        /* O filete do cabeçalho é a cor do estado, e é o MESMO segmento da
+           barra lá em cima: quem olha a barra reconhece a coluna sem ler.
+           Antes era a régua neutra `rule-double` — e era ela, não a
+           tipografia, que separava cabeçalho de card. */
+        style={{ borderTop: `2px solid ${meta.color}` }}
         title={t('estado.comSentido', {
           estado: t(`estado.${state}`),
           sentido: t(`estado.${state}.sentido`),
         })}
       >
-        <span
-          aria-hidden
-          className="tracking-[-0.1em]"
-          style={{ color: meta.color }}
-        >
-          {meta.mark}
-        </span>
-        <h2 className="font-display min-w-0 flex-1 truncate text-[13px] text-[var(--color-ink)]">
+        <StateMark state={state} size="lg" decorativa />
+        {/* `.label` (11px, caixa alta, peso 600): rótulo de coluna é moldura,
+            não conteúdo. Antes era 13px serifado — 0,5px de diferença do nome
+            da parte, mesmo peso e mesma cor. */}
+        <h2 className="label min-w-0 flex-1 truncate text-[var(--color-ink-2)]">
           {t(`estado.${state}`)}
         </h2>
-        <span className="shrink-0 text-[10.5px] tabular-nums text-[var(--color-ink-3)]">
+        <span className="text-meta shrink-0 tabular-nums text-[var(--color-ink-3)]">
           {features.length}
         </span>
       </div>
 
-      {/* Cada coluna rola sozinha: uma coluna cheia não empurra as outras. */}
-      <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pt-1.5 pb-4">
+      {/* Cada coluna rola sozinha: uma coluna cheia não empurra as outras.
+          gap-item (8px) entre cards, metade do respiro interno deles (16px) e
+          metade do vão entre colunas (16px) — a hierarquia de espaço é o que
+          faz a coluna ser lida como um grupo. */}
+      <ul className="flex min-h-0 flex-1 flex-col gap-item overflow-y-auto pt-card pb-group">
         <AnimatePresence initial={false} mode="popLayout">
           {features.map((f) => (
             <Card
@@ -387,9 +460,11 @@ function Coluna({
           ))}
         </AnimatePresence>
 
-        {/* Coluna vazia continua aparecendo: "nada testado" é uma informação. */}
+        {/* Coluna vazia continua aparecendo: "nada testado" é uma informação.
+            Sem `opacity-70`: ink-3 já é o degrau mais quieto a 4,60:1, e a
+            opacidade derrubava essa frase para ~3,4:1. */}
         {features.length === 0 && (
-          <li className="text-[11px] text-[var(--color-ink-3)] opacity-70">
+          <li className="text-meta text-[var(--color-ink-3)]">
             {t('progresso.colunaVazia')}
           </li>
         )}
@@ -495,82 +570,31 @@ export function BuildMap({
     <div className="flex h-full flex-col overflow-hidden">
       {/* ------------------------------------------------------ cabeçalho */}
       <header className="animate-in-up shrink-0 px-6 pt-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="font-display text-[26px] leading-none text-[var(--color-ink)]">
-            {t('progresso.titulo')}
-          </h1>
+        {/* Uma manchete só, e sozinha na linha. Antes o título (26px, peso
+            400 — mais leve que o nome do projeto na lateral) dividia a linha
+            com "42%" em 22px da mesma serifa: duas coisas grandes disputando o
+            mesmo lugar, e um contador nunca ganha de um título. Agora o título
+            é o único `text-display` da tela e a porcentagem desceu para
+            metadado, encostada na barra que ela resume. */}
+        <h1 className="font-display text-display text-[var(--color-ink)]">
+          {t('progresso.titulo')}
+        </h1>
+
+        <div className="mt-card flex items-center gap-item">
+          <BarraEstados contagem={contagem} total={features.length} />
           <span
-            className="font-display text-[22px] leading-none tabular-nums text-[var(--color-ink)]"
+            className="text-meta shrink-0 tabular-nums text-[var(--color-ink-2)]"
             title={t('progresso.geralDica')}
           >
             {pct(geral)}%
           </span>
         </div>
 
-        <div className="mt-2">
-          <Barra valor={geral} alta />
-        </div>
-
-        {/* Números do projeto, com ícone onde o ícone é inequívoco. */}
-        <ul className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[11.5px] text-[var(--color-ink-2)]">
-          <li
-            className="flex items-center gap-1.5"
-            title={t('progresso.partes', { n: features.length })}
-            aria-label={t('progresso.partes', { n: features.length })}
-          >
-            <LayoutList
-              size={12}
-              strokeWidth={1.75}
-              aria-hidden
-              className="text-[var(--color-ink-3)]"
-            />
-            <span className="tabular-nums text-[var(--color-ink)]">
-              {features.length}
-            </span>
-            <span className="text-[var(--color-ink-3)]">
-              {t('progresso.palavraPartes')}
-            </span>
-          </li>
-          <li
-            className="flex items-center gap-1.5"
-            title={t('progresso.areas', { n: areasTotais })}
-            aria-label={t('progresso.areas', { n: areasTotais })}
-          >
-            <FolderTree
-              size={12}
-              strokeWidth={1.75}
-              aria-hidden
-              className="text-[var(--color-ink-3)]"
-            />
-            <span className="tabular-nums text-[var(--color-ink)]">
-              {areasTotais}
-            </span>
-            <span className="text-[var(--color-ink-3)]">
-              {t('progresso.palavraAreas')}
-            </span>
-          </li>
-          {naoSalvas > 0 && (
-            <li
-              className="flex items-center gap-1.5"
-              style={{ color: 'var(--color-warn)' }}
-              title={t('progresso.comNaoSalvo', { n: naoSalvas })}
-              aria-label={t('progresso.comNaoSalvo', { n: naoSalvas })}
-            >
-              <CloudOff size={12} strokeWidth={1.75} aria-hidden />
-              <span className="tabular-nums">{naoSalvas}</span>
-              <span>{t('progresso.palavraNaoSalvo')}</span>
-            </li>
-          )}
-          <li
-            className="text-[var(--color-ink-3)]"
-            title={t('progresso.semArrastarDica')}
-          >
-            {t('progresso.semArrastar')}
-          </li>
-        </ul>
-
-        {/* --------------------------------------- legenda que vira filtro */}
-        <div className="rule-double mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2">
+        {/* --------------------------------------- legenda que vira filtro
+            Fica colada na barra de propósito: são os mesmos cinco números, na
+            mesma ordem e nas mesmas cores. A barra mostra a proporção, a
+            legenda dá o número e liga/desliga a coluna. */}
+        <div className="rule-double mt-card flex flex-wrap items-center gap-x-card gap-y-hair pt-item">
           {contagem.map(({ state, n }) => {
             const oculto = estadosOcultos.has(state)
             return (
@@ -588,16 +612,11 @@ export function BuildMap({
                       })
                 }
                 className={[
-                  'flex items-baseline gap-1 rounded-full px-1.5 py-[2px] text-[11px] transition hover:bg-[color-mix(in_oklab,var(--color-ink-3)_12%,transparent)]',
+                  'text-meta flex items-center gap-hair rounded-full px-1.5 py-[2px] transition hover:bg-[color-mix(in_oklab,var(--color-ink-3)_12%,transparent)]',
                   oculto ? 'opacity-40 line-through' : '',
                 ].join(' ')}
               >
-                <span
-                  className="tracking-[-0.1em]"
-                  style={{ color: STATE[state].color }}
-                >
-                  {STATE[state].mark}
-                </span>
+                <StateMark state={state} size="sm" decorativa />
                 <span className="tabular-nums text-[var(--color-ink)]">{n}</span>
                 <span className="text-[var(--color-ink-3)]">
                   {t(`estado.${state}`).toLowerCase()}
@@ -614,13 +633,13 @@ export function BuildMap({
             aria-pressed={soForaDoPlano}
             title={t('filtro.soForaDoPlanoDica')}
             className={[
-              'flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[11px] transition',
+              'text-meta flex items-center gap-hair rounded-full border px-1.5 py-[2px] transition',
               soForaDoPlano
                 ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                 : 'border-transparent text-[var(--color-ink-3)] hover:border-[var(--color-rule)]',
             ].join(' ')}
           >
-            <Sparkles size={11} strokeWidth={1.75} aria-hidden />
+            <Sparkles size={13} strokeWidth={1.75} aria-hidden />
             {t('filtro.soForaDoPlano')}
           </button>
           <button
@@ -629,22 +648,65 @@ export function BuildMap({
             aria-pressed={soNaoSalvo}
             title={t('filtro.soNaoSalvoDica')}
             className={[
-              'flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[11px] transition',
+              'text-meta flex items-center gap-hair rounded-full border px-1.5 py-[2px] transition',
               soNaoSalvo
                 ? 'border-current'
                 : 'border-transparent hover:border-[var(--color-rule)]',
             ].join(' ')}
             style={{
-              color: soNaoSalvo ? 'var(--color-warn)' : 'var(--color-ink-3)',
+              color: soNaoSalvo ? 'var(--color-danger)' : 'var(--color-ink-3)',
             }}
           >
-            <CloudOff size={11} aria-hidden />
+            <CloudOff size={13} aria-hidden />
             {t('filtro.soNaoSalvo')}
           </button>
         </div>
 
+        {/* Números do projeto. Descem para depois da legenda porque a legenda
+            é que responde a pergunta da tela ("quanto está em cada estado");
+            estes são o contexto dela. */}
+        <ul className="text-meta mt-item flex flex-wrap items-center gap-x-card gap-y-hair text-[var(--color-ink-3)]">
+          <li
+            className="flex items-center gap-hair"
+            title={t('progresso.partes', { n: features.length })}
+            aria-label={t('progresso.partes', { n: features.length })}
+          >
+            <LayoutList size={13} strokeWidth={1.75} aria-hidden />
+            <span className="tabular-nums text-[var(--color-ink-2)]">
+              {features.length}
+            </span>
+            {t('progresso.palavraPartes')}
+          </li>
+          <li
+            className="flex items-center gap-hair"
+            title={t('progresso.areas', { n: areasTotais })}
+            aria-label={t('progresso.areas', { n: areasTotais })}
+          >
+            <FolderTree size={13} strokeWidth={1.75} aria-hidden />
+            <span className="tabular-nums text-[var(--color-ink-2)]">
+              {areasTotais}
+            </span>
+            {t('progresso.palavraAreas')}
+          </li>
+          {naoSalvas > 0 && (
+            <li
+              className="flex items-center gap-hair"
+              style={{ color: 'var(--color-danger)' }}
+              title={t('progresso.comNaoSalvo', { n: naoSalvas })}
+              aria-label={t('progresso.comNaoSalvo', { n: naoSalvas })}
+            >
+              <CloudOff size={13} strokeWidth={1.75} aria-hidden />
+              <span className="tabular-nums">{naoSalvas}</span>
+              {t('progresso.palavraNaoSalvo')}
+            </li>
+          )}
+          <li title={t('progresso.semArrastarDica')}>
+            {t('progresso.semArrastar')}
+          </li>
+        </ul>
+
         {filtrando && (
-          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[var(--color-ink-3)]">
+          <p className="text-meta mt-item flex flex-wrap items-center gap-item text-[var(--color-ink-3)]">
             <span>
               {escondidas === 0
                 ? t('filtro.nadaEscondido')
@@ -661,25 +723,40 @@ export function BuildMap({
             <button
               type="button"
               onClick={limpar}
-              className="flex items-center gap-1 rounded-full border border-[var(--color-rule)] px-1.5 py-[1px] text-[var(--color-ink-2)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              className="flex items-center gap-hair rounded-full border border-[var(--color-rule)] px-1.5 py-[1px] text-[var(--color-ink-2)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
               title={t('progresso.limparFiltros')}
               aria-label={t('progresso.limparFiltros')}
             >
-              <RotateCcw size={10} aria-hidden />
+              <RotateCcw size={12} aria-hidden />
               {t('filtro.limpar')}
             </button>
           </p>
         )}
       </header>
 
-      {/* ---------------------------------------------------------- quadro */}
-      <div className="mt-3 min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-6">
+      {/* ---------------------------------------------------------- quadro
+          mt-group (32px): o quadro é outro grupo, e o degrau entre grupos é o
+          dobro do maior espaço que existe dentro deles (16px). */}
+      <div className="mt-group min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-6">
         {colunas.length === 0 ? (
-          <p className="text-[12.5px] text-[var(--color-ink-3)]">
+          <p className="text-lead text-[var(--color-ink-3)]">
             {t('filtro.nenhuma')}
           </p>
         ) : (
-          <div className="flex h-full gap-4">
+          /* Grade que preenche a largura, em vez de cinco colunas de 250px
+             fixos. Na captura medida, a faixa do quadro tem ~1430px: cinco
+             colunas de 250 + quatro vãos de 16 davam 1314 e deixavam 116px
+             de faixa morta à direita. Com `1fr` cada coluna vira ~273px e a
+             sobra é zero, em qualquer largura de janela. O `maxWidth` é o teto
+             de leitura — quando a pessoa esconde estados e sobram 2 colunas, a
+             grade para de esticar em vez de virar duas faixas de 700px. */
+          <div
+            className="grid h-full gap-card"
+            style={{
+              gridTemplateColumns: `repeat(${colunas.length}, minmax(${COLUNA_MIN}px, 1fr))`,
+              maxWidth: colunas.length * COLUNA_MAX + (colunas.length - 1) * 16,
+            }}
+          >
             {colunas.map((c) => (
               <Coluna
                 key={c.state}

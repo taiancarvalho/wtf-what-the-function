@@ -16,3 +16,6 @@ release
 
 # WTF — histórico local do que a IA declarou
 .wtf/events.jsonl
+
+# Material de comparação do trabalho de interface (imagens, notas). Local.
+.gauntlet/

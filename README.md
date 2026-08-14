@@ -57,10 +57,32 @@ A distância entre **Pronto** e **Você aprovou** é o produto.
   card, e isso é a decisão: num quadro comum a posição é opinião de quem moveu
   e vira mentira quando alguém esquece. Aqui a coluna é derivada de evidência,
   e o card desliza sozinho quando o código prova que andou.
+- **Histórico** — como o projeto chegou até aqui. As outras telas respondem
+  sobre o agora; esta responde se ele está andando ou parado, em três leituras
+  do mesmo fato: o gráfico, o ritmo e a régua de marcos em números.
 - **Mapa** — do que o software é feito, em blocos por área. Não é um grafo:
   grafo vira espaguete e é ilegível para quem o produto atende.
 - **Pastas** — para que serve cada pasta do repositório, em árvore. Serve para
   a IA saber onde guardar cada coisa, e para você entender a organização.
+- **Documentos** — qual dos sete arquivos parecidos vale hoje sobre cada
+  assunto. Em duas camadas separadas por posição: a leitura da IA, que é
+  opinião e carrega a confiança estampada, ao lado dos fatos da varredura, que
+  são verificáveis.
+- **Segurança** — o que ficou exposto e as regras do que não se faz neste
+  projeto. A varredura aparece mesmo quando não acha nada, porque "não apareceu
+  aviso" e "ninguém procurou" não podem ser a mesma tela.
+- **Configurações** — idioma, chaves, avisos do sistema e o que a instalação
+  escreveu no projeto.
+
+### A escala visual
+
+Uma base atravessa as nove telas: cinco tamanhos de letra e nada entre eles,
+espaço entre grupos sempre maior que o espaço dentro deles, e **uma cor, um
+significado** — carmim é atenção e nada mais, seleção é interação e nunca a cor
+do estado. Cada tela é leitura à esquerda e um trilho de 400px à direita, com o
+que se confere de relance separado do que se lê. A quebra é por `@container`,
+não por viewport: a lateral pode estar fechada e o terminal docado, e quem
+decide se cabem duas colunas é a largura que sobra ali.
 
 ### Perguntar sobre uma mudança
 
@@ -108,12 +130,19 @@ app local, gratuito e sem servidor.
 ### O que a instalação coloca no seu projeto
 
 ```
-.claude/skills/wtf/SKILL.md          o agente declara o que vai fazer
-.claude/skills/wtf-mapear/SKILL.md   o agente mapeia projetos já em andamento
-.claude/skills/wtf-pastas/SKILL.md   o agente descobre onde cada coisa mora
-.claude/hooks/wtf-observer.cjs       registro determinístico do que foi tocado
-.wtf/bin/wtf-claim.cjs               CLI que o agente chama para declarar
+.claude/skills/wtf/SKILL.md             o agente declara o que vai fazer
+.claude/skills/wtf-mapear/SKILL.md      o agente mapeia projetos já em andamento
+.claude/skills/wtf-pastas/SKILL.md      o agente descobre onde cada coisa mora
+.claude/skills/wtf-documentos/SKILL.md  o agente organiza os documentos escritos
+.claude/skills/wtf-guardrails/SKILL.md  o agente escreve as regras do que não se faz
+.claude/skills/btw/SKILL.md             você pergunta sem parar o trabalho em curso
+.claude/hooks/wtf-observer.cjs          registro determinístico do que foi tocado
+.wtf/bin/wtf-claim.cjs                  CLI que o agente chama para declarar
 ```
+
+A instalação tem dois níveis: as instruções podem ficar em `~/.claude` e valer
+para todos os projetos, enquanto a pasta `.wtf/` é o que autoriza o WTF a
+registrar algo **naquele** projeto. Sem ela, o hook global fica inerte.
 
 A skill depende do agente cooperar. O hook não — ele registra os arquivos
 tocados mesmo quando o agente esquece de declarar.
@@ -155,17 +184,20 @@ e não promete nenhum outro.
 
 ## Estado atual
 
-Funciona de ponta a ponta contra repositórios reais. Ainda não existe:
+Funciona de ponta a ponta contra repositórios reais, com **417 testes
+automatizados** em 24 arquivos cobrindo os bastidores — a leitura do histórico,
+a varredura de segredos, o instalador, o cofre de chaves, as notificações e a
+troca de projetos. Um app que cobra prova precisava ter prova de si mesmo.
 
-- **Testes automatizados do próprio WTF** — a incoerência do projeto: um app
-  que cobra prova não tem prova nenhuma de si mesmo. É o próximo da fila.
-- **Knowledge Map** — o `MAPA.md` resolve "onde as coisas moram"; falta
-  resolver "qual destes sete documentos é o atual"
-- **Notificações do sistema** — com o app fechado, você não sabe que algo pede
-  decisão
-- **Vários projetos ao mesmo tempo** — hoje é um por vez
-- **Anthropic e OpenAI** — estruturados no código, só OpenRouter ligado
-- **Instalador** — roda com `npm run dev`; não há `.dmg` ainda
+Ainda não existe:
+
+- **Anthropic e OpenAI** — estruturados no código, só OpenRouter ligado; os
+  outros dois respondem com um erro honesto em vez de fingir
+- **Vários projetos ao mesmo tempo** — dá para trocar de projeto e o app lembra
+  os que você já abriu, mas o acompanhado é um por vez
+- **Instalador** — roda pelo comando `wtf`; não há `.dmg` assinado ainda
+- **Testes da interface** — os 417 cobrem os bastidores; as telas ainda são
+  verificadas a olho
 
 ## Stack
 
