@@ -7,7 +7,6 @@ import {
   Globe,
   KeyRound,
   PackageOpen,
-  Sparkles,
   Settings2,
 } from 'lucide-react'
 import {
@@ -121,21 +120,12 @@ export function Configuracoes({
         </Secao>
 
         <Secao
-          icone={Sparkles}
-          titulo={t('skills.titulo')}
-          nota={t('skills.nota')}
-          atraso="0.18s"
-        >
-          <Habilidades snapshot={snapshot} onSalvar={onSalvarIdioma} />
-        </Secao>
-
-        <Secao
           icone={PackageOpen}
           titulo={t('config.instala')}
           nota={t('config.instalaNota')}
           atraso="0.2s"
         >
-          <Transparencia snapshot={snapshot} onMudou={onMudou} />
+          <Transparencia snapshot={snapshot} onMudou={onMudou} onSalvar={onSalvarIdioma} />
         </Secao>
       </div>
     </div>
@@ -532,16 +522,46 @@ function Linha({
 }
 
 /** A seção de transparência: o que exatamente vai ser escrito no projeto. */
+/**
+ * O caminho que a lista mostra, de volta para a chave que o instalador conhece.
+ * Só as habilidades que dá para recusar entram aqui: o resto é o WTF, não um
+ * extra, e não pode ganhar botão de desligar.
+ */
+const CHAVE_POR_DESTINO: Record<string, string> = {
+  '.claude/skills/wtf-mapear/SKILL.md': 'mapear',
+  '.claude/skills/wtf-pastas/SKILL.md': 'pastas',
+  '.claude/skills/wtf-documentos/SKILL.md': 'documentos',
+  '.claude/skills/wtf-guardrails/SKILL.md': 'guardrails',
+  '.claude/skills/btw/SKILL.md': 'btw',
+}
+
 function Transparencia({
   snapshot,
   onMudou,
+  onSalvar,
 }: {
   snapshot: ProjectSnapshot
   onMudou: (c: Carga) => void
+  onSalvar: (parcial: Partial<ConfigProjeto>) => Promise<void>
 }) {
   const t = useT()
   const [pacote, setPacote] = useState<PacoteInstalacao | null>(null)
   const [carregando, setCarregando] = useState(true)
+  const recusadas = new Set(snapshot.config?.skillsDesligadas ?? [])
+
+  /*
+   * O botão de recusar mora na LINHA da habilidade, e não numa lista à parte:
+   * é aqui que a pessoa abre e lê o que aquele arquivo manda a IA fazer, e
+   * decidir sem poder ler seria escolher no escuro.
+   */
+  const alternar = async (chave: string) => {
+    const novas = new Set(recusadas)
+    if (novas.has(chave)) novas.delete(chave)
+    else novas.add(chave)
+    await onSalvar({ skillsDesligadas: [...novas] })
+    const p = await lerPacoteInstalacao().catch(() => null)
+    if (p) setPacote(p)
+  }
 
   useEffect(() => {
     let vivo = true
@@ -578,7 +598,12 @@ function Transparencia({
           <ul className="mt-4 flex flex-col gap-2">
             {pacote.itens.map((item) => (
               <li key={item.destino}>
-                <Arquivo item={item} />
+                <Arquivo
+                  item={item}
+                  chave={CHAVE_POR_DESTINO[item.destino]}
+                  recusada={recusadas.has(CHAVE_POR_DESTINO[item.destino] ?? '')}
+                  onAlternar={alternar}
+                />
               </li>
             ))}
           </ul>
@@ -637,10 +662,24 @@ function Transparencia({
 }
 
 /** Um arquivo do pacote, com o conteúdo integral atrás de um clique. */
-function Arquivo({ item }: { item: ItemInstalacao }) {
+function Arquivo({
+  item,
+  chave,
+  recusada,
+  onAlternar,
+}: {
+  item: ItemInstalacao
+  chave?: string
+  recusada?: boolean
+  onAlternar?: (chave: string) => Promise<void>
+}) {
   const t = useT()
+  const [mudando, setMudando] = useState(false)
+  const opcional = Boolean(chave && onAlternar)
 
-  const estado = !item.jaExiste
+  const estado = recusada
+    ? { texto: t('skills.recusada'), cor: 'var(--color-ink-3)' }
+    : !item.jaExiste
     ? { texto: t('config.selo.novo'), cor: 'var(--color-accent)' }
     : item.igual
       ? { texto: t('config.selo.instalado'), cor: 'var(--color-tested)' }
@@ -673,8 +712,36 @@ function Arquivo({ item }: { item: ItemInstalacao }) {
             {item.proposito}
           </span>
         )}
-        <span className="mt-1 block text-[11.5px] text-[var(--color-accent)]">
-          {t('config.verConteudo')}
+        <span className="mt-1 flex flex-wrap items-center gap-3">
+          <span className="text-[11.5px] text-[var(--color-accent)]">
+            {t('config.verConteudo')}
+          </span>
+          {opcional && (
+            <button
+              type="button"
+              disabled={mudando}
+              aria-pressed={!recusada}
+              onClick={async (e) => {
+                // Dentro de um <summary>: sem isto, clicar no botão abre e
+                // fecha o arquivo junto — dois efeitos para um clique.
+                e.preventDefault()
+                e.stopPropagation()
+                setMudando(true)
+                try {
+                  await onAlternar!(chave!)
+                } finally {
+                  setMudando(false)
+                }
+              }}
+              className="rounded-full border px-2.5 py-[3px] text-[11px] transition-colors disabled:opacity-50"
+              style={{
+                borderColor: recusada ? 'var(--color-accent)' : 'var(--color-rule)',
+                color: recusada ? 'var(--color-accent)' : 'var(--color-ink-3)',
+              }}
+            >
+              {mudando ? t('skills.salvando') : recusada ? t('skills.instalar') : t('skills.naoInstalar')}
+            </button>
+          )}
         </span>
       </summary>
 
@@ -691,82 +758,5 @@ function Arquivo({ item }: { item: ItemInstalacao }) {
         {item.origem}
       </p>
     </details>
-  )
-}
-
-/**
- * Quais habilidades a IA recebe.
- *
- * Cada uma é um arquivo que a IA lê, e ler custa contexto em toda sessão —
- * então recusar as que não se usa é economia real, não enfeite. A de declarar
- * não aparece aqui: sem ela o painel não tem o que mostrar, e um botão que
- * quebra o produto não é escolha, é armadilha.
- */
-const OPCIONAIS = ['mapear', 'pastas', 'documentos', 'guardrails', 'btw'] as const
-
-function Habilidades({
-  snapshot,
-  onSalvar,
-}: {
-  snapshot: ProjectSnapshot
-  onSalvar: (parcial: Partial<ConfigProjeto>) => Promise<void>
-}) {
-  const t = useT()
-  const [ocupado, setOcupado] = useState<string | null>(null)
-  const desligadas = new Set(snapshot.config?.skillsDesligadas ?? [])
-
-  const alternar = async (id: string) => {
-    const novas = new Set(desligadas)
-    if (novas.has(id)) novas.delete(id)
-    else novas.add(id)
-    setOcupado(id)
-    try {
-      await onSalvar({ skillsDesligadas: [...novas] })
-    } finally {
-      setOcupado(null)
-    }
-  }
-
-  return (
-    <div>
-      <p className="max-w-[62ch] text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
-        {t('skills.oQue')}
-      </p>
-
-      <ul className="mt-3 flex flex-col gap-1.5">
-        {OPCIONAIS.map((id) => {
-          const ligada = !desligadas.has(id)
-          return (
-            <li key={id}>
-              <button
-                type="button"
-                disabled={ocupado !== null}
-                aria-pressed={ligada}
-                onClick={() => void alternar(id)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-50"
-                style={{
-                  borderColor: ligada ? 'var(--color-accent)' : 'var(--color-rule)',
-                  background: ligada
-                    ? 'color-mix(in oklab, var(--color-accent) 7%, transparent)'
-                    : 'transparent',
-                }}
-              >
-                <span className="text-[12.5px] text-[var(--color-ink)]">{t(`skills.${id}`)}</span>
-                <span
-                  className="shrink-0 text-[11px] tracking-[0.1em] uppercase"
-                  style={{ color: ligada ? 'var(--color-accent)' : 'var(--color-ink-3)' }}
-                >
-                  {ocupado === id
-                    ? t('skills.salvando')
-                    : ligada
-                      ? t('skills.ligada')
-                      : t('skills.desligada')}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
   )
 }
