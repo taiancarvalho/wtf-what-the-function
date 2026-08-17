@@ -1118,10 +1118,45 @@ ipcMain.handle('wtf:desabilitar-projeto', async () => {
 
 app.whenReady().then(() => {
   createWindow()
+  if (process.env.WTF_SMOKE) verificarQueAbriu()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+/**
+ * `WTF_SMOKE=1` — abre, confere que a janela veio, e sai.
+ *
+ * Existe porque os testes não abrem janela nenhuma: eles cobrem os bastidores,
+ * e o app já foi lançado com opções de macOS que no Windows deixariam a janela
+ * SEM botão de fechar, sem ninguém perceber. Isto roda no CI dos três sistemas
+ * e reprova se a janela não vier, se a tela não carregar, ou se travar.
+ *
+ * Não muda nada para quem usa: sem a variável, nada aqui é chamado.
+ */
+function verificarQueAbriu() {
+  const sair = (codigo, motivo) => {
+    console.log(`${codigo === 0 ? 'SMOKE OK' : 'SMOKE FALHOU'}: ${motivo}`)
+    app.exit(codigo)
+  }
+
+  const limite = setTimeout(() => sair(1, 'a janela não ficou pronta em 60s'), 60_000)
+
+  if (!win) return sair(1, 'nenhuma janela foi criada')
+
+  win.webContents.once('did-fail-load', (_e, codigo, descricao) => {
+    clearTimeout(limite)
+    sair(1, `a tela não carregou: ${descricao} (${codigo})`)
+  })
+
+  win.webContents.once('did-finish-load', () => {
+    clearTimeout(limite)
+    // A janela existir não basta: 0×0 é uma janela que ninguém vê.
+    const { width, height } = win.getBounds()
+    if (width < 100 || height < 100) return sair(1, `janela de ${width}×${height}`)
+    sair(0, `janela de ${width}×${height} com a tela carregada`)
+  })
+}
 
 // Nenhum shell (nem agente dentro dele) sobrevive ao app.
 app.on('before-quit', () => encerrarTerminais())

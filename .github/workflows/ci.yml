@@ -38,3 +38,23 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Abre a janela DE VERDADE. Os testes acima cobrem só os bastidores, e o
+      # app já foi lançado com opções de macOS que no Windows deixariam a
+      # janela sem botão de fechar — sem ninguém notar, porque nada abria o app
+      # fora do Mac.
+      - name: A janela abre (Linux)
+        if: runner.os == 'Linux'
+        # Sem tela no runner: o xvfb dá uma. `--no-sandbox` porque o sandbox do
+        # Chromium precisa de privilégio que o contêiner não tem.
+        run: xvfb-run -a npx electron . --no-sandbox
+        env:
+          WTF_SMOKE: '1'
+          NODE_ENV: production
+
+      - name: A janela abre
+        if: runner.os != 'Linux'
+        run: npx electron .
+        env:
+          WTF_SMOKE: '1'
+          NODE_ENV: production
