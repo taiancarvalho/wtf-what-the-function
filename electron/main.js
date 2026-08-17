@@ -1,7 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
-import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import {
   isGitRepo,
@@ -32,8 +31,7 @@ import {
   habilitarProjeto,
   instalarGlobal,
 } from './globalinstall.js'
-import { apagarChave, chaveEmClaro, lerChaves, ondeMoram, salvarChave } from './keys.js'
-import { MODELO_PADRAO, perguntar } from './ask.js'
+import { perguntar } from './ask.js'
 import { apagarGerado, listarGerados } from './gerados.js'
 import {
   alternarDispensado,
@@ -901,41 +899,10 @@ ipcMain.handle('wtf:salvar-config', async (_e, parcial) => {
 /*
  * ------------------------------------------------------------------ perguntar
  *
- * As chaves ficam em `userData`, cifradas — NUNCA dentro do projeto observado
- * (ver o cabeçalho de keys.js). O que atravessa o IPC para o renderer é sempre
- * a versão mascarada; a chave em claro só existe aqui dentro, no instante da
- * chamada HTTP.
+ * Quem responde é a IA já instalada na máquina, em modo headless — a mesma que
+ * traduz o histórico. Não há chave para guardar, então não há cofre, não há
+ * fatura nova e não há nada de secreto atravessando o IPC.
  */
-ipcMain.handle('wtf:chaves', async () => {
-  try {
-    return { ...(await lerChaves()), onde: ondeMoram() }
-  } catch (erro) {
-    return { erro: String(erro?.message ?? erro) }
-  }
-})
-
-ipcMain.handle('wtf:salvar-chave', async (_e, provedor, chave) => {
-  if (typeof chave !== 'string' || !chave.trim()) return { erro: 'A chave está vazia.' }
-  return salvarChave(provedor, chave)
-})
-
-ipcMain.handle('wtf:apagar-chave', async (_e, provedor) => apagarChave(provedor))
-
-/**
- * O modelo é uma preferência do projeto (`.wtf/config.json → modeloPergunta`).
- * Lido cru porque `lerConfig` normaliza só os campos de idioma; ausente ou
- * estranho vale o padrão.
- */
-async function modeloDoProjeto(dir) {
-  if (!dir) return MODELO_PADRAO
-  try {
-    const bruto = await readFile(path.join(dir, '.wtf', 'config.json'), 'utf8')
-    const m = JSON.parse(bruto)?.modeloPergunta
-    return typeof m === 'string' && m.trim() ? m.trim() : MODELO_PADRAO
-  } catch {
-    return MODELO_PADRAO
-  }
-}
 
 /** Uma pergunta por vez: a nova cancela a anterior, que ninguém mais lê. */
 let perguntaEmCurso = null
@@ -945,12 +912,6 @@ ipcMain.handle('wtf:perguntar', async (_e, pedido) => {
   const id = typeof p.eventoId === 'string' ? p.eventoId : ''
   if (!id) return { erro: 'Pergunta sem evento.' }
   if (typeof p.pergunta !== 'string' || !p.pergunta.trim()) return { erro: 'Escreva uma pergunta.' }
-
-  const provedor = typeof p.provedor === 'string' && p.provedor ? p.provedor : 'openrouter'
-  const chave = await chaveEmClaro(provedor)
-  if (!chave) {
-    return { erro: 'Nenhuma chave configurada. Configure uma chave para poder perguntar.' }
-  }
 
   perguntaEmCurso?.abort()
   const controle = new AbortController()
@@ -962,9 +923,6 @@ ipcMain.handle('wtf:perguntar', async (_e, pedido) => {
   }
 
   const r = await perguntar({
-    provedor,
-    chave,
-    modelo: await modeloDoProjeto(projetoAtual),
     contexto: p.contexto,
     pergunta: p.pergunta,
     idioma: config.nomeIdiomaConteudo,

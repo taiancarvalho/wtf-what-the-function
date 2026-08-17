@@ -73,7 +73,18 @@ const PRONTO = 'AGENTE-NO-AR'
  * `mise` de inicialização pendurado nele". O agente falso é um eco: anuncia
  * que subiu e fica devolvendo o que recebe, como um agente esperando ordem.
  */
+let shellOriginal: string | undefined
+
 beforeAll(async () => {
+  /*
+   * Shell mínimo, e não o da pessoa: o `.zshrc` de quem desenvolve carrega
+   * mise, nvm e plugins, e com a suíte inteira em paralelo isso levava mais de
+   * quinze segundos até o prompt aparecer — o teste falhava por lentidão de
+   * ambiente, não por defeito. O que se prova aqui é a decisão entre colar e
+   * executar, que não depende de qual shell está do outro lado.
+   */
+  shellOriginal = process.env.SHELL
+  process.env.SHELL = '/bin/sh'
   raiz = await mkdtemp(path.join(os.tmpdir(), 'wtf-pty-'))
   const bin = await mkdtemp(path.join(os.tmpdir(), 'wtf-bin-'))
   falso.caminho = path.join(bin, 'agente-falso.mjs')
@@ -86,6 +97,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   encerrarTodas()
+  if (shellOriginal === undefined) delete process.env.SHELL
+  else process.env.SHELL = shellOriginal
   /*
    * Com retry: o Windows tranca a pasta enquanto ela for o cwd de um processo
    * vivo, e o shell da sessão leva um instante para morrer depois do

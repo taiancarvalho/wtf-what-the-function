@@ -360,31 +360,6 @@ export interface UsoProjeto {
 
 // ------------------------------------------------------- perguntar sobre algo
 
-/** Provedores de modelo. Hoje só `openrouter` responde de verdade. */
-export type ProvedorChave = 'openrouter' | 'anthropic' | 'openai'
-
-/**
- * O que o renderer sabe sobre uma chave: que ela existe, como ela começa e
- * termina, e se está guardada em disco ou só nesta sessão. A chave inteira
- * NUNCA chega aqui — ver `electron/keys.js`.
- */
-export interface ChaveMascarada {
-  tem: boolean
-  /** `sk-or-…4f2a`. Suficiente para reconhecer, inútil para usar. */
-  mascara: string
-  /** `false` quando o sistema não ofereceu cofre: vale só até fechar o app. */
-  guardada: boolean
-  at?: string
-}
-
-export interface EstadoChaves {
-  chaves: Partial<Record<ProvedorChave, ChaveMascarada>>
-  /** O cofre do sistema está disponível? Sem ele, não gravamos nada. */
-  podeGuardar: boolean
-  /** Caminho do arquivo cifrado, para a interface poder mostrar onde é. */
-  onde?: string
-  erro?: string
-}
 
 /** O que o painel sabe da mudança e manda junto com a pergunta. */
 export interface ContextoPergunta {

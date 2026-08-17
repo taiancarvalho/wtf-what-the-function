@@ -131,14 +131,6 @@ contextBridge.exposeInMainWorld('wtf', {
   },
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
-  /**
-   * Quais provedores TÊM chave, já mascarada. A chave em claro nunca cruza
-   * esta ponte — ver o cabeçalho de electron/keys.js.
-   */
-  lerChaves: () => ipcRenderer.invoke('wtf:chaves'),
-  /** Guarda a chave cifrada em userData, fora da pasta do projeto. */
-  salvarChave: (provedor, chave) => ipcRenderer.invoke('wtf:salvar-chave', provedor, chave),
-  apagarChave: (provedor) => ipcRenderer.invoke('wtf:apagar-chave', provedor),
   /** Pergunta sobre uma mudança. A resposta chega por `aoReceberResposta`. */
   perguntar: (pedido) => ipcRenderer.invoke('wtf:perguntar', pedido),
   /**

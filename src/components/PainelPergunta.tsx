@@ -5,7 +5,6 @@ import { useT } from '@/lib/i18n'
 import {
   aoPedirTraducao,
   aoReceberResposta,
-  lerChaves,
   lerConfig,
   pedirTerminal,
   perguntar,
@@ -13,7 +12,6 @@ import {
   podeTerminalEmbutido,
   salvarConfig,
 } from '@/lib/source'
-import { ConfigChaves } from '@/components/ConfigChaves'
 import type { ContextoPergunta, WtfEvent } from '@/types/protocol'
 
 /**
@@ -41,7 +39,6 @@ export function PainelPergunta({
   const [erro, setErro] = useState<string | null>(null)
   const [incompleta, setIncompleta] = useState(false)
   const [esperando, setEsperando] = useState(false)
-  const [temChave, setTemChave] = useState<boolean | null>(null)
   /*
    * O aviso de custo. Perguntar consome créditos da chave DA PESSOA, e ela
    * precisa saber disso antes da primeira vez — nunca depois da fatura. Uma
@@ -65,21 +62,6 @@ export function PainelPergunta({
     setIncompleta(false)
     setEsperando(false)
   }, [evento?.id])
-
-  useEffect(() => {
-    if (!evento) return
-    let vivo = true
-    lerChaves()
-      .then((r) => {
-        if (vivo) setTemChave(Object.values(r.chaves).some((c) => c?.tem))
-      })
-      .catch(() => {
-        if (vivo) setTemChave(false)
-      })
-    return () => {
-      vivo = false
-    }
-  }, [evento])
 
   useEffect(() => {
     if (!evento) return
@@ -270,32 +252,6 @@ export function PainelPergunta({
               <p className="mt-1 text-[12px] text-[var(--color-ink-3)]">{featureNome}</p>
             )}
 
-            {/*
-              Sem chave e SEM terminal, a chave é a única saída — só aí o
-              pedido de configurá-la faz sentido. Com o terminal aberto, exigir
-              uma chave para responder uma pergunta seria cobrar por algo que a
-              pessoa já tem instalado na própria máquina.
-            */}
-            {podePerguntar() && temChave === false && !podeTerminalEmbutido() && (
-              <div
-                className="mt-4 rounded-lg border p-3.5"
-                style={{
-                  borderColor: 'color-mix(in oklab, var(--color-warn) 38%, transparent)',
-                  background: 'color-mix(in oklab, var(--color-warn) 8%, transparent)',
-                }}
-              >
-                <p className="text-[13.5px] font-medium text-[var(--color-ink)]">
-                  {t('pergunta.semChave')}
-                </p>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
-                  {t('pergunta.semChaveNota')}
-                </p>
-                <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--color-rule)' }}>
-                  <ConfigChaves />
-                </div>
-              </div>
-            )}
-
             {!podePerguntar() && (
               <p className="mt-4 text-[13px] text-[var(--color-ink-3)]">{t('pergunta.soNoApp')}</p>
             )}
@@ -392,7 +348,7 @@ export function PainelPergunta({
                   </button>
                 )}
 
-                {temChave !== false && (
+                {(
                   <button
                     type="button"
                     onClick={() => void enviar(pergunta)}
@@ -419,9 +375,7 @@ export function PainelPergunta({
                     type="button"
                     disabled={esperando}
                     onClick={() =>
-                      temChave === false && podeTerminalEmbutido()
-                        ? perguntarNoTerminal(s)
-                        : void enviar(s)
+                      void enviar(s)
                     }
                     className="rounded-full border px-2.5 py-1 text-[12px] transition-colors hover:bg-[var(--color-paper-3)] disabled:opacity-50"
                     style={{ borderColor: 'var(--color-rule)', color: 'var(--color-ink-2)' }}

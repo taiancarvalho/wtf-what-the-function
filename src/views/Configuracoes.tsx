@@ -5,7 +5,6 @@ import {
   FolderSearch,
   Gauge,
   Globe,
-  KeyRound,
   PackageOpen,
   Settings2,
 } from 'lucide-react'
@@ -22,7 +21,6 @@ import {
   type Carga,
 } from '@/lib/source'
 import { EscolherIdioma } from '@/components/EscolherIdioma'
-import { ConfigChaves } from '@/components/ConfigChaves'
 import { InstalarSkill } from '@/components/InstalarSkill'
 import { useT } from '@/lib/i18n'
 import type {
@@ -113,10 +111,6 @@ export function Configuracoes({
           atraso="0.14s"
         >
           <Avisos snapshot={snapshot} onSalvar={onSalvarIdioma} />
-        </Secao>
-
-        <Secao icone={KeyRound} titulo={t('config.ia')} nota={t('config.iaNota')} atraso="0.15s">
-          <ConfigChaves />
         </Secao>
 
         <Secao

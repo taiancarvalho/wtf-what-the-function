@@ -2,7 +2,6 @@ import { loadSnapshot } from '@/mock/snapshot'
 import type {
   ConfigProjeto,
   ContextoPergunta,
-  EstadoChaves,
   EstadoGlobal,
   Historico,
   ListaProjetos,
@@ -10,7 +9,6 @@ import type {
   PacoteInstalacao,
   PedacoResposta,
   ProjectSnapshot,
-  ProvedorChave,
   RespostaTraducao,
   FimTerminal,
   SaidaTerminal,
@@ -65,9 +63,6 @@ interface PonteWtf {
   resolver?: (eventId: string) => Promise<unknown>
   validar?: (featureId: string) => Promise<unknown>
   aoMudarProjeto?: (cb: (motivo: string) => void) => () => void
-  lerChaves?: () => Promise<unknown>
-  salvarChave?: (provedor: string, chave: string) => Promise<unknown>
-  apagarChave?: (provedor: string) => Promise<unknown>
   perguntar?: (pedido: unknown) => Promise<unknown>
   aoReceberResposta?: (cb: (dados: PedacoResposta) => void) => () => void
   lerUso?: () => Promise<unknown>
@@ -446,44 +441,6 @@ export function aoIrPara(cb: (aba: string) => void): () => void {
 // ------------------------------------------------------ perguntar sobre algo
 
 export const podePerguntar = () => typeof ponte()?.perguntar === 'function'
-
-const SEM_CHAVES: EstadoChaves = { chaves: {}, podeGuardar: false }
-
-/**
- * Quais provedores têm chave — mascarada. Fora do app, nenhuma: o navegador
- * não tem onde guardar isso com segurança, e fingir que tem seria pior.
- */
-export async function lerChaves(): Promise<EstadoChaves> {
-  const p = ponte()
-  if (!p?.lerChaves) return SEM_CHAVES
-  const r = (await p.lerChaves()) as EstadoChaves | undefined
-  return r?.chaves ? r : { ...SEM_CHAVES, erro: erroDe(r) }
-}
-
-/**
- * Guarda a chave. Devolve o estado já atualizado, e `guardada: false` quando o
- * sistema não ofereceu cofre — a interface precisa contar isso à pessoa.
- */
-export async function salvarChave(
-  provedor: ProvedorChave,
-  chave: string,
-): Promise<EstadoChaves & { guardada?: boolean; aviso?: string }> {
-  const p = ponte()
-  if (!p?.salvarChave) return SEM_CHAVES
-  const r = (await p.salvarChave(provedor, chave)) as EstadoChaves & {
-    guardada?: boolean
-    aviso?: string
-  }
-  return r?.chaves ? r : { ...SEM_CHAVES, erro: erroDe(r) }
-}
-
-export async function apagarChave(provedor: ProvedorChave): Promise<EstadoChaves> {
-  const p = ponte()
-  if (!p?.apagarChave) return SEM_CHAVES
-  const r = (await p.apagarChave(provedor)) as EstadoChaves | undefined
-  return r?.chaves ? r : { ...SEM_CHAVES, erro: erroDe(r) }
-}
-
 /**
  * Faz a pergunta. Só devolve `{ ok }` ou `{ erro }` — o TEXTO da resposta chega
  * em pedaços por `aoReceberResposta`.
@@ -492,7 +449,6 @@ export async function perguntar(pedido: {
   eventoId: string
   pergunta: string
   contexto: ContextoPergunta
-  provedor?: ProvedorChave
 }): Promise<{ ok?: boolean; erro?: string; cancelado?: boolean }> {
   const p = ponte()
   if (!p?.perguntar) return { erro: 'Só funciona no aplicativo, não no navegador.' }
