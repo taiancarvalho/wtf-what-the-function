@@ -524,6 +524,17 @@ const pt: Dic = {
   'consumo.soNoApp': 'O consumo só é contado dentro do aplicativo.',
 
   // avisos do sistema
+  'skills.titulo': 'Habilidades da IA',
+  'skills.nota': 'Cada habilidade é uma instrução que a IA carrega. Desligue as que você não usa.',
+  'skills.oQue': 'A instrução de avisar o que está fazendo é sempre instalada — é ela que alimenta este painel. As de baixo são extras, e cada uma ocupa espaço na leitura da IA.',
+  'skills.mapear': 'Traduzir o projeto para o seu idioma',
+  'skills.pastas': 'Explicar para que serve cada pasta',
+  'skills.documentos': 'Descobrir qual documento vale',
+  'skills.guardrails': 'Escrever as regras do que não se faz aqui',
+  'skills.btw': 'Perguntar sem atrapalhar o trabalho',
+  'skills.ligada': 'Instalada',
+  'skills.desligada': 'Não instalar',
+  'skills.salvando': 'Aplicando…',
   'avisos.titulo': 'Avisos do sistema',
   'avisos.nota':
     'Com o painel fechado, você não fica sabendo quando algo depende de você. O WTF avisa pouco, e só o que precisa da sua decisão.',
@@ -1107,6 +1118,17 @@ const en: Dic = {
   'consumo.soNoApp': 'Usage is only counted inside the app.',
 
   // system notifications
+  'skills.titulo': 'AI skills',
+  'skills.nota': 'Each skill is an instruction the AI loads. Turn off the ones you do not use.',
+  'skills.oQue': 'The instruction to announce what it is doing is always installed — it is what feeds this panel. The ones below are extras, and each takes up room in what the AI reads.',
+  'skills.mapear': 'Translate the project into your language',
+  'skills.pastas': 'Explain what each folder is for',
+  'skills.documentos': 'Find out which document is current',
+  'skills.guardrails': 'Write the rules of what is not done here',
+  'skills.btw': 'Ask without interrupting the work',
+  'skills.ligada': 'Installed',
+  'skills.desligada': 'Do not install',
+  'skills.salvando': 'Applying…',
   'avisos.titulo': 'System notifications',
   'avisos.nota':
     'With the panel closed, you never find out when something depends on you. WTF notifies rarely, and only about things that need your decision.',
@@ -1688,6 +1710,17 @@ const es: Dic = {
   'consumo.soNoApp': 'El consumo solo se cuenta dentro de la aplicación.',
 
   // avisos del sistema
+  'skills.titulo': 'Habilidades de la IA',
+  'skills.nota': 'Cada habilidad es una instrucción que la IA carga. Desactive las que no use.',
+  'skills.oQue': 'La instrucción de avisar qué está haciendo se instala siempre — es la que alimenta este panel. Las de abajo son extras, y cada una ocupa espacio en la lectura de la IA.',
+  'skills.mapear': 'Traducir el proyecto a su idioma',
+  'skills.pastas': 'Explicar para qué sirve cada carpeta',
+  'skills.documentos': 'Descubrir qué documento vale hoy',
+  'skills.guardrails': 'Escribir las reglas de lo que no se hace aquí',
+  'skills.btw': 'Preguntar sin interrumpir el trabajo',
+  'skills.ligada': 'Instalada',
+  'skills.desligada': 'No instalar',
+  'skills.salvando': 'Aplicando…',
   'avisos.titulo': 'Avisos del sistema',
   'avisos.nota':
     'Con el panel cerrado, no te enteras de cuándo algo depende de ti. WTF avisa poco, y solo de lo que necesita tu decisión.',

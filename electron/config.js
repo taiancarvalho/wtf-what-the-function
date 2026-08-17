@@ -65,6 +65,13 @@ export const CONFIG_PADRAO = {
    */
   avisoCustoAceito: false,
   /*
+   * Quais habilidades opcionais NÃO instalar. Guardamos as desligadas, e não
+   * as ligadas, para que o silêncio signifique "todas" — quem instalou antes
+   * deste campo existir não perde nada, e uma habilidade nova nasce ligada em
+   * vez de ficar invisível até alguém descobrir a lista.
+   */
+  skillsDesligadas: [],
+  /*
    * Avisos do sistema operacional. Nasce DESLIGADO, pela mesma razão do
    * consumo: no macOS a primeira notificação dispara o pedido de permissão do
    * sistema, e isso não pode acontecer de surpresa. Quem quiser ser avisado,
@@ -128,6 +135,11 @@ function normalizar(dados) {
     traduzirAuto: auto,
     maxTraducoesPorRodada: teto,
     avisoCustoAceito: bruto.avisoCustoAceito === true,
+    // Lista de nomes, sem repetição. Nome desconhecido é ignorado por quem lê,
+    // não aqui: uma versão antiga do app não pode apagar a escolha da nova.
+    skillsDesligadas: Array.isArray(bruto.skillsDesligadas)
+      ? [...new Set(bruto.skillsDesligadas.map(str).filter(Boolean))]
+      : [],
     // Valor estranho vale 'nao': na dúvida, não interrompa ninguém.
     notificar: NOTIFICAR.includes(str(bruto.notificar)) ? str(bruto.notificar) : CONFIG_PADRAO.notificar,
     // Ausente vale true: o silêncio é o padrão gentil.

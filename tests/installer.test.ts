@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -10,6 +10,7 @@ import {
   desinstalar,
   estadoInstalacao,
   instalar,
+  SKILLS_OPCIONAIS,
 } from '../electron/installer.js'
 // @ts-expect-error idem
 import { lerPacoteInstalacao } from '../electron/disclosure.js'
@@ -24,6 +25,12 @@ beforeAll(async () => {
 afterAll(async () => {
   await rm(raiz, { recursive: true, force: true })
 })
+
+const existeArquivo = (p: string) =>
+  readFile(p, 'utf8').then(
+    () => true,
+    () => false,
+  )
 
 function novoProjeto(): string {
   return path.join(raiz, `p${contador++}`)
@@ -198,5 +205,91 @@ describe('a instrução para os outros agentes', () => {
     await instalar(dir)
 
     expect(await ler(dir, 'AGENTS.md')).toContain('Escreva SEMPRE em inglês')
+  })
+})
+
+/**
+ * Cada habilidade instalada é contexto que a IA carrega em toda sessão. Poder
+ * recusar as que não se usa é economia real — mas o botão precisa desligar de
+ * verdade, inclusive o que já estava no disco.
+ */
+describe('escolher quais habilidades instalar', () => {
+  const desligar = async (dir: string, skills: string[]) => {
+    await mkdir(path.join(dir, '.wtf'), { recursive: true })
+    await writeFile(
+      path.join(dir, '.wtf', 'config.json'),
+      JSON.stringify({ skillsDesligadas: skills }),
+      'utf8',
+    )
+  }
+
+  it('sem escolha nenhuma, instala tudo — o silêncio significa todas', async () => {
+    const dir = novoProjeto()
+    await instalar(dir)
+
+    for (const chave of SKILLS_OPCIONAIS) {
+      expect(await existeArquivo(path.join(dir, ALVOS[chave][0]))).toBe(true)
+    }
+  })
+
+  it('a recusada não vai para o disco, e o resto vai', async () => {
+    const dir = novoProjeto()
+    await desligar(dir, ['documentos', 'btw'])
+    await instalar(dir)
+
+    expect(await existeArquivo(path.join(dir, ALVOS.documentos[0]))).toBe(false)
+    expect(await existeArquivo(path.join(dir, ALVOS.btw[0]))).toBe(false)
+    expect(await existeArquivo(path.join(dir, ALVOS.mapear[0]))).toBe(true)
+    expect(await existeArquivo(path.join(dir, ALVOS.skill[0]))).toBe(true)
+  })
+
+  it('recusar DEPOIS de instalada tira o arquivo do disco', async () => {
+    const dir = novoProjeto()
+    await instalar(dir)
+    expect(await existeArquivo(path.join(dir, ALVOS.pastas[0]))).toBe(true)
+
+    await desligar(dir, ['pastas'])
+    await instalar(dir)
+
+    expect(await existeArquivo(path.join(dir, ALVOS.pastas[0]))).toBe(false)
+    // A pasta também sai: deixá-la vazia faz a habilidade continuar aparecendo
+    // para quem lista `.claude/skills/` — recusada no config, presente no disco.
+    await expect(readdir(path.dirname(path.join(dir, ALVOS.pastas[0])))).rejects.toThrow()
+  })
+
+  it('recusar uma habilidade NÃO faz o projeto parecer desinstalado', async () => {
+    const dir = novoProjeto()
+    await desligar(dir, ['guardrails'])
+    await instalar(dir)
+
+    const estado = await estadoInstalacao(dir)
+    expect(estado.instalado).toBe(true)
+    expect(estado.desatualizado).toBe(false)
+  })
+
+  it('o índice dos outros agentes não aponta para habilidade recusada', async () => {
+    const dir = novoProjeto()
+    await desligar(dir, ['mapear'])
+    await instalar(dir)
+
+    const texto = await readFile(path.join(dir, 'AGENTS.md'), 'utf8')
+    expect(texto).not.toContain('wtf-mapear')
+    expect(texto).toContain('wtf-pastas')
+  })
+
+  it('o essencial não é opcional: declarar, o CLI e o hook não entram na lista', async () => {
+    for (const essencial of ['skill', 'cli', 'hook', 'formato']) {
+      expect(SKILLS_OPCIONAIS).not.toContain(essencial)
+    }
+  })
+
+  it('desligar tudo ainda deixa o WTF funcionando', async () => {
+    const dir = novoProjeto()
+    await desligar(dir, [...SKILLS_OPCIONAIS])
+    await instalar(dir)
+
+    expect(await existeArquivo(path.join(dir, ALVOS.skill[0]))).toBe(true)
+    expect(await existeArquivo(path.join(dir, ALVOS.cli[0]))).toBe(true)
+    expect((await estadoInstalacao(dir)).instalado).toBe(true)
   })
 })

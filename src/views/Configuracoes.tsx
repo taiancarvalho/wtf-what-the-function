@@ -7,6 +7,7 @@ import {
   Globe,
   KeyRound,
   PackageOpen,
+  Sparkles,
   Settings2,
 } from 'lucide-react'
 import {
@@ -117,6 +118,15 @@ export function Configuracoes({
 
         <Secao icone={KeyRound} titulo={t('config.ia')} nota={t('config.iaNota')} atraso="0.15s">
           <ConfigChaves />
+        </Secao>
+
+        <Secao
+          icone={Sparkles}
+          titulo={t('skills.titulo')}
+          nota={t('skills.nota')}
+          atraso="0.18s"
+        >
+          <Habilidades snapshot={snapshot} onSalvar={onSalvarIdioma} />
         </Secao>
 
         <Secao
@@ -681,5 +691,82 @@ function Arquivo({ item }: { item: ItemInstalacao }) {
         {item.origem}
       </p>
     </details>
+  )
+}
+
+/**
+ * Quais habilidades a IA recebe.
+ *
+ * Cada uma é um arquivo que a IA lê, e ler custa contexto em toda sessão —
+ * então recusar as que não se usa é economia real, não enfeite. A de declarar
+ * não aparece aqui: sem ela o painel não tem o que mostrar, e um botão que
+ * quebra o produto não é escolha, é armadilha.
+ */
+const OPCIONAIS = ['mapear', 'pastas', 'documentos', 'guardrails', 'btw'] as const
+
+function Habilidades({
+  snapshot,
+  onSalvar,
+}: {
+  snapshot: ProjectSnapshot
+  onSalvar: (parcial: Partial<ConfigProjeto>) => Promise<void>
+}) {
+  const t = useT()
+  const [ocupado, setOcupado] = useState<string | null>(null)
+  const desligadas = new Set(snapshot.config?.skillsDesligadas ?? [])
+
+  const alternar = async (id: string) => {
+    const novas = new Set(desligadas)
+    if (novas.has(id)) novas.delete(id)
+    else novas.add(id)
+    setOcupado(id)
+    try {
+      await onSalvar({ skillsDesligadas: [...novas] })
+    } finally {
+      setOcupado(null)
+    }
+  }
+
+  return (
+    <div>
+      <p className="max-w-[62ch] text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
+        {t('skills.oQue')}
+      </p>
+
+      <ul className="mt-3 flex flex-col gap-1.5">
+        {OPCIONAIS.map((id) => {
+          const ligada = !desligadas.has(id)
+          return (
+            <li key={id}>
+              <button
+                type="button"
+                disabled={ocupado !== null}
+                aria-pressed={ligada}
+                onClick={() => void alternar(id)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:opacity-50"
+                style={{
+                  borderColor: ligada ? 'var(--color-accent)' : 'var(--color-rule)',
+                  background: ligada
+                    ? 'color-mix(in oklab, var(--color-accent) 7%, transparent)'
+                    : 'transparent',
+                }}
+              >
+                <span className="text-[12.5px] text-[var(--color-ink)]">{t(`skills.${id}`)}</span>
+                <span
+                  className="shrink-0 text-[11px] tracking-[0.1em] uppercase"
+                  style={{ color: ligada ? 'var(--color-accent)' : 'var(--color-ink-3)' }}
+                >
+                  {ocupado === id
+                    ? t('skills.salvando')
+                    : ligada
+                      ? t('skills.ligada')
+                      : t('skills.desligada')}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

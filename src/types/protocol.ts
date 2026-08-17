@@ -303,6 +303,12 @@ export interface ConfigProjeto {
    */
   modeloPergunta?: string
   /**
+   * Habilidades opcionais que a pessoa recusou. Guardamos as DESLIGADAS para
+   * que a ausência signifique "todas" — quem instalou antes deste campo não
+   * perde nada, e habilidade nova nasce ligada.
+   */
+  skillsDesligadas?: string[]
+  /**
    * Tradução automática: pode o WTF chamar o agente instalado para reescrever
    * as mudanças em linguagem humana?
    *

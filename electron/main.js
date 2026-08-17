@@ -881,6 +881,17 @@ ipcMain.handle('wtf:salvar-config', async (_e, parcial) => {
   try {
     const config = await salvarConfig(projetoAtual, parcial)
     await aplicarIdiomaNaSkill(projetoAtual, config)
+
+    /*
+     * Mudar quais habilidades a IA recebe só vale quando o disco muda: é o
+     * arquivo que a IA lê, não o config. Reinstala apenas se o WTF já estava
+     * instalado aqui — em projeto não instalado isso escreveria arquivos que
+     * ninguém pediu.
+     */
+    if ('skillsDesligadas' in parcial && (await estadoInstalacao(projetoAtual)).projeto?.habilitado) {
+      await instalar(projetoAtual)
+    }
+
     return { config, snapshot: await lerProjeto(projetoAtual) }
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }

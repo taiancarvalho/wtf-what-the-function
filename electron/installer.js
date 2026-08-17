@@ -66,6 +66,42 @@ export const ALVOS_PORTATEIS = ['AGENTS.md', 'GEMINI.md']
 
 /** As skills que não são a de declarar — as que o índice do bloco lista. */
 export const SKILLS_AUXILIARES = ['mapear', 'pastas', 'documentos', 'guardrails']
+
+/**
+ * O que dá para NÃO instalar.
+ *
+ * Fora daqui está o que o WTF não é sem: a instrução de declarar, o programa
+ * que recebe a declaração, o hook e o formato do mapa. Desligar qualquer um
+ * desses não deixaria um WTF menor — deixaria um WTF quebrado, e um botão que
+ * quebra o produto não é escolha, é armadilha.
+ *
+ * Cada habilidade instalada é contexto que a IA carrega, então poder recusar
+ * as que não se usa é economia real de quem trabalha no projeto.
+ */
+export const SKILLS_OPCIONAIS = ['mapear', 'pastas', 'documentos', 'guardrails', 'btw']
+
+/**
+ * Tira a pasta se ela ficou vazia. Cada skill mora numa pasta só dela, e
+ * apagar o arquivo deixando `.claude/skills/wtf-pastas/` para trás faz a
+ * habilidade CONTINUAR APARECENDO para quem lista a pasta — recusada no
+ * config, presente na listagem.
+ *
+ * Nunca lança: pasta com algo dentro (um arquivo que alguém pôs ali) é para
+ * ficar mesmo, e não é o desinstalador que decide apagar o que não é dele.
+ */
+async function limparPastaVazia(p) {
+  try {
+    await fs.rmdir(p)
+  } catch {
+    /* não vazia, ou já não existe */
+  }
+}
+
+/** As opcionais que sobraram depois da escolha de quem instalou. */
+export function skillsLigadas(config) {
+  const fora = new Set(config?.skillsDesligadas ?? [])
+  return SKILLS_OPCIONAIS.filter((s) => !fora.has(s))
+}
 const ABRE_WTF = '<!-- wtf:inicio -->'
 const FECHA_WTF = '<!-- /wtf:inicio -->'
 
@@ -180,7 +216,18 @@ export async function estadoInstalacao(dir) {
     formato: local.formato,
     hooksRegistrados: hooksLocais || global.hooksRegistrados,
   }
-  presentes.instalado = Object.values(presentes).every(Boolean) && projeto.habilitado
+  /*
+   * Uma habilidade recusada não conta como peça faltando.
+   *
+   * Sem isto, desligar `mapear` fazia o `every(Boolean)` abaixo falhar, e o app
+   * anunciava "o WTF não está ligado neste projeto" para quem tinha acabado de
+   * escolher não instalar uma habilidade opcional — oferecendo instalar do zero
+   * o que já estava lá inteiro.
+   */
+  const recusadas = new Set((await lerConfig(dir)).skillsDesligadas ?? [])
+  presentes.instalado =
+    Object.entries(presentes).every(([chave, valor]) => valor || recusadas.has(chave)) &&
+    projeto.habilitado
 
   /*
    * Habilitado aqui, mas faltando peça.
@@ -215,10 +262,26 @@ function temNossoHook(settings) {
 
 export async function instalar(dir) {
   const feito = []
+  const config = await lerConfig(dir)
+  const ligadas = new Set(skillsLigadas(config))
 
   // 1. arquivos
   for (const [chave, [rel, origem]] of Object.entries(ALVOS)) {
     const destino = path.join(dir, rel)
+
+    /*
+     * Recusada agora, ou recusada depois de já ter sido instalada: nos dois
+     * casos ela sai do disco. Sem isto, desmarcar não desmarcava nada — o
+     * arquivo continuava lá sendo lido pela IA, e o botão virava enfeite.
+     */
+    if (SKILLS_OPCIONAIS.includes(chave) && !ligadas.has(chave)) {
+      if (await existe(destino)) {
+        await fs.rm(destino, { force: true })
+        await limparPastaVazia(path.dirname(destino))
+      }
+      continue
+    }
+
     await fs.mkdir(path.dirname(destino), { recursive: true })
     if (await existe(destino)) await backup(destino)
     await fs.copyFile(path.join(ORIGEM, origem), destino)
@@ -228,11 +291,15 @@ export async function instalar(dir) {
 
   // As skills nascem no idioma configurado — o padrão do arquivo de origem é
   // português, e reescrever aqui evita instalar a instrução errada.
-  const config = await lerConfig(dir)
   await aplicarIdiomaNaSkill(dir, config)
 
-  // 1b. a mesma instrução para quem não lê `.claude/skills/`
-  const bloco = await blocoPortatil(config, SKILLS_AUXILIARES)
+  // 1b. a mesma instrução para quem não lê `.claude/skills/`. O índice lista só
+  // o que está no disco: apontar para uma skill recusada seria mandar a IA ler
+  // um arquivo que não existe.
+  const bloco = await blocoPortatil(
+    config,
+    SKILLS_AUXILIARES.filter((s) => ligadas.has(s)),
+  )
   for (const rel of ALVOS_PORTATEIS) {
     const destino = path.join(dir, rel)
     const antes = (await existe(destino)) ? await fs.readFile(destino, 'utf8') : ''
@@ -276,6 +343,7 @@ export async function desinstalar(dir) {
     const alvo = path.join(dir, rel)
     if (await existe(alvo)) {
       await fs.rm(alvo)
+      await limparPastaVazia(path.dirname(alvo))
       removidos.push(rel)
     }
   }
