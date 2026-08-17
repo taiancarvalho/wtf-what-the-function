@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 // @ts-expect-error módulo do processo main, sem tipos
 import { sequenciaDeColagem } from '../electron/terminal-embutido.js'
 // @ts-expect-error módulo do processo main, sem tipos
-import { AGENTES_CONHECIDOS } from '../electron/terminal.js'
+import { AGENTES_CONHECIDOS, citarWindows, comoExecutar } from '../electron/terminal.js'
 import { acoesDoEvento } from '../src/lib/acoes'
 import type { WtfEvent } from '../src/types/protocol'
 
@@ -137,6 +137,69 @@ describe('rodar cada IA sem tela', () => {
       const args = a.headless(perigoso, null)
       expect(args).toContain(perigoso)
       expect(args.join(' ').split(perigoso)).toHaveLength(2)
+    }
+  })
+})
+
+/**
+ * O Windows quebrava aqui de dois jeitos, e os dois em silêncio.
+ *
+ * `detectarAgente` procurava com `/usr/bin/which` e em pastas de Unix, então
+ * NUNCA achava agente nenhum: o terminal embutido abria um shell vazio e o
+ * "Explique isso" não tinha quem respondesse.
+ *
+ * E mesmo achando, o que o `npm -g` instala ali é um `.cmd` — que o Node se
+ * recusa a lançar sem shell desde a correção do CVE-2024-27980. Com shell, o
+ * pedido passa a ser interpretado pelo `cmd.exe`, e ele carrega texto vindo do
+ * repositório de alguém.
+ */
+describe('lançar o agente em cada sistema', () => {
+  it('fora do Windows, nada é tocado: sem shell, argumento cru', () => {
+    const r = comoExecutar('/usr/local/bin/claude', ['-p', 'oi & tchau'])
+    expect(r).toEqual({
+      comando: '/usr/local/bin/claude',
+      argumentos: ['-p', 'oi & tchau'],
+      shell: false,
+    })
+  })
+
+  /*
+   * Só o CI do Windows julga esta: `comoExecutar` depende da plataforma REAL,
+   * e afirmar aqui o que acontece lá seria escrever um teste que passa no Mac
+   * sem provar nada. Fora do Windows, a asserção é a inversa — que shell não
+   * aparece de surpresa.
+   */
+  it('no Windows um .cmd vai com shell e argumentos citados; fora, não', () => {
+    const r = comoExecutar('C:\\npm\\claude.cmd', ['-p', 'diz "oi" & apaga'])
+    if (process.platform === 'win32') {
+      expect(r.shell).toBe(true)
+      expect(r.comando).toBe('"C:\\npm\\claude.cmd"')
+      expect(r.argumentos).toEqual(['"-p"', '"diz ""oi"" & apaga"'])
+    } else {
+      expect(r.shell).toBe(false)
+      expect(r.argumentos).toEqual(['-p', 'diz "oi" & apaga'])
+    }
+  })
+
+  it('um .exe dispensa shell mesmo no Windows — o problema é o .cmd', () => {
+    expect(comoExecutar('C:\\p\\claude.exe', ['-p', 'oi']).shell).toBe(false)
+  })
+
+  /*
+   * A citação é pura, então vale em qualquer máquina: é ela que impede o
+   * pedido — texto vindo do repositório de alguém — de virar comando dentro do
+   * `cmd.exe`.
+   */
+  it('a citação do Windows prende aspas e metacaracteres dentro do argumento', () => {
+    expect(citarWindows('oi')).toBe('"oi"')
+    expect(citarWindows('diz "oi"')).toBe('"diz ""oi"""')
+
+    for (const perigoso of ['a & del C:\\', 'b | more', 'c > arq', 'd ^ e', '%PATH%']) {
+      const citado = citarWindows(perigoso)
+      expect(citado.startsWith('"')).toBe(true)
+      expect(citado.endsWith('"')).toBe(true)
+      // Nenhuma aspa solta no meio: as internas saem sempre em pares.
+      expect((citado.slice(1, -1).match(/"/g) ?? []).length % 2).toBe(0)
     }
   })
 })

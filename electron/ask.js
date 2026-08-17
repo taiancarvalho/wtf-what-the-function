@@ -14,7 +14,7 @@
 
 import { spawn } from 'node:child_process'
 
-import { detectarAgente } from './terminal.js'
+import { comoExecutar, detectarAgente } from './terminal.js'
 import { registrarPergunta } from './usage.js'
 
 /** O diff cru é o pedaço que estoura qualquer orçamento de tokens. */
@@ -114,9 +114,17 @@ export async function perguntar({ contexto, pergunta, idioma, aoPedaco, sinal, d
   return new Promise((resolve) => {
     let filho
     try {
-      filho = spawn(agente.caminho, agente.headless(`${sistema}\n\n${usuario}`, null), {
+      // No Windows o CLI é um `.cmd`, que o Node só lança com shell — e com
+      // shell o pedido passa pelo `cmd.exe`, então `comoExecutar` cita cada
+      // argumento. O pedido carrega texto do repositório de alguém.
+      const { comando, argumentos, shell } = comoExecutar(
+        agente.caminho,
+        agente.headless(`${sistema}\n\n${usuario}`, null),
+      )
+      filho = spawn(comando, argumentos, {
         cwd: texto(dir) || undefined,
         stdio: ['ignore', 'pipe', 'pipe'],
+        shell,
       })
     } catch (erro) {
       resolve({ erro: String(erro?.message ?? erro) })

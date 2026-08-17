@@ -86,8 +86,18 @@ function dirValido(dir) {
   }
 }
 
-/** Escapa para uma string entre aspas simples do shell. */
-const aspasShell = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`
+/**
+ * Escapa um argumento para o shell que está do outro lado do pty.
+ *
+ * O shell muda com o sistema, e as regras não são compatíveis: aspas simples
+ * não protegem nada no `cmd.exe`, onde quem cita é a aspa DUPLA e uma aspa
+ * dentro do argumento se escreve dobrada. O texto que passa por aqui é o
+ * pedido da pessoa e o caminho do agente — com `&`, `|` e aspas dentro.
+ */
+const aspasShell = (s) =>
+  process.platform === 'win32'
+    ? `"${String(s).replace(/"/g, '""')}"`
+    : `'${String(s).replace(/'/g, `'\\''`)}'`
 
 /*
  * Instrumentação, ligada por variável de ambiente:

@@ -87,12 +87,26 @@ beforeAll(async () => {
   process.env.SHELL = '/bin/sh'
   raiz = await mkdtemp(path.join(os.tmpdir(), 'wtf-pty-'))
   const bin = await mkdtemp(path.join(os.tmpdir(), 'wtf-bin-'))
-  falso.caminho = path.join(bin, 'agente-falso.mjs')
+
+  const corpo = path.join(bin, 'agente-falso.mjs')
   await writeFile(
-    falso.caminho,
+    corpo,
     `#!/usr/bin/env node\nprocess.stdout.write('${PRONTO}\\n')\nprocess.stdin.pipe(process.stdout)\n`,
     { mode: 0o755 },
   )
+
+  /*
+   * No Windows o shebang não vale nada: quem decide como abrir um arquivo é a
+   * extensão. E é justamente `.cmd` que o `npm -g` instala para os agentes de
+   * verdade — então o falso também é um `.cmd`, e o teste passa a exercitar o
+   * mesmo caminho que o produto usa lá.
+   */
+  if (process.platform === 'win32') {
+    falso.caminho = path.join(bin, 'agente-falso.cmd')
+    await writeFile(falso.caminho, `@echo off\r\nnode "${corpo}" %*\r\n`, 'utf8')
+  } else {
+    falso.caminho = corpo
+  }
 })
 
 afterAll(async () => {
@@ -139,14 +153,7 @@ describe('entregar um pedido à sessão', () => {
     expect(texto).not.toMatch(/number expected/i)
   })
 
-  /*
-   * `detectarAgente` procura o agente com `/usr/bin/which`, que não existe no
-   * Windows — lá nenhuma sessão chega a lançar agente, e o cenário deste teste
-   * não tem como acontecer. Não é o teste que é de Unix: é o produto.
-   */
-  it.skipIf(process.platform === 'win32')(
-    'com um programa RODANDO, o texto é colado — e chega inteiro',
-    async () => {
+  it('com um programa RODANDO, o texto é colado — e chega inteiro', async () => {
     saida.length = 0
     // Uma sessão que o WTF abriu COM agente: é essa marca, e não a mera
     // existência de um filho do shell, que autoriza colar mais tarde.
@@ -182,15 +189,7 @@ describe('entregar um pedido à sessão', () => {
     expect(texto).not.toMatch(/command not found/i)
 
     escrever(s.id, '\x03')
-  },
-    /*
-     * Teto próprio, bem acima do padrão de 20s: este teste sobe um shell DE
-     * VERDADE e espera um programa nascer dentro dele. Com a suíte inteira em
-     * paralelo, essa partida passa de dez segundos — e o que se testa aqui é a
-     * decisão de colar, não a velocidade com que o zsh carrega o .zshrc.
-     */
-    60_000,
-  )
+  }, 60_000)
 
   it('sessão que não existe não escreve em lugar nenhum', async () => {
     saida.length = 0
