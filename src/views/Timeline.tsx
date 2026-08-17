@@ -37,6 +37,11 @@ import {
 } from '@/lib/source'
 import { AGENT_LABEL } from '@/lib/state'
 import { montarAssuntos, type Assunto } from '@/lib/assuntos'
+import {
+  deveOferecerTraducao,
+  traducaoEmFila,
+  type EstadoTraducao,
+} from '@/lib/traducao'
 import type { EventType, Feature, ProjectSnapshot, WtfEvent } from '@/types/protocol'
 
 /**
@@ -382,21 +387,39 @@ function FiltroAtencao({
  */
 function FaixaTraducao({ onTraduziu }: { onTraduziu?: () => void }) {
   const t = useT()
-  const [pendentes, setPendentes] = useState(0)
+  const [estado, setEstado] = useState<EstadoTraducao>({ pendentes: 0, disponivel: false })
   const [indo, setIndo] = useState(false)
   const [feito, setFeito] = useState(false)
 
   useEffect(() => {
     let vivo = true
     void traducaoPendentes().then((r) => {
-      if (vivo && r.disponivel) setPendentes(r.pendentes)
+      // A resposta já dada vem junto (`auto`) e é o que decide se ainda há o
+      // que perguntar — ver `deveOferecerTraducao`.
+      if (vivo) setEstado({ pendentes: r.pendentes, disponivel: r.disponivel, auto: r.auto })
     })
     return () => {
       vivo = false
     }
   }, [])
 
-  if (pendentes === 0 || !podeResponderTraducao()) return null
+  const { pendentes } = estado
+
+  /*
+   * Quem já autorizou não é perguntado de novo — só informado de que a fila
+   * anda. O teto por rodada é 8, então um projeto grande demora várias
+   * aberturas até traduzir tudo, e sem esta linha aquelas mudanças em
+   * linguagem de commit pareceriam tradução quebrada.
+   */
+  if (traducaoEmFila(estado)) {
+    return (
+      <p className="mt-card text-meta text-[var(--color-ink-3)]">
+        {t('traduzir.naFila', { n: pendentes })}
+      </p>
+    )
+  }
+
+  if (!deveOferecerTraducao(estado) || !podeResponderTraducao()) return null
 
   async function traduzir(resposta: 'agora' | 'sempre') {
     setIndo(true)

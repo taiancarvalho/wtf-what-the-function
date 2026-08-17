@@ -1,4 +1,5 @@
 import { loadSnapshot } from '@/mock/snapshot'
+import type { RespostaTraducaoSalva } from '@/lib/traducao'
 import type {
   ConfigProjeto,
   ContextoPergunta,
@@ -390,7 +391,8 @@ export const podeResponderTraducao = () => typeof ponte()?.responderTraducao ===
 export async function traducaoPendentes(): Promise<{
   pendentes: number
   disponivel: boolean
-  auto?: string
+  /** A resposta já dada: é ela que diz se ainda há o que perguntar. */
+  auto?: RespostaTraducaoSalva
 }> {
   const r = await ponte()?.traducaoPendentes?.()
   return (r as { pendentes: number; disponivel: boolean }) ?? { pendentes: 0, disponivel: false }
