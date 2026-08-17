@@ -70,6 +70,7 @@ interface PonteWtf {
   responderTraducao?: (resposta: RespostaTraducao) => Promise<unknown>
   aoPedirTraducao?: (cb: (dados: TraducaoPendente) => void) => () => void
   testarNotificacao?: () => Promise<unknown>
+  atualizacao?: () => Promise<unknown>
   aoIrPara?: (cb: (aba: string) => void) => () => void
 }
 
@@ -429,6 +430,23 @@ export async function testarNotificacao(): Promise<{ enviada: boolean; motivo?: 
   if (!p?.testarNotificacao) return { enviada: false, motivo: 'sem-app' }
   const r = (await p.testarNotificacao()) as { enviada?: boolean; motivo?: string } | undefined
   return { enviada: r?.enviada === true, motivo: r?.motivo }
+}
+
+/** Que versão do WTF está rodando, e se há uma mais nova. */
+export interface Atualizacao {
+  versao?: string | null
+  commit?: string | null
+  data?: string | null
+  estado?: 'em-dia' | 'desatualizado' | 'travado' | 'sem-git' | 'desconhecido'
+  atras?: number
+  motivo?: string
+}
+
+/** `null` fora do aplicativo: no navegador não há pasta do WTF para conferir. */
+export async function lerAtualizacao(): Promise<Atualizacao | null> {
+  const p = ponte()
+  if (!p?.atualizacao) return null
+  return ((await p.atualizacao()) as Atualizacao) ?? null
 }
 
 /** Inscreve na troca de aba pedida por um aviso clicado. Devolve como cancelar. */

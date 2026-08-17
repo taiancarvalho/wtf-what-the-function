@@ -15,6 +15,7 @@ import { access, constants } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { verificarAtualizacao, versaoAtual } from '../electron/atualizacao.js'
 import { lerProjetos } from '../electron/projects.js'
 
 const raizApp = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -30,6 +31,8 @@ if (args[0] === '--help' || args[0] === '-h') {
     wtf <caminho>       abre o painel na pasta indicada
     wtf <nome>          abre um projeto que você já abriu antes
     wtf --lista         mostra os projetos que o WTF conhece
+    wtf --versao        diz qual versão do WTF está instalada
+    wtf --atualizar     traz a versão nova do WTF e recompila
     wtf --help          mostra esta ajuda
 
   a pasta precisa ser um repositório Git.
@@ -57,6 +60,89 @@ function quando(iso) {
   if (minutos < 60 * 24) return `há ${Math.round(minutos / 60)} h`
   if (minutos < 60 * 24 * 7) return `há ${Math.round(minutos / 1440)} dias`
   return `em ${q.toLocaleDateString('pt-BR')}`
+}
+
+function rodarNaRaiz(cmd, argumentos, opcoes = {}) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, argumentos, { cwd: raizApp, stdio: 'inherit', ...opcoes })
+    p.on('error', reject)
+    p.on('exit', (codigo) => (codigo === 0 ? resolve() : reject(new Error(`saiu com ${codigo}`))))
+  })
+}
+
+/** `npm` no Windows é `npm.cmd`; sem a extensão o spawn não acha. */
+const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+
+if (args[0] === '--versao' || args[0] === '-v' || args[0] === '--version') {
+  const { versao, commit, data } = await versaoAtual()
+  const quando = data ? new Date(data).toLocaleDateString() : null
+  console.log(`
+  WTF ${versao ?? '(versão desconhecida)'}${commit ? `  ·  ${commit}` : ''}${quando ? `  ·  ${quando}` : ''}
+  ${raizApp}
+`)
+  process.exit(0)
+}
+
+if (args[0] === '--atualizar' || args[0] === '--update') {
+  const r = await verificarAtualizacao()
+
+  if (r.estado === 'sem-git') {
+    console.error(`
+  Este WTF não veio de um clone do Git, então não há como atualizá-lo por aqui.
+  Baixe a versão nova no lugar de onde você o instalou.
+`)
+    process.exit(1)
+  }
+
+  /*
+   * Trabalho não salvo na pasta do WTF trava a atualização.
+   *
+   * `git pull` por cima de alteração local ou falha no meio, deixando o app
+   * pela metade, ou apaga o que a pessoa escreveu. Quem mexeu no código do
+   * aplicativo decide o que fazer com aquilo — não nós.
+   */
+  if (r.estado === 'travado') {
+    console.error(`
+  Há mudanças não salvas na pasta do WTF:
+  ${raizApp}
+
+  Não vou atualizar por cima delas. Salve, descarte ou guarde o que está aí
+  (\`git status\` mostra o quê) e rode de novo.
+`)
+    process.exit(1)
+  }
+
+  if (r.estado === 'desconhecido') {
+    console.error(`
+  Não consegui falar com o repositório do WTF (${r.motivo}).
+  Confira a conexão e tente de novo.
+`)
+    process.exit(1)
+  }
+
+  if (r.estado === 'em-dia') {
+    const { versao, commit } = await versaoAtual()
+    console.log(`\n  O WTF já está na versão mais nova (${versao ?? '?'} · ${commit}).\n`)
+    process.exit(0)
+  }
+
+  console.log(`\n  Trazendo ${r.atras} ${r.atras === 1 ? 'mudança' : 'mudanças'}…\n`)
+  try {
+    // `--ff-only`: sem merge automático. Se a história divergiu, é caso para
+    // uma pessoa olhar, não para o comando resolver sozinho.
+    await rodarNaRaiz('git', ['pull', '--ff-only'])
+    await rodarNaRaiz(NPM, ['install'])
+    // A interface é compilada uma vez e reaproveitada — sem isto, o código
+    // novo estaria no disco e a tela continuaria sendo a antiga.
+    await rodarNaRaiz(NPM, ['run', 'build'])
+  } catch (erro) {
+    console.error(`\n  A atualização parou: ${erro.message}\n`)
+    process.exit(1)
+  }
+
+  const depois = await versaoAtual()
+  console.log(`\n  Pronto. WTF ${depois.versao ?? ''} · ${depois.commit}. Abra com: wtf\n`)
+  process.exit(0)
 }
 
 const conhecidos = await lerProjetos().catch(() => [])
@@ -110,14 +196,6 @@ async function ondeAbrir(argumento) {
 
 const projeto = await ondeAbrir(args[0])
 
-function rodar(cmd, argumentos, opcoes = {}) {
-  return new Promise((resolve, reject) => {
-    const p = spawn(cmd, argumentos, { cwd: raizApp, stdio: 'inherit', ...opcoes })
-    p.on('error', reject)
-    p.on('exit', (codigo) => (codigo === 0 ? resolve() : reject(new Error(`saiu com ${codigo}`))))
-  })
-}
-
 // Sem `git`, o painel não tem o que ler — e o erro do Electron seria críptico.
 if (!(await existe(path.join(projeto, '.git')))) {
   console.error(`
@@ -136,7 +214,7 @@ const precisaCompilar = !(await existe(path.join(raizApp, 'dist', 'index.html'))
 if (precisaCompilar) {
   console.log('Preparando o WTF pela primeira vez (isso leva alguns segundos)…')
   // `npm.cmd` no Windows: `npm` sem extensão não é executável para o spawn.
-  await rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'])
+  await rodarNaRaiz(NPM, ['run', 'build'])
 }
 
 /*

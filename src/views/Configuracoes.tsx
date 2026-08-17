@@ -6,11 +6,13 @@ import {
   Gauge,
   Globe,
   PackageOpen,
+  RefreshCw,
   Settings2,
 } from 'lucide-react'
 import {
   USO_VAZIO,
   aoPedirTraducao,
+  lerAtualizacao,
   lerPacoteInstalacao,
   lerUso,
   podeEscolherProjeto,
@@ -18,6 +20,7 @@ import {
   podeResponderTraducao,
   responderTraducao,
   testarNotificacao,
+  type Atualizacao,
   type Carga,
 } from '@/lib/source'
 import { EscolherIdioma } from '@/components/EscolherIdioma'
@@ -111,6 +114,15 @@ export function Configuracoes({
           atraso="0.14s"
         >
           <Avisos snapshot={snapshot} onSalvar={onSalvarIdioma} />
+        </Secao>
+
+        <Secao
+          icone={RefreshCw}
+          titulo={t('versao.titulo')}
+          nota={t('versao.nota')}
+          atraso="0.18s"
+        >
+          <Versao />
         </Secao>
 
         <Secao
@@ -752,5 +764,84 @@ function Arquivo({
         {item.origem}
       </p>
     </details>
+  )
+}
+
+/**
+ * A versão instalada, e o aviso quando há uma mais nova.
+ *
+ * O WTF é distribuído por clone, então ninguém descobre que ficou para trás a
+ * não ser que alguém conte — e quem usa este painel não acompanha commit. O
+ * aviso aparece sozinho, sem pedir; atualizar continua sendo um comando que a
+ * pessoa dá, porque mexer na pasta do aplicativo enquanto ele roda é decisão
+ * dela, não nossa.
+ */
+function Versao() {
+  const t = useT()
+  const [dados, setDados] = useState<Atualizacao | null>(null)
+  const [lendo, setLendo] = useState(true)
+
+  useEffect(() => {
+    let vivo = true
+    lerAtualizacao()
+      .then((d) => vivo && setDados(d))
+      .catch(() => vivo && setDados(null))
+      .finally(() => vivo && setLendo(false))
+    return () => {
+      vivo = false
+    }
+  }, [])
+
+  if (lendo) {
+    return <p className="text-[12.5px] text-[var(--color-ink-3)]">{t('config.lendo')}</p>
+  }
+  if (!dados) {
+    return <p className="text-[12.5px] text-[var(--color-ink-3)]">{t('versao.soNoApp')}</p>
+  }
+
+  const nova = dados.estado === 'desatualizado'
+  const recado =
+    dados.estado === 'em-dia'
+      ? t('versao.emDia')
+      : nova
+        ? t('versao.temNova')
+        : dados.estado === 'travado'
+          ? t('versao.travado')
+          : dados.estado === 'sem-git'
+            ? t('versao.semGit')
+            : t('versao.desconhecido')
+
+  return (
+    <div>
+      <p className="text-[12.5px] text-[var(--color-ink-2)]">
+        {t('versao.instalada')}{' '}
+        <span className="font-mono text-[var(--color-ink)]">
+          {dados.versao ?? '?'}
+          {dados.commit ? ` · ${dados.commit}` : ''}
+        </span>
+      </p>
+
+      <p
+        className="mt-2 text-[12.5px] leading-relaxed"
+        style={{ color: nova ? 'var(--color-accent)' : 'var(--color-ink-2)' }}
+      >
+        {recado}
+        {nova && dados.atras ? ` (${dados.atras})` : ''}
+      </p>
+
+      {/* O comando fica à vista: é ele que a pessoa vai copiar. */}
+      {(nova || dados.estado === 'travado') && (
+        <div className="mt-2">
+          <p className="text-[12px] text-[var(--color-ink-3)]">
+            {nova ? t('versao.temNovaNota') : t('versao.travadoNota')}
+          </p>
+          {nova && (
+            <code className="mt-1 block rounded-md border px-2.5 py-1.5 font-mono text-[12px] text-[var(--color-ink)]">
+              wtf --atualizar
+            </code>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

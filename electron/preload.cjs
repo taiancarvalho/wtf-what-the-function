@@ -129,6 +129,8 @@ contextBridge.exposeInMainWorld('wtf', {
     ipcRenderer.on('wtf:ir-para', ouvinte)
     return () => ipcRenderer.off('wtf:ir-para', ouvinte)
   },
+  /** Versão do WTF e se existe uma mais nova. */
+  atualizacao: () => ipcRenderer.invoke('wtf:atualizacao'),
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
   /** Pergunta sobre uma mudança. A resposta chega por `aoReceberResposta`. */

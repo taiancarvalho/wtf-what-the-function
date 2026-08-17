@@ -22,6 +22,7 @@ import { lerMapaPastas } from './folders.js'
 import { juntarDocs, lerMapaDocs, varrerDocumentos } from './docs.js'
 import { aplicarIdiomaNaSkill, desinstalar, estadoInstalacao, instalar } from './installer.js'
 import { lerConfig, salvarConfig } from './config.js'
+import { verificarAtualizacao, versaoAtual } from './atualizacao.js'
 import { lerPacoteInstalacao } from './disclosure.js'
 import {
   casaClaude,
@@ -873,6 +874,25 @@ ipcMain.handle('wtf:config', async () => {
  * reaplica o idioma nas skills instaladas: a preferência só vale de verdade
  * quando o agente também a enxerga, e ele só lê o arquivo da skill.
  */
+/*
+ * Qual versão está rodando, e se há uma nova.
+ *
+ * O resultado fica em memória pela sessão: `git fetch` vai à rede, e repetir
+ * isso a cada abertura de tela seria pedir para uma máquina lenta engasgar num
+ * dado que muda uma vez por dia.
+ */
+let atualizacaoLida = null
+ipcMain.handle('wtf:atualizacao', async () => {
+  if (atualizacaoLida) return atualizacaoLida
+  try {
+    const [versao, estado] = await Promise.all([versaoAtual(), verificarAtualizacao()])
+    atualizacaoLida = { ...versao, ...estado }
+  } catch (erro) {
+    atualizacaoLida = { estado: 'desconhecido', motivo: String(erro?.message ?? erro) }
+  }
+  return atualizacaoLida
+})
+
 ipcMain.handle('wtf:salvar-config', async (_e, parcial) => {
   if (!projetoAtual) return { erro: 'Nenhum projeto aberto.' }
   if (!parcial || typeof parcial !== 'object') return { erro: 'Preferências inválidas.' }
