@@ -19,11 +19,41 @@ import os from 'node:os'
 
 const exec = promisify(execFile)
 
-/** Agentes que sabemos iniciar, em ordem de preferência. */
+/**
+ * Agentes que sabemos iniciar, em ordem de preferência.
+ *
+ * `headless` é como cada um roda sem tela, recebendo o pedido e devolvendo a
+ * resposta no stdout — é o que `translator.js` usa para escrever em português.
+ * Uma lista só, porque "sei abrir" e "sei perguntar" precisam concordar: um
+ * agente que o painel abre mas não sabe consultar vira tradução que não sai.
+ */
 const AGENTES = [
-  { cmd: 'claude', rotulo: 'Claude Code' },
-  { cmd: 'codex', rotulo: 'Codex' },
-  { cmd: 'gemini', rotulo: 'Gemini' },
+  {
+    cmd: 'claude',
+    rotulo: 'Claude Code',
+    id: 'claude-code',
+    // O modelo barato só existe aqui. Nos outros, mandar um nome de modelo que
+    // a conta da pessoa não tem é erro na cara dela — deixamos o CLI escolher.
+    headless: (p, m) => ['-p', p, '--model', m || 'claude-haiku-4-5-20251001'],
+  },
+  {
+    cmd: 'codex',
+    rotulo: 'Codex',
+    id: 'codex',
+    headless: (p, m) => (m ? ['exec', '-m', m, p] : ['exec', p]),
+  },
+  {
+    cmd: 'gemini',
+    rotulo: 'Gemini',
+    id: 'gemini-cli',
+    headless: (p, m) => (m ? ['-m', m, '-p', p] : ['-p', p]),
+  },
+  {
+    cmd: 'opencode',
+    rotulo: 'opencode',
+    id: 'opencode',
+    headless: (p, m) => (m ? ['run', '-m', m, p] : ['run', p]),
+  },
 ]
 
 /** Caminhos onde CLIs costumam estar — o app não herda o PATH do shell. */
@@ -45,6 +75,9 @@ async function existeExecutavel(p) {
 }
 
 /** Procura o agente no PATH ampliado. Devolve null se não achar nenhum. */
+/** Só leitura, para os testes provarem a sintaxe de cada CLI sem instalar nenhum. */
+export const AGENTES_CONHECIDOS = AGENTES
+
 export async function detectarAgente() {
   for (const a of AGENTES) {
     for (const base of EXTRA_PATH) {

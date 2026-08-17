@@ -104,8 +104,12 @@ function toCount(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// A ordem importa: o primeiro padrão que casar vence, então o mais específico
+// vem antes. "opencode" contém "codex"? Não — mas contém "code", e um assinante
+// que escreva "generated with opencode" não pode virar Claude Code.
 const AGENT_PATTERNS = [
   ['claude-code', /co-authored-by:\s*claude|generated with claude code|claude-session|noreply@anthropic\.com|claude code/i],
+  ['opencode', /\bopencode\b/i],
   ['codex', /chatgpt\.com\/codex|\bcodex\b/i],
   ['gemini-cli', /\bgemini\b/i],
   ['antigravity', /\bantigravity\b/i],

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 // @ts-expect-error módulo do processo main, sem tipos
 import { sequenciaDeColagem } from '../electron/terminal-embutido.js'
+// @ts-expect-error módulo do processo main, sem tipos
+import { AGENTES_CONHECIDOS } from '../electron/terminal.js'
 import { acoesDoEvento } from '../src/lib/acoes'
 import type { WtfEvent } from '../src/types/protocol'
 
@@ -77,6 +79,64 @@ describe('as mensagens dos botões são mesmo de várias linhas', () => {
     for (const id of ['explicar']) {
       const acao = acoesDoEvento(evento).find((a) => a.id === id)
       expect(acao!.mensagem).toContain('volte para')
+    }
+  })
+})
+
+/**
+ * O WTF diz funcionar com qualquer uma das quatro IAs. Cada CLI tem a sua
+ * forma de rodar sem tela, e errar a sintaxe não quebra nada visivelmente:
+ * a tradução simplesmente não sai, e o painel cai no texto heurístico — uma
+ * falha silenciosa, que é a pior espécie.
+ */
+describe('rodar cada IA sem tela', () => {
+  const porCmd = (cmd: string) => AGENTES_CONHECIDOS.find((a: any) => a.cmd === cmd)!
+
+  it('conhece os quatro agentes, e cada um com seu identificador', () => {
+    expect(AGENTES_CONHECIDOS.map((a: any) => a.cmd)).toEqual([
+      'claude',
+      'codex',
+      'gemini',
+      'opencode',
+    ])
+    expect(AGENTES_CONHECIDOS.map((a: any) => a.id)).toEqual([
+      'claude-code',
+      'codex',
+      'gemini-cli',
+      'opencode',
+    ])
+  })
+
+  it('monta a invocação de cada um do jeito que aquele CLI entende', () => {
+    expect(porCmd('claude').headless('oi', 'm')).toEqual(['-p', 'oi', '--model', 'm'])
+    expect(porCmd('codex').headless('oi', 'm')).toEqual(['exec', '-m', 'm', 'oi'])
+    expect(porCmd('gemini').headless('oi', 'm')).toEqual(['-m', 'm', '-p', 'oi'])
+    expect(porCmd('opencode').headless('oi', 'm')).toEqual(['run', '-m', 'm', 'oi'])
+  })
+
+  /*
+   * Sem modelo escolhido, só o Claude ganha um padrão nosso — é o único em que
+   * sabemos o nome de um modelo barato. Mandar um nome inventado para os outros
+   * seria erro na conta de quem instalou.
+   */
+  it('sem modelo, deixa cada CLI escolher — menos o Claude, que tem o barato', () => {
+    expect(porCmd('claude').headless('oi', null)).toEqual([
+      '-p',
+      'oi',
+      '--model',
+      'claude-haiku-4-5-20251001',
+    ])
+    expect(porCmd('codex').headless('oi', null)).toEqual(['exec', 'oi'])
+    expect(porCmd('gemini').headless('oi', null)).toEqual(['-p', 'oi'])
+    expect(porCmd('opencode').headless('oi', null)).toEqual(['run', 'oi'])
+  })
+
+  it('o pedido vai como UM argumento, nunca concatenado na linha de comando', () => {
+    const perigoso = 'confere isto; rm -rf ~'
+    for (const a of AGENTES_CONHECIDOS) {
+      const args = a.headless(perigoso, null)
+      expect(args).toContain(perigoso)
+      expect(args.join(' ').split(perigoso)).toHaveLength(2)
     }
   })
 })

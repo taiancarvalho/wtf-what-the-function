@@ -14,7 +14,13 @@
 
 // ---------------------------------------------------------------- identidade
 
-export type AgentId = 'claude-code' | 'codex' | 'gemini-cli' | 'antigravity' | 'desconhecido'
+export type AgentId =
+  | 'claude-code'
+  | 'codex'
+  | 'gemini-cli'
+  | 'opencode'
+  | 'antigravity'
+  | 'desconhecido'
 
 export type EventSource = 'agent' | 'git' | 'wtf' | 'user'
 

@@ -120,6 +120,7 @@ export const AGENT_LABEL: Record<AgentId, string> = {
   'claude-code': 'Claude Code',
   codex: 'Codex',
   'gemini-cli': 'Gemini',
+  opencode: 'opencode',
   antigravity: 'Antigravity',
   desconhecido: 'Agente desconhecido',
 }
