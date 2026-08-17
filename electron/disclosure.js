@@ -20,7 +20,17 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { ALVOS, COMANDO_HOOK, GITIGNORE, HOOKS, ORIGEM_SKILL, comIdioma } from './installer.js'
+import {
+  ALVOS,
+  ALVOS_PORTATEIS,
+  COMANDO_HOOK,
+  GITIGNORE,
+  HOOKS,
+  ORIGEM_SKILL,
+  SKILLS_AUXILIARES,
+  blocoPortatil,
+  comIdioma,
+} from './installer.js'
 import {
   ALVOS_GLOBAIS,
   ALVOS_PROJETO,
@@ -73,6 +83,16 @@ const TEXTOS = {
     titulo: 'Canal de recado da IA',
     proposito: 'O programinha que a IA chama para registrar o que fez.',
   },
+  'AGENTS.md': {
+    titulo: 'A mesma instrução para Codex e opencode',
+    proposito:
+      'Estas IAs não leem a pasta de habilidades. Um trecho marcado é acrescentado ao arquivo; o que já estiver escrito nele fica intacto, e desinstalar leva só o trecho.',
+  },
+  'GEMINI.md': {
+    titulo: 'A mesma instrução para o Gemini',
+    proposito:
+      'O Gemini lê este arquivo. Um trecho marcado é acrescentado; o que já estiver escrito nele fica intacto, e desinstalar leva só o trecho.',
+  },
 }
 
 /*
@@ -109,6 +129,36 @@ export async function lerPacoteInstalacao(dir) {
   const itens = []
   for (const [chave, [destino, origem]] of Object.entries(ALVOS)) {
     itens.push(await montarItem(dir, chave, destino, origem, config))
+  }
+
+  /*
+   * Os arquivos dos outros agentes não são cópia de um original: são um trecho
+   * mesclado num arquivo que pode ser de quem trabalha no projeto. A tela
+   * mostra o TRECHO — que é exatamente o que será escrito, e o que sai inteiro
+   * na desinstalação.
+   */
+  const bloco = await blocoPortatil(config, SKILLS_AUXILIARES).catch(() => null)
+  if (bloco) {
+    for (const rel of ALVOS_PORTATEIS) {
+      const { titulo, proposito } = TEXTOS[rel] ?? semTexto(rel)
+      const item = {
+        destino: rel,
+        origem: 'AGENTS-BLOCO.md',
+        titulo,
+        proposito,
+        conteudo: bloco,
+        bytes: Buffer.byteLength(bloco, 'utf8'),
+        jaExiste: false,
+        igual: false,
+        mesclado: true,
+      }
+      if (dir) {
+        const atual = await fs.readFile(path.join(dir, rel), 'utf8').catch(() => null)
+        item.jaExiste = atual !== null
+        item.igual = atual !== null && atual.includes(bloco.trim())
+      }
+      itens.push(item)
+    }
   }
 
   // Nível A — `~/.claude/`. O destino mostrado é o caminho real na máquina:

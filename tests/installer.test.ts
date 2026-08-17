@@ -1,10 +1,16 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // @ts-expect-error módulos do processo main, sem tipos
-import { ALVOS, estadoInstalacao, instalar } from '../electron/installer.js'
+import {
+  ALVOS,
+  ALVOS_PORTATEIS,
+  desinstalar,
+  estadoInstalacao,
+  instalar,
+} from '../electron/installer.js'
 // @ts-expect-error idem
 import { lerPacoteInstalacao } from '../electron/disclosure.js'
 
@@ -107,5 +113,90 @@ describe('o comando /btw', () => {
     const dir = novoProjeto()
     await instalar(dir)
     expect((await estadoInstalacao(dir)).btw).toBe(true)
+  })
+})
+
+/**
+ * `AGENTS.md` e `GEMINI.md` são a instrução para quem não lê `.claude/skills/`
+ * — Codex, opencode e Gemini. E são arquivos DO PROJETO: podem já existir,
+ * escritos por quem trabalha nele. Instalar o WTF não pode levar isso embora,
+ * e desinstalar não pode levar junto o que não é nosso.
+ */
+describe('a instrução para os outros agentes', () => {
+  const ler = (dir: string, rel: string) => readFile(path.join(dir, rel), 'utf8')
+
+  it('cria os dois arquivos com a regra de declarar', async () => {
+    const dir = novoProjeto()
+    await instalar(dir)
+
+    for (const rel of ALVOS_PORTATEIS) {
+      const texto = await ler(dir, rel)
+      expect(texto).toContain('wtf-claim.cjs')
+      expect(texto).toContain('--feature')
+      // O índice aponta para as skills no disco em vez de copiar as 691
+      // linhas delas para um arquivo lido em toda sessão.
+      expect(texto).toContain('.claude/skills/wtf-mapear/SKILL.md')
+      expect(texto.length).toBeLessThan(4000)
+    }
+  })
+
+  it('preserva o que já estava escrito no AGENTS.md de quem trabalha no projeto', async () => {
+    const dir = novoProjeto()
+    await mkdir(dir, { recursive: true })
+    const meu = '# Regras da casa\n\nNunca use `any` em TypeScript.\n'
+    await writeFile(path.join(dir, 'AGENTS.md'), meu, 'utf8')
+
+    await instalar(dir)
+
+    const texto = await ler(dir, 'AGENTS.md')
+    expect(texto).toContain('Nunca use `any` em TypeScript.')
+    expect(texto).toContain('wtf-claim.cjs')
+  })
+
+  it('instalar duas vezes não acumula bloco', async () => {
+    const dir = novoProjeto()
+    await instalar(dir)
+    const uma = await ler(dir, 'AGENTS.md')
+    await instalar(dir)
+    const duas = await ler(dir, 'AGENTS.md')
+
+    expect(duas).toBe(uma)
+    expect(duas.split('wtf-claim.cjs').length - 1).toBe(2) // start e done, uma vez só
+  })
+
+  it('desinstalar devolve o arquivo EXATAMENTE como estava antes', async () => {
+    const dir = novoProjeto()
+    await mkdir(dir, { recursive: true })
+    const meu = '# Regras da casa\n\nNunca use `any` em TypeScript.\n'
+    await writeFile(path.join(dir, 'AGENTS.md'), meu, 'utf8')
+
+    await instalar(dir)
+    await desinstalar(dir)
+
+    expect(await ler(dir, 'AGENTS.md')).toBe(meu)
+  })
+
+  it('desinstalar apaga o arquivo quando ele era só nosso', async () => {
+    const dir = novoProjeto()
+    await instalar(dir)
+    await desinstalar(dir)
+
+    for (const rel of ALVOS_PORTATEIS) {
+      await expect(ler(dir, rel)).rejects.toThrow()
+    }
+  })
+
+  it('o idioma escolhido vale também para os outros agentes', async () => {
+    const dir = novoProjeto()
+    await mkdir(path.join(dir, '.wtf'), { recursive: true })
+    await writeFile(
+      path.join(dir, '.wtf', 'config.json'),
+      JSON.stringify({ idiomaConteudo: 'en', nomeIdiomaConteudo: 'inglês' }),
+      'utf8',
+    )
+
+    await instalar(dir)
+
+    expect(await ler(dir, 'AGENTS.md')).toContain('Escreva SEMPRE em inglês')
   })
 })

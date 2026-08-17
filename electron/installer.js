@@ -54,6 +54,73 @@ export const ALVOS = {
 /** Arquivos que precisam de bit de execução. */
 const EXECUTAVEIS = new Set(['hook', 'cli'])
 
+/**
+ * Onde a instrução entra para os agentes que não leem `.claude/skills/`.
+ *
+ * O Codex e o opencode leem `AGENTS.md`; o Gemini lê `GEMINI.md`. São arquivos
+ * do PROJETO, que podem já existir cheios de instruções de quem trabalha nele —
+ * por isso o WTF nunca escreve o arquivo inteiro: só o miolo entre os
+ * marcadores, e desinstalar leva embora exatamente esse miolo.
+ */
+export const ALVOS_PORTATEIS = ['AGENTS.md', 'GEMINI.md']
+
+/** As skills que não são a de declarar — as que o índice do bloco lista. */
+export const SKILLS_AUXILIARES = ['mapear', 'pastas', 'documentos', 'guardrails']
+const ABRE_WTF = '<!-- wtf:inicio -->'
+const FECHA_WTF = '<!-- /wtf:inicio -->'
+
+/** O texto que vai para dentro dos marcadores, com o idioma já aplicado. */
+export async function blocoPortatil(config, skills = []) {
+  let corpo = await fs.readFile(path.join(ORIGEM, 'AGENTS-BLOCO.md'), 'utf8')
+  corpo = comIdioma('.claude/skills/wtf/SKILL.md', corpo, config)
+  return corpo.replace(
+    /<!-- wtf:skills -->[\s\S]*?<!-- \/wtf:skills -->/,
+    `<!-- wtf:skills -->\n${indiceDeSkills(skills)}<!-- /wtf:skills -->`,
+  )
+}
+
+/**
+ * As skills auxiliares são arquivos markdown comuns: qualquer agente lê, desde
+ * que saiba o caminho. Em vez de copiar as 691 linhas delas para dentro de um
+ * arquivo que é carregado em TODA sessão, o bloco só diz onde elas estão.
+ */
+const DESCRICAO_SKILL = {
+  mapear: 'traduzir o projeto para linguagem humana e alimentar o painel',
+  pastas: 'descobrir e manter onde cada coisa mora (`MAPA.md`)',
+  documentos: 'descobrir qual documento vale hoje sobre cada assunto',
+  guardrails: 'escrever as regras do que NÃO se faz neste projeto',
+}
+
+function indiceDeSkills(skills) {
+  const linhas = skills
+    .filter((s) => DESCRICAO_SKILL[s])
+    .map((s) => `- ${DESCRICAO_SKILL[s]} — leia e siga \`${ALVOS[s][0]}\``)
+  if (linhas.length === 0) return ''
+  return `\nQuando pedirem uma destas coisas, a instrução completa está no disco:\n\n${linhas.join('\n')}\n\n`
+}
+
+/** Aplica o bloco preservando o resto do arquivo. Idempotente. */
+export function mesclarBloco(conteudo, bloco) {
+  const miolo = `${ABRE_WTF}\n${bloco.trim()}\n${FECHA_WTF}`
+  const ini = conteudo.indexOf(ABRE_WTF)
+  const fim = conteudo.indexOf(FECHA_WTF)
+  if (ini >= 0 && fim > ini) {
+    return conteudo.slice(0, ini) + miolo + conteudo.slice(fim + FECHA_WTF.length)
+  }
+  if (!conteudo.trim()) return `${miolo}\n`
+  const sufixo = conteudo.endsWith('\n') ? '' : '\n'
+  return `${conteudo}${sufixo}\n${miolo}\n`
+}
+
+/** Tira só o miolo do WTF. Devolve null quando não sobra mais nada no arquivo. */
+export function removerBloco(conteudo) {
+  const ini = conteudo.indexOf(ABRE_WTF)
+  const fim = conteudo.indexOf(FECHA_WTF)
+  if (ini < 0 || fim < ini) return conteudo
+  const resto = (conteudo.slice(0, ini) + conteudo.slice(fim + FECHA_WTF.length)).trim()
+  return resto ? `${resto}\n` : null
+}
+
 export const COMANDO_HOOK = 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/wtf-observer.cjs"'
 
 /**
@@ -161,7 +228,18 @@ export async function instalar(dir) {
 
   // As skills nascem no idioma configurado — o padrão do arquivo de origem é
   // português, e reescrever aqui evita instalar a instrução errada.
-  await aplicarIdiomaNaSkill(dir, await lerConfig(dir))
+  const config = await lerConfig(dir)
+  await aplicarIdiomaNaSkill(dir, config)
+
+  // 1b. a mesma instrução para quem não lê `.claude/skills/`
+  const bloco = await blocoPortatil(config, SKILLS_AUXILIARES)
+  for (const rel of ALVOS_PORTATEIS) {
+    const destino = path.join(dir, rel)
+    const antes = (await existe(destino)) ? await fs.readFile(destino, 'utf8') : ''
+    if (antes) await backup(destino)
+    await fs.writeFile(destino, mesclarBloco(antes, bloco), 'utf8')
+    feito.push(rel)
+  }
 
   // 2. registro dos hooks — merge, preservando o que já existe
   const alvoSettings = path.join(dir, '.claude/settings.local.json')
@@ -200,6 +278,24 @@ export async function desinstalar(dir) {
       await fs.rm(alvo)
       removidos.push(rel)
     }
+  }
+
+  /*
+   * `AGENTS.md` e `GEMINI.md` podem ser de quem trabalha no projeto, não
+   * nossos: só o miolo entre os marcadores sai. O arquivo só é apagado quando
+   * não sobrou mais nada dentro dele — apagar um AGENTS.md alheio ao
+   * desinstalar o WTF seria levar embora trabalho que não é nosso.
+   */
+  for (const rel of ALVOS_PORTATEIS) {
+    const alvo = path.join(dir, rel)
+    if (!(await existe(alvo))) continue
+    const antes = await fs.readFile(alvo, 'utf8')
+    const depois = removerBloco(antes)
+    if (depois === antes) continue
+    await backup(alvo)
+    if (depois === null) await fs.rm(alvo)
+    else await fs.writeFile(alvo, depois, 'utf8')
+    removidos.push(rel)
   }
 
   const alvoSettings = path.join(dir, '.claude/settings.local.json')

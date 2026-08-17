@@ -147,7 +147,7 @@ describe('entregar um pedido à sessão', () => {
      * suíte inteira em paralelo essa partida passa de dez segundos. Bytes
      * quaisquer chegariam no eco do comando, muito antes de haver quem escute.
      */
-    const partiu = await ate(() => tudo().includes(PRONTO), 15_000)
+    const partiu = await ate(() => tudo().includes(PRONTO), 45_000)
     expect(partiu, `o agente falso não chegou a rodar. Terminal:\n${tudo()}`).toBe(true)
     saida.length = 0
 
@@ -169,7 +169,15 @@ describe('entregar um pedido à sessão', () => {
     expect(texto).not.toMatch(/command not found/i)
 
     escrever(s.id, '\x03')
-  })
+  },
+    /*
+     * Teto próprio, bem acima do padrão de 20s: este teste sobe um shell DE
+     * VERDADE e espera um programa nascer dentro dele. Com a suíte inteira em
+     * paralelo, essa partida passa de dez segundos — e o que se testa aqui é a
+     * decisão de colar, não a velocidade com que o zsh carrega o .zshrc.
+     */
+    60_000,
+  )
 
   it('sessão que não existe não escreve em lugar nenhum', async () => {
     saida.length = 0
