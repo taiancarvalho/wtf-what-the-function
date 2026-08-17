@@ -32,7 +32,6 @@ import {
   habilitarProjeto,
   instalarGlobal,
 } from './globalinstall.js'
-import { perguntar } from './ask.js'
 import { apagarGerado, listarGerados } from './gerados.js'
 import {
   alternarDispensado,
@@ -914,52 +913,6 @@ ipcMain.handle('wtf:salvar-config', async (_e, parcial) => {
   } catch (erro) {
     return { erro: String(erro?.message ?? erro) }
   }
-})
-
-/*
- * ------------------------------------------------------------------ perguntar
- *
- * Quem responde é a IA já instalada na máquina, em modo headless — a mesma que
- * traduz o histórico. Não há chave para guardar, então não há cofre, não há
- * fatura nova e não há nada de secreto atravessando o IPC.
- */
-
-/** Uma pergunta por vez: a nova cancela a anterior, que ninguém mais lê. */
-let perguntaEmCurso = null
-
-ipcMain.handle('wtf:perguntar', async (_e, pedido) => {
-  const p = pedido && typeof pedido === 'object' ? pedido : {}
-  const id = typeof p.eventoId === 'string' ? p.eventoId : ''
-  if (!id) return { erro: 'Pergunta sem evento.' }
-  if (typeof p.pergunta !== 'string' || !p.pergunta.trim()) return { erro: 'Escreva uma pergunta.' }
-
-  perguntaEmCurso?.abort()
-  const controle = new AbortController()
-  perguntaEmCurso = controle
-
-  const config = await lerConfig(projetoAtual)
-  const enviar = (canal, dados) => {
-    if (win && !win.isDestroyed()) win.webContents.send(canal, dados)
-  }
-
-  const r = await perguntar({
-    contexto: p.contexto,
-    pergunta: p.pergunta,
-    idioma: config.nomeIdiomaConteudo,
-    // O contador de perguntas pagas vive dentro do projeto observado.
-    dir: projetoAtual,
-    sinal: controle.signal,
-    aoPedaco: (pedaco) => enviar('wtf:resposta', { id, pedaco }),
-  })
-
-  if (perguntaEmCurso === controle) perguntaEmCurso = null
-  if (r?.cancelado) return { cancelado: true }
-  if (r?.erro) {
-    enviar('wtf:resposta', { id, erro: r.erro })
-    return { erro: r.erro }
-  }
-  enviar('wtf:resposta', { id, fim: true, incompleta: !!r?.incompleta })
-  return { ok: true }
 })
 
 ipcMain.handle('wtf:escolher-projeto', async () => {

@@ -10,7 +10,6 @@ import {
   FolderTree,
   Hammer,
   Languages,
-  Lightbulb,
   Loader2,
   PackagePlus,
   PackageMinus,
@@ -22,14 +21,12 @@ import {
 } from 'lucide-react'
 import { StateChip, UnsavedChip, WorkingChip } from '@/components/StateMark'
 import { VisualizadorArquivo } from '@/components/VisualizadorArquivo'
-import { PainelPergunta } from '@/components/PainelPergunta'
 import { OQueFazer } from '@/components/OQueFazer'
 import { acoesDeNaoSalvo, acoesDoEvento } from '@/lib/acoes'
 import { codigoCurto, diaRelativo, horaDe } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import {
   alternarResolvido,
-  podePerguntar,
   podeResolver,
   podeResponderTraducao,
   responderTraducao,
@@ -99,7 +96,6 @@ export function Timeline({
   const [soAtencao, setSoAtencao] = useState(false)
   const [arquivoAberto, setArquivoAberto] = useState<string | null>(null)
   // A mudança sobre a qual se está perguntando. Um painel de cada vez.
-  const [perguntandoSobre, setPerguntandoSobre] = useState<WtfEvent | null>(null)
 
   const raiz = useRef<HTMLDivElement>(null)
   const [largura, setLargura] = useState(0)
@@ -226,7 +222,6 @@ export function Timeline({
                       comTrilho={comTrilho}
                       onToggle={() => setAberto(aberto === a.aviso.id ? null : a.aviso.id)}
                       onAbrirArquivo={setArquivoAberto}
-                      onPerguntar={setPerguntandoSobre}
                       onMudou={onMudou}
                       delay={i * 0.045}
                     />
@@ -314,7 +309,6 @@ export function Timeline({
                     evento={escolhido.aviso}
                     feature={featurePorId.get(escolhido.aviso.featureId)}
                     onAbrirArquivo={setArquivoAberto}
-                    onPerguntar={setPerguntandoSobre}
                     onMudou={onMudou}
                   />
                 </>
@@ -325,14 +319,6 @@ export function Timeline({
       </div>
 
       <VisualizadorArquivo caminho={arquivoAberto} onFechar={() => setArquivoAberto(null)} />
-      <PainelPergunta
-        evento={perguntandoSobre}
-        featureNome={
-          perguntandoSobre ? featurePorId.get(perguntandoSobre.featureId)?.name : undefined
-        }
-        temBtw={snapshot.instalacao?.btw}
-        onFechar={() => setPerguntandoSobre(null)}
-      />
     </div>
   )
 }
@@ -637,7 +623,6 @@ function Cartao({
   comTrilho,
   onToggle,
   onAbrirArquivo,
-  onPerguntar,
   onMudou,
   delay,
 }: {
@@ -647,7 +632,6 @@ function Cartao({
   comTrilho: boolean
   onToggle: () => void
   onAbrirArquivo: (caminho: string) => void
-  onPerguntar: (evento: WtfEvent) => void
   onMudou?: () => void
   delay: number
 }) {
@@ -749,7 +733,6 @@ function Cartao({
             evento={evento}
             feature={feature}
             onAbrirArquivo={onAbrirArquivo}
-            onPerguntar={onPerguntar}
             onMudou={onMudou}
           />
         )}
@@ -845,7 +828,8 @@ function BotaoResolver({ evento, onMudou }: { evento: WtfEvent; onMudou?: () => 
       type="button"
       onClick={clicar}
       disabled={ocupado}
-      className="no-drag mt-card gap-hair text-meta inline-flex cursor-default items-center rounded-full border px-3 py-1.5 transition-colors disabled:opacity-50"
+      // Mesmo desenho das outras saídas: ícone e rótulo, sem contorno.
+      className="no-drag mt-card gap-hair text-meta inline-flex cursor-default items-center rounded-full px-2.5 py-1.5 transition-colors hover:bg-[var(--color-paper-3)] disabled:opacity-50"
       style={{ color: 'var(--color-ink-2)' }}
     >
       {jaResolvido ? <RotateCcw size={13} /> : <Check size={13} />}
@@ -860,14 +844,12 @@ function Detalhes({
   evento,
   feature,
   onAbrirArquivo,
-  onPerguntar,
   onMudou,
 }: {
   assunto: Assunto
   feature?: Feature
   evento: WtfEvent
   onAbrirArquivo: (caminho: string) => void
-  onPerguntar: (evento: WtfEvent) => void
   onMudou?: () => void
 }) {
   const t = useT()
@@ -878,22 +860,6 @@ function Detalhes({
 
   return (
     <div className="animate-in-up p-card border-t">
-      {/* Perguntar sobre ESTA mudança, com as próprias palavras. Discreto: é
-          uma saída para quem ficou com dúvida, não o assunto do cartão. */}
-      {podePerguntar() && (
-        <div className="mb-card flex justify-end">
-          <button
-            type="button"
-            onClick={() => onPerguntar(evento)}
-            title={t('pergunta.abrir')}
-            className="no-drag gap-hair text-meta inline-flex cursor-default items-center rounded-full px-2 py-1 text-[var(--color-ink-3)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink-2)]"
-          >
-            <Lightbulb size={12.5} />
-            {t('pergunta.abrir')}
-          </button>
-        </div>
-      )}
-
       {/* Este cartão é a resposta de outro aviso — dá para voltar lá pelo código. */}
       {evento.respondeA && (
         <p className="mb-card gap-hair text-meta inline-flex items-center text-[var(--color-ink-3)]">

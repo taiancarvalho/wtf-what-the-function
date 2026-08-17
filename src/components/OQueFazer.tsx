@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { Check, Copy, MessageSquare, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
+import {
+  Check,
+  CheckCheck,
+  Copy,
+  Lightbulb,
+  List,
+  MessageSquare,
+  Save,
+  SquareArrowOutUpRight,
+  SquareTerminal,
+  Wrench,
+} from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import {
   abrirTerminal,
@@ -18,6 +29,15 @@ import type { Acao } from '@/lib/acoes'
  * o único caminho até ela. Copiar continua existindo, porque quem trabalha com
  * a sessão fora do app precisa dele, mas deixou de ser o caminho principal.
  */
+/** O desenho do rótulo de cada ação. Ver o botão abaixo. */
+const ICONES = {
+  wrench: Wrench,
+  lightbulb: Lightbulb,
+  'check-check': CheckCheck,
+  save: Save,
+  list: List,
+} as const
+
 export function OQueFazer({ acoes }: { acoes: Acao[] }) {
   const t = useT()
   const [escolhida, setEscolhida] = useState<Acao | null>(null)
@@ -61,26 +81,43 @@ export function OQueFazer({ acoes }: { acoes: Acao[] }) {
       <div className="mt-2 flex flex-wrap gap-1.5">
         {acoes.map((a) => {
           const ativa = escolhida?.id === a.id
+          const Icone = a.icone ? ICONES[a.icone] : null
           return (
             <button
               key={a.id}
+              type="button"
               title={t(a.chaveNota)}
+              aria-pressed={ativa}
               onClick={() => {
                 setEscolhida(ativa ? null : a)
                 setCopiado(false)
                 setAviso(null)
               }}
-              className="rounded-full border px-3 py-1.5 text-[12.5px] transition-colors"
-              style={{
-                borderColor: ativa
-                  ? 'var(--color-accent)'
-                  : 'color-mix(in oklab, var(--color-accent) 32%, transparent)',
-                background: ativa
-                  ? 'color-mix(in oklab, var(--color-accent) 12%, transparent)'
-                  : 'transparent',
-                color: 'var(--color-accent)',
+              /*
+               * Rótulo com ícone, sem contorno: quatro pílulas contornadas em
+               * carmim disputavam a atenção com o alerta logo acima, e o que
+               * pede decisão é o alerta, não a lista de saídas.
+               *
+               * A escolhida ganha CAMPO de cor em vez de borda — é ela que
+               * abre o texto abaixo, e o campo liga as duas coisas.
+               */
+              className="no-drag gap-hair text-meta inline-flex cursor-default items-center rounded-full px-2.5 py-1.5 transition-colors"
+              style={
+                ativa
+                  ? {
+                      background: 'color-mix(in oklab, var(--color-accent) 12%, transparent)',
+                      color: 'var(--color-accent)',
+                    }
+                  : { color: 'var(--color-ink-2)' }
+              }
+              onMouseEnter={(e) => {
+                if (!ativa) e.currentTarget.style.background = 'var(--color-paper-3)'
+              }}
+              onMouseLeave={(e) => {
+                if (!ativa) e.currentTarget.style.background = 'transparent'
               }}
             >
+              {Icone && <Icone size={12.5} className="shrink-0" />}
               {t(a.chaveRotulo)}
             </button>
           )

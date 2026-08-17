@@ -35,6 +35,8 @@ export interface Acao {
    * pessoa. Quem renderiza traduz — o texto na tela segue a interface.
    */
   chaveRotulo: string
+  /** Nome do ícone (lucide) que acompanha o rótulo no botão. */
+  icone?: 'wrench' | 'lightbulb' | 'check-check' | 'save' | 'list'
   /** Chave da linha que explica o que vai acontecer se clicar. */
   chaveNota: string
   /** A mensagem que vai para a IA. Já montada, no idioma do conteúdo. */
@@ -133,6 +135,7 @@ export function acoesDoEvento(
     {
       id: 'resolver',
       chaveRotulo: 'acao.resolver',
+      icone: 'wrench',
       chaveNota: 'acao.resolver.nota',
       mensagem:
         `${contexto}\n` +
@@ -147,6 +150,7 @@ export function acoesDoEvento(
     {
       id: 'explicar',
       chaveRotulo: 'acao.explicar',
+      icone: 'lightbulb',
       chaveNota: 'acao.explicar.nota',
       mensagem:
         `${contexto}\n` +
@@ -161,6 +165,7 @@ export function acoesDoEvento(
     {
       id: 'verificar',
       chaveRotulo: 'acao.verificar',
+      icone: 'check-check',
       chaveNota: 'acao.verificar.nota',
       mensagem:
         `${contexto}\n` +
@@ -190,6 +195,7 @@ export function acoesDeNaoSalvo(features: Feature[], config?: ConfigProjeto): Ac
     {
       id: 'salvar',
       chaveRotulo: 'acao.salvar',
+      icone: 'save',
       chaveNota: 'acao.salvar.nota',
       mensagem:
         `Contexto (isto foi levantado pelo WTF, um painel que acompanha o projeto):\n` +
@@ -204,6 +210,7 @@ export function acoesDeNaoSalvo(features: Feature[], config?: ConfigProjeto): Ac
     {
       id: 'resumir-pendente',
       chaveRotulo: 'acao.resumirPendente',
+      icone: 'list',
       chaveNota: 'acao.resumirPendente.nota',
       mensagem:
         `Contexto (isto foi levantado pelo WTF, um painel que acompanha o projeto):\n` +

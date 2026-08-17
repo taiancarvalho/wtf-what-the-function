@@ -133,17 +133,6 @@ contextBridge.exposeInMainWorld('wtf', {
   atualizacao: () => ipcRenderer.invoke('wtf:atualizacao'),
   /** Lê um arquivo do projeto para exibir dentro do app. */
   lerArquivo: (relativo) => ipcRenderer.invoke('wtf:ler-arquivo', relativo),
-  /** Pergunta sobre uma mudança. A resposta chega por `aoReceberResposta`. */
-  perguntar: (pedido) => ipcRenderer.invoke('wtf:perguntar', pedido),
-  /**
-   * Os pedaços da resposta, conforme chegam. `{ id, pedaco }`, e ao final
-   * `{ id, fim: true }` ou `{ id, erro }`. Devolve a função de cancelar.
-   */
-  aoReceberResposta: (cb) => {
-    const ouvinte = (_evento, dados) => cb(dados)
-    ipcRenderer.on('wtf:resposta', ouvinte)
-    return () => ipcRenderer.off('wtf:resposta', ouvinte)
-  },
   /**
    * Avisa quando o projeto mudou (commit novo ou declaração da IA).
    * Devolve a função para cancelar a inscrição.

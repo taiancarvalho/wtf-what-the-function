@@ -2,13 +2,11 @@ import { loadSnapshot } from '@/mock/snapshot'
 import type { RespostaTraducaoSalva } from '@/lib/traducao'
 import type {
   ConfigProjeto,
-  ContextoPergunta,
   EstadoGlobal,
   Historico,
   ListaProjetos,
   ProjetoConhecido,
   PacoteInstalacao,
-  PedacoResposta,
   ProjectSnapshot,
   RespostaTraducao,
   FimTerminal,
@@ -64,8 +62,6 @@ interface PonteWtf {
   resolver?: (eventId: string) => Promise<unknown>
   validar?: (featureId: string) => Promise<unknown>
   aoMudarProjeto?: (cb: (motivo: string) => void) => () => void
-  perguntar?: (pedido: unknown) => Promise<unknown>
-  aoReceberResposta?: (cb: (dados: PedacoResposta) => void) => () => void
   lerUso?: () => Promise<unknown>
   traducaoPendentes?: () => Promise<unknown>
   responderTraducao?: (resposta: RespostaTraducao) => Promise<unknown>
@@ -459,28 +455,6 @@ export function aoIrPara(cb: (aba: string) => void): () => void {
 }
 
 // ------------------------------------------------------ perguntar sobre algo
-
-export const podePerguntar = () => typeof ponte()?.perguntar === 'function'
-/**
- * Faz a pergunta. Só devolve `{ ok }` ou `{ erro }` — o TEXTO da resposta chega
- * em pedaços por `aoReceberResposta`.
- */
-export async function perguntar(pedido: {
-  eventoId: string
-  pergunta: string
-  contexto: ContextoPergunta
-}): Promise<{ ok?: boolean; erro?: string; cancelado?: boolean }> {
-  const p = ponte()
-  if (!p?.perguntar) return { erro: 'Só funciona no aplicativo, não no navegador.' }
-  return (await p.perguntar(pedido)) as { ok?: boolean; erro?: string; cancelado?: boolean }
-}
-
-/** Inscreve nos pedaços da resposta. Devolve a função de cancelar. */
-export function aoReceberResposta(cb: (dados: PedacoResposta) => void): () => void {
-  const p = ponte()
-  if (!p?.aoReceberResposta) return () => {}
-  return p.aoReceberResposta(cb)
-}
 
 export const podeResolver = () => typeof ponte()?.resolver === 'function'
 

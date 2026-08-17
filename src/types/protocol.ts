@@ -361,18 +361,6 @@ export interface UsoProjeto {
 // ------------------------------------------------------- perguntar sobre algo
 
 
-/** O que o painel sabe da mudança e manda junto com a pergunta. */
-export interface ContextoPergunta {
-  headline?: string
-  what?: string
-  why?: string
-  impact?: string
-  attentionReason?: string
-  claim?: string
-  feature?: string
-  files?: string[]
-  patch?: string
-}
 
 /** Um pedaço da resposta chegando (ou o fim, ou o erro). */
 /**
@@ -401,13 +389,6 @@ export interface FimTerminal {
   codigo: number
 }
 
-export interface PedacoResposta {
-  id: string
-  pedaco?: string
-  fim?: boolean
-  incompleta?: boolean
-  erro?: string
-}
 
 /**
  * Uma linha da árvore do `MAPA.md`, já separada em partes para a interface
