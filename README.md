@@ -71,8 +71,9 @@ A distância entre **Pronto** e **Você aprovou** é o produto.
 - **Segurança** — o que ficou exposto e as regras do que não se faz neste
   projeto. A varredura aparece mesmo quando não acha nada, porque "não apareceu
   aviso" e "ninguém procurou" não podem ser a mesma tela.
-- **Configurações** — idioma, chaves, avisos do sistema e o que a instalação
-  escreveu no projeto.
+- **Configurações** — idioma, avisos do sistema, versão instalada e o que a
+  instalação escreveu no projeto — com um botão para recusar cada habilidade
+  opcional, na mesma linha em que você abre e lê o que ela manda a IA fazer.
 
 ### A escala visual
 
@@ -86,11 +87,26 @@ decide se cabem duas colunas é a largura que sobra ali.
 
 ### Perguntar sobre uma mudança
 
-Cada mudança tem um código curto (`W34K`) e um botão de lâmpada: você pergunta
-em linguagem natural e a resposta chega numa barra lateral, sem sair do painel.
-A chave de acesso fica cifrada no cofre do sistema operacional, **nunca** dentro
-da pasta do projeto — `.wtf/` vai para backup e aparece em compartilhamento de
-tela. Sem cofre disponível, o app se recusa a gravar e mantém só em memória.
+Cada mudança tem um código curto (`W34K`) e três saídas no próprio cartão:
+pedir para resolver, pedir para explicar, pedir para conferir se funciona. Você
+lê o texto que vai ser enviado antes de enviar, e ele vai para a IA aberta no
+terminal do app.
+
+**Não há chave de API para cadastrar.** Quem responde é a IA que você já tem
+instalada. Isso é o produto inteiro sendo coerente: um painel que existe para
+você não gastar às cegas não devia começar pedindo uma conta nova.
+
+### A IA dentro do painel
+
+O terminal fica no rodapé do app, com a IA rodando na pasta do projeto: você vê
+o que ela está fazendo de um lado e o painel traduzindo do outro, sem trocar de
+janela. Quem prefere a janela nativa do sistema tem o botão para isso.
+
+Quando você manda um pedido, o WTF decide entre **colar** o texto na sessão
+(quando foi ele quem pôs a IA ali e ela ainda está escutando) e **executar** a
+IA com o pedido como argumento. Errar essa escolha teria consequência real: um
+pedido colado num shell vazio vira comando executado no seu computador. Na
+dúvida, ele executa — que é o lado seguro.
 
 ### Idiomas
 
@@ -121,11 +137,37 @@ O WTF só **lê** o repositório observado. A única escrita é a instalação, 
 por clique explícito, com backup de tudo que já existia e desinstalação que
 devolve o projeto ao estado anterior.
 
+### Com quais IAs funciona
+
+Quatro, e o WTF usa a primeira que encontrar instalada:
+
+| | Claude Code | Codex | Gemini | opencode |
+|---|---|---|---|---|
+| Ler o projeto (estados, mapa, avisos, histórico) | ✅ | ✅ | ✅ | ✅ |
+| Reconhecer quem escreveu cada mudança | ✅ | ✅ | ✅ | ✅ |
+| Abrir a IA pelo painel | ✅ | ✅ | ✅ | ✅ |
+| Escrever as explicações em português | ✅ | ✅ | ✅ | ✅ |
+| Declarar o trabalho antes de fazer | ✅ | ✅ | ✅ | ✅ |
+| Registro automático do que foi tocado | ✅ | — | — | — |
+
+**A base não depende de IA nenhuma.** O WTF lê `git log`, `git ls-files` e
+`git status`: estado das partes, o que mudou, o que não foi salvo, varredura de
+segredos, mapa, pastas e documentos vêm do repositório. Um projeto tocado por
+qualquer ferramenta aparece no painel.
+
+O **registro automático** é o hook, e ele só existe no Claude Code por enquanto
+— é o que anota os arquivos tocados mesmo quando a IA esquece de declarar. Com
+as outras, o painel sabe o que foi declarado e o que virou commit.
+
 ### Tradução
 
-Sem chave de API. O WTF usa o agente que você já tem instalado, em modo
-headless, e guarda tudo em cache — nada é traduzido duas vezes. Isso mantém o
-app local, gratuito e sem servidor.
+Sem chave de API: o WTF chama em modo headless a IA que você já tem
+(`claude -p`, `codex exec`, `gemini -p`, `opencode run`) e guarda tudo em cache
+— nada é traduzido duas vezes. Isso mantém o app local, gratuito e sem servidor.
+
+Traduzir consome a assinatura de quem tem plano limitado, então o padrão é
+**perguntar antes**, com teto de 8 por rodada. Respondida, a pergunta não se
+repete: quem disse "sempre" passa a ver só quantas faltam na fila.
 
 ### O que a instalação coloca no seu projeto
 
@@ -138,7 +180,23 @@ app local, gratuito e sem servidor.
 .claude/skills/btw/SKILL.md             você pergunta sem parar o trabalho em curso
 .claude/hooks/wtf-observer.cjs          registro determinístico do que foi tocado
 .wtf/bin/wtf-claim.cjs                  CLI que o agente chama para declarar
+
+AGENTS.md   ·   GEMINI.md               a mesma regra, para quem não lê .claude/
 ```
+
+`AGENTS.md` (Codex e opencode) e `GEMINI.md` recebem apenas um trecho entre
+marcadores — o arquivo pode ser seu, cheio de instruções da casa, e o que já
+estiver escrito nele fica intacto. Desinstalar leva embora exatamente esse
+trecho, e o arquivo só é apagado se não sobrar mais nada dentro.
+
+O trecho é curto de propósito: esses arquivos são lidos em **toda** sessão, e
+copiar as 691 linhas das habilidades para dentro deles seria cobrar isso de
+cada pergunta feita à IA. Vai a regra de declarar, mais um índice apontando
+para as habilidades no disco, que a IA lê quando precisar.
+
+**Cinco das seis habilidades são opcionais** e podem ser recusadas na tela de
+Configurações — cada uma é contexto que a IA carrega. Fora da escolha fica o
+essencial: declarar, o CLI que recebe a declaração, o hook e o formato do mapa.
 
 A instalação tem dois níveis: as instruções podem ficar em `~/.claude` e valer
 para todos os projetos, enquanto a pasta `.wtf/` é o que autoriza o WTF a
@@ -147,29 +205,79 @@ registrar algo **naquele** projeto. Sem ela, o hook global fica inerte.
 A skill depende do agente cooperar. O hook não — ele registra os arquivos
 tocados mesmo quando o agente esquece de declarar.
 
-## Instalar e abrir
+## Instalar
+
+Precisa de **Node 20.19+** (ou 22.12+) e **Git**. Roda em macOS, Windows e Linux.
+
+```bash
+node --version   # confira antes: o build não roda em Node mais antigo
+```
 
 ```bash
 git clone https://github.com/taiancarvalho/wtf-what-the-function.git
 cd wtf-what-the-function
 npm install
-npm link          # opcional: cria o comando `wtf` no sistema
+npm link
 ```
 
-Depois, de dentro de qualquer projeto:
+O `npm link` é o que cria o comando `wtf` no seu sistema. Sem ele, tudo
+funciona igual chamando `node bin/wtf.mjs` de dentro da pasta do WTF.
+
+A primeira abertura compila a interface e leva alguns segundos. As seguintes
+são imediatas.
+
+## Usar
+
+De dentro de qualquer projeto que use Git:
 
 ```bash
 cd ~/Projetos/minha-loja
-wtf               # abre o painel nesta pasta e devolve o terminal
+wtf
 ```
 
-Sem `npm link`, use `npm start` dentro da pasta do WTF, ou `wtf ~/caminho/do/projeto`.
+O painel abre e o terminal continua seu — dá para trabalhar com os dois lado a
+lado, que é o uso para o qual ele foi feito.
 
-Não há ícone no Dock nem instalador: o app roda pelo Node que você já tem, e o
+| Comando | O que faz |
+|---|---|
+| `wtf` | abre o painel na pasta atual |
+| `wtf ~/caminho/do/projeto` | abre na pasta indicada |
+| `wtf minha-loja` | abre um projeto já conhecido, de qualquer lugar |
+| `wtf --lista` | os projetos que o WTF conhece |
+| `wtf --versao` | versão, commit e data do que está instalado |
+| `wtf --atualizar` | traz a versão nova, instala e **recompila** |
+| `wtf --help` | a ajuda |
+
+### Manter atualizado
+
+```bash
+wtf --atualizar
+```
+
+Ele faz `git pull --ff-only`, `npm install` e `npm run build` — este último é o
+que costuma ser esquecido quando se atualiza na mão, e sem ele o código novo
+fica no disco enquanto a tela continua a antiga.
+
+Com trabalho não salvo na pasta do WTF, o comando **para e avisa**, em vez de
+atualizar por cima. Se a história divergiu, ele também para: isso é caso para
+uma pessoa olhar, não para um comando resolver sozinho.
+
+O painel avisa sozinho, em Configurações, quando há versão nova — quem não abre
+terminal também precisa saber.
+
+### Sobre o ícone
+
+Não há instalador nem ícone próprio: o app roda pelo Node que você já tem, e o
 ícone é o genérico do Electron. Isso só muda com um instalador assinado, que
 custa uma conta paga de desenvolvedor — e a decisão foi não fazer por ora.
 
-Para mexer no código do próprio WTF: `npm run dev` (recarrega ao salvar).
+### Mexer no código do próprio WTF
+
+```bash
+npm run dev
+```
+
+Recarrega ao salvar. `npm test` roda as conferências.
 
 ## O que este produto NÃO promete
 
@@ -184,20 +292,26 @@ e não promete nenhum outro.
 
 ## Estado atual
 
-Funciona de ponta a ponta contra repositórios reais, com **417 testes
-automatizados** em 24 arquivos cobrindo os bastidores — a leitura do histórico,
-a varredura de segredos, o instalador, o cofre de chaves, as notificações e a
+Funciona de ponta a ponta contra repositórios reais, com **456 testes
+automatizados** em 26 arquivos cobrindo os bastidores — a leitura do histórico,
+a varredura de segredos, o instalador, o terminal embutido, as notificações e a
 troca de projetos. Um app que cobra prova precisava ter prova de si mesmo.
+
+As conferências rodam sozinhas no **Windows, no Linux e no macOS** a cada envio,
+e o app é **aberto de verdade** nos três: se a janela não vier, se a tela não
+carregar ou se ela chegar pequena demais para ser vista, o envio é reprovado.
 
 Ainda não existe:
 
-- **Anthropic e OpenAI** — estruturados no código, só OpenRouter ligado; os
-  outros dois respondem com um erro honesto em vez de fingir
+- **Registro automático fora do Claude Code** — o hook é a peça que anota o que
+  a IA tocou sem depender de ela declarar, e por enquanto só existe ali. Codex,
+  Gemini e opencode têm mecanismo equivalente; ainda não foi feito
 - **Vários projetos ao mesmo tempo** — dá para trocar de projeto e o app lembra
   os que você já abriu, mas o acompanhado é um por vez
 - **Instalador** — roda pelo comando `wtf`; não há `.dmg` assinado ainda
-- **Testes da interface** — os 417 cobrem os bastidores; as telas ainda são
-  verificadas a olho
+- **Testes da interface** — os 456 cobrem os bastidores. O CI prova que a janela
+  abre nos três sistemas, não que ela está bonita: layout ainda é verificado a
+  olho
 
 ## Stack
 
