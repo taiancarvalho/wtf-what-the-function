@@ -40,7 +40,7 @@ que é exatamente aquilo de que o dono do projeto precisa ser protegido.
 | ○ | Planejado | está no plano, ninguém começou |
 | ◐ | Construindo | a IA declarou que começou |
 | ● | Pronto | o código existe. **Não quer dizer que funciona** |
-| ✓ | Testado | alguma verificação automática passou |
+| ✓ | Tem teste escrito | existe um teste para esta parte. **O WTF não o executou** |
 | ✓✓ | Você aprovou | você abriu, olhou e disse que era isso |
 
 A distância entre **Pronto** e **Você aprovou** é o produto.

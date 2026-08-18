@@ -31,7 +31,7 @@ export type FeatureState =
   | 'planned' //      ○   está no plano, ninguém tocou
   | 'building' //     ◐   agente declarou que começou
   | 'implemented' //  ●   agente terminou e há evidência no código
-  | 'tested' //       ✓   algo verificou (teste, build, browser)
+  | 'tested' //       ✓   existe teste ESCRITO para isto. Ninguém o executou
   | 'validated' //   ✓✓   você olhou e disse "é isso"
 
 /** De onde veio a feature: do plano, ou o WTF a descobriu no código. */

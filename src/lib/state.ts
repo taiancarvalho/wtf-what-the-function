@@ -88,16 +88,16 @@ export const STATE: Record<FeatureState, StateMeta> = {
     color: 'var(--color-implemented)',
   },
   tested: {
-    // Disco + órbita: a máquina em volta do código atestando que ele funciona.
-    // O maior salto de tinta da escala, de propósito — é o degrau entre
-    // "existe" e "foi verificado".
+    // Disco + órbita: algo em volta do código além dele mesmo. O maior salto
+    // de tinta da escala — mas a órbita diz que existe teste ESCRITO, não que
+    // ele passou: o WTF ainda não executa teste nenhum.
     shape: [
       { kind: 'ring', r: R_ORBITA, w: 1.8 },
       { kind: 'disc', r: R_CORPO },
     ],
     mark: '✓',
-    label: 'Testado',
-    meaning: 'Alguma verificação automática passou. Ainda falta você conferir.',
+    label: 'Tem teste escrito',
+    meaning: 'Existe um teste escrito para esta parte. O WTF não executou esse teste — ele só viu que ele existe.',
     color: 'var(--color-tested)',
   },
   validated: {
