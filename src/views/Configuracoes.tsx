@@ -12,6 +12,7 @@ import {
 import {
   USO_VAZIO,
   aoPedirTraducao,
+  alternarInstalacao,
   lerAtualizacao,
   lerPacoteInstalacao,
   lerUso,
@@ -23,6 +24,7 @@ import {
   type Atualizacao,
   type Carga,
 } from '@/lib/source'
+import { arquivosDesatualizados, resumoDesatualizados } from '@/lib/instalacao'
 import { EscolherIdioma } from '@/components/EscolherIdioma'
 import { InstalarSkill } from '@/components/InstalarSkill'
 import { useT } from '@/lib/i18n'
@@ -554,12 +556,33 @@ function Transparencia({
   const [pacote, setPacote] = useState<PacoteInstalacao | null>(null)
   const [carregando, setCarregando] = useState(true)
   const recusadas = new Set(snapshot.config?.skillsDesligadas ?? [])
+  const [atualizando, setAtualizando] = useState(false)
 
   /*
    * O botão de recusar mora na LINHA da habilidade, e não numa lista à parte:
    * é aqui que a pessoa abre e lê o que aquele arquivo manda a IA fazer, e
    * decidir sem poder ler seria escolher no escuro.
    */
+  const desatualizados = arquivosDesatualizados(pacote)
+
+  /*
+   * Reinstalar por cima é a atualização: `instalar()` é idempotente e faz
+   * backup do que já estava lá. Sem este botão a tela ficava dizendo
+   * "desatualizado" em cada linha e não oferecia saída nenhuma — o arquivo
+   * velho continuava sendo o que a IA lê.
+   */
+  const atualizar = async () => {
+    setAtualizando(true)
+    try {
+      const c = await alternarInstalacao('instalar')
+      if (c) onMudou(c)
+      const p = await lerPacoteInstalacao().catch(() => null)
+      if (p) setPacote(p)
+    } finally {
+      setAtualizando(false)
+    }
+  }
+
   const alternar = async (chave: string) => {
     const novas = new Set(recusadas)
     if (novas.has(chave)) novas.delete(chave)
@@ -597,6 +620,29 @@ function Transparencia({
         <p className="mt-3 text-[12.5px] leading-relaxed text-[var(--color-ink-3)]">
           {t('config.semPacote')}
         </p>
+      )}
+
+      {pacote && desatualizados.length > 0 && (
+        <div
+          className="animate-in-up mt-3 rounded-lg border p-3"
+          style={{
+            borderColor: 'color-mix(in oklab, var(--color-accent) 40%, transparent)',
+            background: 'color-mix(in oklab, var(--color-accent) 7%, transparent)',
+          }}
+        >
+          <p className="text-[12.5px] leading-relaxed text-[var(--color-ink)]">
+            {t('config.desatualizados', { n: resumoDesatualizados(desatualizados) ?? '' })}
+          </p>
+          <button
+            type="button"
+            disabled={atualizando}
+            onClick={() => void atualizar()}
+            className="no-drag mt-2 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-opacity disabled:opacity-50"
+            style={{ background: 'var(--color-accent)', color: 'var(--color-paper)' }}
+          >
+            {atualizando ? t('config.atualizando') : t('config.atualizarArquivos')}
+          </button>
+        </div>
       )}
 
       {pacote && (
