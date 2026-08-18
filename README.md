@@ -246,6 +246,7 @@ lado, que é o uso para o qual ele foi feito.
 | `wtf --lista` | os projetos que o WTF conhece |
 | `wtf --versao` | versão, commit e data do que está instalado |
 | `wtf --atualizar` | traz a versão nova, instala e **recompila** |
+| `wtf --del` | tira o WTF de todos os projetos onde ele está |
 | `wtf --help` | a ajuda |
 
 ### Manter atualizado
@@ -264,6 +265,21 @@ uma pessoa olhar, não para um comando resolver sozinho.
 
 O painel avisa sozinho, em Configurações, quando há versão nova — quem não abre
 terminal também precisa saber.
+
+### Sair de tudo
+
+```bash
+wtf --del
+```
+
+Quem instalou em oito projetos ao longo de meses não lembra quais são os oito.
+O comando lista cada projeto e cada arquivo que vai remover, e só age depois de
+você digitar `sim` — Enter não serve, porque Enter é o que se aperta sem ler.
+
+O que ele **não** leva: o histórico de cada projeto (o que a IA declarou, as
+traduções já pagas, o que você aprovou continuam em `.wtf/`), o que estiver
+escrito no seu `AGENTS.md` fora dos marcadores do WTF, e a pasta do próprio
+aplicativo — essa é você quem apaga.
 
 ### Sobre o ícone
 

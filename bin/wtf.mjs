@@ -16,6 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { verificarAtualizacao, versaoAtual } from '../electron/atualizacao.js'
+import { levantar, remover } from '../electron/desinstalacao.js'
 import { lerProjetos } from '../electron/projects.js'
 
 const raizApp = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -33,6 +34,7 @@ if (args[0] === '--help' || args[0] === '-h') {
     wtf --lista         mostra os projetos que o WTF conhece
     wtf --versao        diz qual versão do WTF está instalada
     wtf --atualizar     traz a versão nova do WTF e recompila
+    wtf --del           tira o WTF de todos os projetos onde ele está
     wtf --help          mostra esta ajuda
 
   a pasta precisa ser um repositório Git.
@@ -143,6 +145,72 @@ if (args[0] === '--atualizar' || args[0] === '--update') {
   const depois = await versaoAtual()
   console.log(`\n  Pronto. WTF ${depois.versao ?? ''} · ${depois.commit}. Abra com: wtf\n`)
   process.exit(0)
+}
+
+
+/**
+ * `wtf --del` — tirar o WTF de tudo.
+ *
+ * Um comando que apaga arquivo em pasta que não é a dele precisa mostrar a
+ * lista ANTES e esperar a pessoa digitar. Enter não serve: Enter é o que se
+ * aperta sem ler.
+ */
+if (args[0] === '--del' || args[0] === '--desinstalar') {
+  const plano = await levantar()
+
+  if (plano.nada && !plano.registro) {
+    console.log('\n  O WTF não está instalado em lugar nenhum. Nada a fazer.\n')
+    process.exit(0)
+  }
+
+  console.log('\n  O WTF vai ser removido de:\n')
+
+  for (const p of plano.projetos) {
+    console.log(`  ${p.nome}`)
+    console.log(`      ${p.caminho}`)
+    for (const item of p.itens) console.log(`      − ${item}`)
+    if (p.historico.length) {
+      console.log(`      • .wtf/ FICA, com ${p.historico.join(', ')}`)
+    }
+    console.log('')
+  }
+
+  if (plano.global) {
+    console.log('  Instalação para todos os projetos')
+    console.log(`      ${plano.global.caminho}`)
+    console.log('      − as habilidades e o hook do WTF\n')
+  }
+
+  if (plano.registro) {
+    console.log('  Lista de projetos conhecidos')
+    console.log(`      ${plano.registro}\n`)
+  }
+
+  console.log('  O histórico de cada projeto NÃO é apagado: o que a IA declarou,')
+  console.log('  as traduções já pagas e o que você aprovou continuam em `.wtf/`.')
+  console.log('  A pasta do próprio WTF também fica — quem apaga ela é você.\n')
+
+  if (!args.includes('--sim')) {
+    const { createInterface } = await import('node:readline/promises')
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    const resposta = (await rl.question('  Digite "sim" para remover: ')).trim().toLowerCase()
+    rl.close()
+    if (resposta !== 'sim') {
+      console.log('\n  Nada foi removido.\n')
+      process.exit(0)
+    }
+  }
+
+  const r = await remover(plano)
+  console.log('')
+  for (const f of r.feitos) console.log(`  removido de ${f.nome}`)
+  for (const f of r.falhas) console.error(`  NÃO deu para remover de ${f.caminho}: ${f.erro}`)
+  console.log(
+    r.falhas.length
+      ? `\n  ${r.feitos.length} concluídos, ${r.falhas.length} com erro.\n`
+      : '\n  Pronto. O WTF saiu de tudo.\n',
+  )
+  process.exit(r.falhas.length ? 1 : 0)
 }
 
 const conhecidos = await lerProjetos().catch(() => [])
