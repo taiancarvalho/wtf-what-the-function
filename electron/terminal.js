@@ -1,14 +1,16 @@
 /**
  * Abrir a IA no projeto observado.
  *
- * Decisão: NÃO embutimos um terminal no app.
- *   - `node-pty` é módulo nativo e quebra a cada atualização do Electron;
- *   - e, principalmente, uma tela preta com cursor piscando é exatamente o que
- *     assusta a pessoa para quem este produto existe.
+ * Este módulo abre o terminal DO SISTEMA já dentro da pasta, com o agente
+ * rodando. A pessoa fica com duas janelas lado a lado: a IA trabalhando de um
+ * lado, o painel traduzindo do outro. O terminal que mora no rodapé do app é
+ * outro módulo (`terminal-embutido.js`); quem escolhe entre os dois é a pessoa.
  *
- * Em vez disso, abrimos o terminal do próprio sistema já dentro da pasta, com o
- * agente rodando. A pessoa fica com duas janelas lado a lado: a IA trabalhando
- * de um lado, o painel traduzindo do outro.
+ * PERIGO CENTRAL DESTE ARQUIVO: aqui se monta uma string que um shell vai
+ * interpretar, com texto que veio do repositório observado — nome de parte do
+ * `.wtf/map.json`, nome de arquivo do Git, motivo escrito pelo modelo. Nada
+ * disso é nosso. Todo valor que entra numa string de comando passa por
+ * `limparControle` e `aspasPosix`, sem exceção. Ver `tests/terminal-injecao`.
  */
 
 import { execFile } from 'node:child_process'
@@ -181,6 +183,51 @@ export function citarWindows(a) {
 const aspas = (s) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
 /**
+ * Tira do texto tudo que um terminal leria como ordem, e não como letra.
+ *
+ * Quebra de linha dentro de um comando de shell É Enter: vira comando novo.
+ * ESC abre sequência de controle e foi assim que a colagem do terminal
+ * embutido já virou digitação. NUL corta a string no meio para quem lê em C.
+ *
+ * Os que separam palavra viram UM espaço, porque o texto ainda vai ser lido
+ * por uma pessoa depois. Os demais somem.
+ */
+export function limparControle(texto) {
+  return String(texto ?? '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/[\t\n\r]+/g, ' ')
+    .trim()
+}
+
+/**
+ * Cita um valor para dentro de uma linha de comando POSIX.
+ *
+ * `JSON.stringify` NÃO serve para isto, e é o bug que este arquivo já teve:
+ * ele neutraliza aspa e barra, e deixa passar `$`, crase e `$(...)`, que aspas
+ * DUPLAS mandam o shell executar. Dentro de aspas SIMPLES o shell não
+ * interpreta nada — a única saída é a própria aspa simples, e é por isso que
+ * ela vira `'\''`: fecha, escapa uma, reabre.
+ */
+export function aspasPosix(valor) {
+  return `'${String(valor ?? '').replace(/'/g, `'\\''`)}'`
+}
+
+/**
+ * Monta a linha que abre a pasta e inicia o agente.
+ *
+ * Existe separada de `abrirTerminal` para poder ser testada sem abrir janela
+ * nenhuma: o teste roda a string num `sh` de verdade e confere no disco que
+ * nada foi executado.
+ */
+export function montarComandoShell(dir, caminhoAgente, promptInicial) {
+  const pasta = `cd ${aspasPosix(limparControle(dir))} && clear`
+  if (!caminhoAgente) return pasta
+
+  const pedido = promptInicial ? ` ${aspasPosix(limparControle(promptInicial))}` : ''
+  return `${pasta} && ${aspasPosix(caminhoAgente)}${pedido}`
+}
+
+/**
  * Abre o terminal do sistema na pasta do projeto, iniciando o agente quando
  * houver um. Sem agente instalado, abre só o shell na pasta certa.
  */
@@ -188,14 +235,7 @@ export async function abrirTerminal(dir, promptInicial) {
   if (!dir) return { erro: 'Nenhum projeto aberto.' }
 
   const agente = await detectarAgente()
-  const invocacao = agente
-    ? promptInicial
-      ? `${JSON.stringify(agente.caminho)} ${JSON.stringify(promptInicial)}`
-      : JSON.stringify(agente.caminho)
-    : null
-  const comando = invocacao
-    ? `cd ${JSON.stringify(dir)} && clear && ${invocacao}`
-    : `cd ${JSON.stringify(dir)} && clear`
+  const comando = montarComandoShell(dir, agente?.caminho ?? null, promptInicial)
 
   if (process.platform === 'darwin') {
     // iTerm quando existir; Terminal.app como padrão universal do macOS.
@@ -219,9 +259,19 @@ export async function abrirTerminal(dir, promptInicial) {
   }
 
   if (process.platform === 'win32') {
+    /*
+     * O Windows abre só o `cmd` na pasta: aqui o agente NÃO é iniciado.
+     *
+     * Por isso o retorno diz `agente: null` mesmo quando existe um instalado.
+     * Antes ele devolvia o rótulo do agente, e a tela dizia "abri o Claude
+     * Code com a sua mensagem" enquanto abria um prompt vazio. Num app cuja
+     * tese é não afirmar o que não é verdade, essa era a pior espécie de bug.
+     *
+     * O caminho da pasta vai como argumento citado, nunca concatenado.
+     */
     try {
-      await exec('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', `cd /d "${dir}"`])
-      return { ok: true, agente: agente?.rotulo ?? null }
+      await exec('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', `cd /d ${citarWindows(limparControle(dir))}`])
+      return { ok: true, agente: null, semAgente: Boolean(agente) }
     } catch (erro) {
       return { erro: String(erro?.message ?? erro) }
     }
