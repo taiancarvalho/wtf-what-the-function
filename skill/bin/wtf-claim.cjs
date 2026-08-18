@@ -188,6 +188,44 @@ if (typeof args.files === 'string') {
   if (files.length) evento.files = files;
 }
 
+/**
+ * No `done`, os arquivos são resolvidos aqui — e não deduzidos depois.
+ *
+ * A ligação entre "a IA declarou" e "estes arquivos mudaram" dependia de casar
+ * a sessão do claim com a do hook. Só que a sessão do claim é sempre `'cli'`:
+ * `CLAUDE_SESSION_ID` não é exportada para o Bash do agente. A dedução nunca
+ * casava, e o painel mostrava trinta declarações de "terminei" sem um arquivo
+ * sequer.
+ *
+ * `git status --porcelain` responde a mesma pergunta sem depender de variável
+ * de ambiente nenhuma — e funciona igual no Codex, no Gemini e no opencode,
+ * que não têm hook. É o que está mudado no disco AGORA, que é exatamente o que
+ * a IA acabou de mexer.
+ *
+ * Nunca falha o registro: sem git, ou com git de mau humor, a declaração é
+ * gravada do mesmo jeito. Perder o claim seria pior que perder a lista.
+ */
+if (acao === 'done' && !evento.files) {
+  try {
+    const saida = require('node:child_process').execFileSync(
+      'git',
+      ['status', '--porcelain', '--untracked-files=all'],
+      { cwd: projectDir, encoding: 'utf8', timeout: 5000, windowsHide: true }
+    );
+    const arquivos = saida
+      .split('\n')
+      .map((linha) => linha.slice(3).trim())
+      // Renomeado vem como "antigo -> novo": o que interessa é onde o arquivo está.
+      .map((caminho) => (caminho.includes(' -> ') ? caminho.split(' -> ').pop() : caminho))
+      .map((caminho) => caminho.replace(/^"|"$/g, ''))
+      .filter(Boolean)
+      .filter((caminho) => !caminho.startsWith('.wtf/'));
+    if (arquivos.length) evento.files = [...new Set(arquivos)].slice(0, 200);
+  } catch {
+    /* sem git aqui: o claim vale mesmo sem a lista */
+  }
+}
+
 try {
   const dir = path.join(projectDir, '.wtf');
   fs.mkdirSync(dir, { recursive: true });

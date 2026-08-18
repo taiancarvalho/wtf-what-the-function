@@ -204,9 +204,22 @@ export function mesclarClaims(snapshot, agentEvents) {
     let temCompleted = false
 
     for (const c of lista) {
+      /*
+       * A lista que o próprio claim traz vence a dedução por tempo.
+       *
+       * Desde que `wtf-claim.cjs` resolve os arquivos por `git status` no
+       * momento do `done`, ela é resposta direta — e existe mesmo onde não há
+       * hook, que é o caso do Codex, do Gemini e do opencode. A correlação por
+       * toque continua como reserva, para os claims antigos e para quem passar
+       * `--files` à mão.
+       */
       const arquivosDoTrecho =
-        c.kind === 'claim.completed' && abertoEm
-          ? arquivosEntre(toques, c.sessionId, abertoEm.at, c.at)
+        c.kind === 'claim.completed'
+          ? (c.files ?? []).length
+            ? [...new Set(c.files)]
+            : abertoEm
+              ? arquivosEntre(toques, c.sessionId, abertoEm.at, c.at)
+              : []
           : []
 
       feed.push(montarEvento(c, feat, arquivosDoTrecho))
@@ -288,13 +301,29 @@ export function mesclarClaims(snapshot, agentEvents) {
   }
 }
 
+/**
+ * `'cli'` não é uma sessão: é a AUSÊNCIA de uma.
+ *
+ * `wtf-claim.cjs` grava `CLAUDE_SESSION_ID || 'cli'`, e essa variável não é
+ * exportada para o Bash do agente — na prática, todo claim chega com `'cli'`,
+ * enquanto os toques do hook trazem UUID de verdade. Comparar os dois nunca
+ * casa, e o efeito não aparece como erro: aparece como declaração sem arquivo
+ * nenhum, para sempre.
+ *
+ * Quando não se sabe a sessão, o que resta é o TEMPO — que é o sinal que o
+ * `start`/`done` existe para dar.
+ */
+const SEM_SESSAO = new Set(['cli', '', 'desconhecido'])
+const sessaoConhecida = (id) => Boolean(id) && !SEM_SESSAO.has(id)
+
 /** Arquivos distintos tocados na mesma sessão, entre o início e o fim do trabalho. */
 function arquivosEntre(toques, sessionId, de, ate) {
   const ini = new Date(de).getTime()
   const fim = new Date(ate).getTime()
   const set = new Set()
+  const filtrarPorSessao = sessaoConhecida(sessionId)
   for (const t of toques) {
-    if (sessionId && t.sessionId !== sessionId) continue
+    if (filtrarPorSessao && t.sessionId !== sessionId) continue
     const q = new Date(t.at).getTime()
     if (q < ini || q > fim) continue
     for (const p of t.files ?? []) set.add(p)
@@ -343,7 +372,11 @@ function rajadasOrfas(toques, claims) {
   const dentroDeClaim = (t) => {
     const q = new Date(t.at).getTime()
     return intervalos.some(
-      (i) => (!i.sessionId || i.sessionId === t.sessionId) && q >= i.de && q <= i.ate,
+      (i) =>
+        // Mesma regra de `arquivosEntre`: sem sessão conhecida, quem manda é o
+        // tempo. Sem isto, o toque que aconteceu DENTRO do par start/done
+        // virava cartão de "a IA mexeu sem declarar" — justo quando declarou.
+        (!sessaoConhecida(i.sessionId) || i.sessionId === t.sessionId) && q >= i.de && q <= i.ate,
     )
   }
 
